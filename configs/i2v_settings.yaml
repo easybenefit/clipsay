@@ -1,0 +1,53 @@
+chat_model: agnes-2.0-flash
+image_model: agnes-image-2.0-flash
+video_model: agnes-video-v2.0
+chat_models:
+- model: agnes-2.0-flash
+  model_provider: agnes
+  api_key: sk-xx
+  base_url: https://apihub.agnes-ai.com/v1
+  max_requests_per_minute: 5
+  max_requests_per_day: 200
+- model: agnes-1.5-flash
+  model_provider: agnes
+  api_key: sk-xx
+  base_url: https://apihub.agnes-ai.com/v1
+  max_requests_per_minute: 500
+  max_requests_per_day: 2000
+- model: MiniMax-M3
+  model_provider: minimax
+  api_key: <MINIMAX_API_KEY>
+  base_url: https://api.minimax.io/v1
+  max_requests_per_minute: 500
+  max_requests_per_day: 2000
+- model: MiniMax-M2.7
+  model_provider: minimax
+  api_key: <MINIMAX_API_KEY>
+  base_url: https://api.minimax.io/v1
+  max_requests_per_minute: 500
+  max_requests_per_day: 2000
+- model: gpt-4o-mini
+  model_provider: openai
+  api_key: <OPENAI_API_KEY>
+  max_requests_per_minute: 500
+  max_requests_per_day: 2000
+image_models:
+- model: agnes-image-2.1-flash
+  model_provider: agnes
+  api_key: sk-xx
+  base_url: https://apihub.agnes-ai.com/v1
+  max_requests_per_minute: 10
+  max_requests_per_day: 500
+- model: agnes-image-2.0-flash
+  model_provider: agnes
+  api_key: sk-xx
+  base_url: https://apihub.agnes-ai.com/v1
+  max_requests_per_minute: 1
+  max_requests_per_day: 500
+video_models:
+- model: agnes-video-v2.0
+  model_provider: agnes
+  api_key: sk-xx
+  base_url: https://apihub.agnes-ai.com/v1
+  max_requests_per_minute: 50
+  max_requests_per_day: 100

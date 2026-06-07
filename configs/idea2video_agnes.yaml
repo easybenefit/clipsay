@@ -1,0 +1,52 @@
+# Example configuration using Agnes AI as the chat model provider.
+# Agnes-2.0-Flash is used via its OpenAI-compatible API.
+# Reference: https://agnes-ai.com/doc
+#
+# Set your API key below or export AGNES_API_KEY in the environment.
+# Available chat models:
+#   - agnes-2.0-flash    (recommended; supports vision input)
+#   - agnes-1.5-flash    (previous generation; vision support unclear)
+# Available image models:
+#   - agnes-image-2.1-flash  (recommended; newer)
+#   - agnes-image-2.0-flash  (previous generation)
+#
+# Notes:
+# - Agnes Vision: confirmed via probe — agnes-2.0-flash accepts image_url
+#   content blocks and answers visual questions correctly. It is therefore
+#   safe to use for vision-based agents such as image_scorer and
+#   reference_picker.
+# - Agnes Image: confirmed via probe — agnes-image-2.1-flash accepts the
+#   OpenAI-style /v1/images/generations payload and returns a URL hosted
+#   on storage.googleapis.com.  The download URL requires a User-Agent
+#   header (handled inside the generator).
+# - temperature supported range: [0.0, 2.0] (verified against /v1/chat/completions).
+# - Agnes image i2i (reference images) is best-effort: the generator tries
+#   to pass base64 references and silently falls back to t2i if rejected.
+
+chat_model:
+  init_args:
+    model: agnes-2.0-flash
+    model_provider: agnes
+    api_key: sk-xx
+    # base_url is auto-resolved to https://apihub.agnes-ai.com/v1
+  max_requests_per_minute: 500
+  max_requests_per_day: 2000
+
+image_generator:
+  class_path: clients.AgnesImageGenerator
+  init_args:
+    api_key: sk-xx  # or export AGNES_API_KEY
+    model: agnes-image-2.1-flash
+  max_requests_per_minute: 10
+  max_requests_per_day: 500
+
+video_generator:
+  class_path: clients.AgnesVideoGenerator
+  init_args:
+    api_key: sk-xx      # or export AGNES_API_KEY
+    t2v_model: agnes-video-v2.0
+    i2v_model: agnes-video-v2.0
+  max_requests_per_minute: 50
+  max_requests_per_day: 100
+
+working_dir: .output/i2v
