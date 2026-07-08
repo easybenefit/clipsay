@@ -1,0 +1,209 @@
+/* ── Carousel ── */
+.carousel {
+  position: relative;
+  margin-bottom: 28px;
+  height: 210px;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.carousel-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  perspective: 1200px;
+}
+
+.carousel-track {
+  display: flex;
+  height: 100%;
+  transition: transform 1s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.carousel-slide {
+  min-width: 33.33%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 24px;
+  transition: opacity 1s ease, filter 1s ease, box-shadow 1s ease, border-radius 1s ease, clip-path 1s ease, transform 1s ease;
+  backface-visibility: hidden;
+  position: relative;
+}
+
+.carousel-slide.center {
+  z-index: 3;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  box-shadow: 0 16px 56px rgba(0,0,0,0.45), 0 0 40px rgba(139,92,246,0.1);
+  opacity: 1;
+  filter: brightness(1);
+  border-radius: 10px;
+  transform: scale(1.08);
+}
+
+.carousel-slide.prev {
+  z-index: 2;
+  clip-path: polygon(0% 0%, 100% 4%, 100% 96%, 0% 100%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  opacity: 0.85;
+  cursor: pointer;
+  filter: brightness(0.8);
+  border-radius: 10px;
+  transform: rotateY(8deg);
+  transform-origin: right center;
+}
+
+.carousel-slide.next {
+  z-index: 2;
+  clip-path: polygon(0% 4%, 100% 0%, 100% 100%, 0% 96%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  opacity: 0.85;
+  cursor: pointer;
+  filter: brightness(0.8);
+  border-radius: 10px;
+  transform: rotateY(-8deg);
+  transform-origin: left center;
+}
+
+.carousel-slide.hidden {
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  filter: brightness(0.5);
+}
+
+.carousel-slide.prev:hover,
+.carousel-slide.next:hover {
+  filter: brightness(1);
+  opacity: 1;
+}
+
+.carousel-slide::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.carousel-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transition: transform 1s ease;
+}
+
+.carousel-slide.center .carousel-video {
+  transform: scale(0.9);
+}
+
+.carousel-slide svg.deco {
+  position: absolute;
+  right: -20px;
+  bottom: -20px;
+  width: 160px;
+  height: 160px;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.carousel-content {
+  position: relative;
+  z-index: 1;
+}
+
+.carousel-content h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.015em;
+  margin-bottom: 4px;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.carousel-slide.prev .carousel-content h2,
+.carousel-slide.next .carousel-content h2 {
+  font-size: 1rem;
+}
+
+.carousel-content p {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.75);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  max-width: 80%;
+}
+
+.carousel-slide.prev .carousel-content p,
+.carousel-slide.next .carousel-content p {
+  font-size: 0.72rem;
+  max-width: 90%;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.85);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
+  z-index: 4;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.carousel-btn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-prev {
+  left: 10px;
+}
+
+.carousel-next {
+  right: 10px;
+}
+
+.carousel-dots {
+  position: absolute;
+  bottom: 14px;
+  right: 32px;
+  display: flex;
+  gap: 8px;
+  z-index: 4;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  border: none;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.carousel-dot.active {
+  background: #fff;
+  width: 24px;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(255,255,255,0.3);
+}

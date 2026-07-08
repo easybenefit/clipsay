@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Clipsay REST API 接口文档</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #6e7681;
+    --border: #d0d7de;
+    --code-bg: #f6f8fa;
+    --table-head: #f6f8fa;
+    --table-stripe: #fafbfc;
+    --link: #0969da;
+    --accent: #0969da;
+    --badge-get: #1a7f37;
+    --badge-post: #8250df;
+    --badge-put: #d48806;
+    --badge-delete: #cf222e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+                 "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65;
+    color: var(--fg);
+    background: var(--bg);
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1, h2, h3, h4 { color: var(--fg); line-height: 1.3; margin-top: 1.6em; margin-bottom: 0.6em; }
+  h1 { font-size: 2.0em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  h3 { font-size: 1.2em; margin-top: 1.8em; }
+  p { margin: 0.6em 0; }
+  ul, ol { padding-left: 1.6em; }
+  li { margin: 0.2em 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    background: var(--code-bg);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.88em;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; border-radius: 0; font-size: 1em; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    overflow-x: auto;
+    display: block;
+    max-width: 100%;
+    font-size: 0.92em;
+  }
+  table thead th {
+    background: var(--table-head);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+  }
+  table tbody td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    vertical-align: top;
+  }
+  table tbody tr:nth-child(even) td { background: var(--table-stripe); }
+  blockquote {
+    border-left: 4px solid var(--border);
+    color: var(--muted);
+    padding: 0 1em;
+    margin: 1em 0;
+  }
+  .endpoint {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 1.2em 0 0.4em;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 1.05em;
+  }
+  .method {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.82em;
+    color: #fff;
+    white-space: nowrap;
+    min-width: 48px;
+    text-align: center;
+  }
+  .method-get { background: var(--badge-get); }
+  .method-post { background: var(--badge-post); }
+  .method-put { background: var(--badge-put); }
+  .method-delete { background: var(--badge-delete); }
+  .path { font-weight: 600; }
+  .toc { columns: 2; column-gap: 32px; }
+  .toc li { break-inside: avoid; margin: 0.3em 0; }
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .req-table { margin-top: 0.6em; }
+  .field-required { color: #cf222e; font-weight: 600; }
+  .field-optional { color: var(--muted); }
+  .status-table td:first-child { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Clipsay REST API 接口文档</h1>
+<p>Base URL: <code>http://localhost:8765</code></p>
+
+<hr>
+
+<h2>目录</h2>
+<div class="toc">
+<ol>
+  <li><a href="#system">系统管理</a></li>
+  <li><a href="#projects">项目管理</a></li>
+  <li><a href="#legacy">单步 AI 生成（旧架构）</a></li>
+  <li><a href="#pipeline">Pipeline 控制（新架构）</a></li>
+  <li><a href="#pipeline-data">Pipeline 数据编辑</a></li>
+  <li><a href="#errors">全局错误码</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="system">1. 系统管理</h2>
+<!-- ============================================================ -->
+
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="path">/health</span>
+</div>
+<p>健康检查。Electron 主进程用此接口判断后端是否启动完成。</p>
+<p><strong>Response:</strong></p>
+<pre><code>{"status": "ok"}</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="projects">2. 项目管理</h2>
+<!-- ============================================================ -->
+
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="path">/api/projects</span>
+</div>
+<p>列出所有项目，按创建时间倒序。</p>
+<p><strong>Query Parameters:</strong></p>
+<table>
+  <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>limit</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>返回条数上限，默认 50</td></tr>
+    <tr><td><code>offset</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>分页偏移</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>Project[]</code></p>
+<pre><code>[
+  {
+    "id": 1,
+    "name": "项目名称",
+    "language": "zh",
+    "idea": "",
+    "style": "realistic",
+    "size": "16:9",
+    "resolution": "720p",
+    "frame_rate": 24,
+    "duration": 10,
+    "chat_model": "",
+    "image_model": "",
+    "video_model": "",
+    "stage": "new",
+    "created_at": "2025-01-01 00:00:00",
+    "updated_at": ""
+  }
+]</code></pre>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects</span>
+</div>
+<p>创建新项目。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td>string</td><td><span class="field-required">必填</span></td><td>项目名称</td></tr>
+    <tr><td><code>language</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>语言，默认 <code>"zh"</code></td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>Project</code></p>
+
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="path">/api/projects/{project_id}</span>
+</div>
+<p>获取项目完整信息，包含 story、characters、scenes、shots 等所有嵌套数据。</p>
+<p><strong>Path Parameters:</strong></p>
+<table>
+  <thead><tr><th>参数</th><th>类型</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>project_id</code></td><td>integer</td><td>项目 ID</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>ProjectFull</code></p>
+<pre><code>{
+  "id": 1,
+  "name": "项目名称",
+  "language": "zh",
+  "idea": "...",
+  "style": "realistic",
+  "size": "16:9",
+  "resolution": "720p",
+  "frame_rate": 24,
+  "duration": 10,
+  "chat_model": "agnes-2.0-flash",
+  "image_model": "agnes-image-2.1-flash",
+  "video_model": "agnes-video-1.0",
+  "stage": "new",
+  "pipeline_status": "idle",
+  "pipeline_step": "",
+  "pipeline_error": "",
+  "pipeline_progress": 0,
+  "created_at": "...",
+  "updated_at": "",
+  "story": "故事正文...",
+  "characters": [
+    {
+      "name": "角色A",
+      "identifier": "角色A",
+      "appearance": "长发，蓝色眼睛",
+      "attire": "活泼开朗",
+      "source": "script",
+      "sort_order": 0,
+      "visible": 1,
+      "char_idx": 0,
+      "front": {"path": "proj_1/portraits/A_front.png", "url": "...", "desc": "角色A的正面肖像"},
+      "side": {"path": "proj_1/portraits/A_side.png", "url": "", "desc": "角色A的侧面肖像"},
+      "back": {"path": "proj_1/portraits/A_back.png", "url": "", "desc": "角色A的背面肖像"}
+    }
+  ],
+  "scenes": [
+    {
+      "id": 1,
+      "script_id": 1,
+      "idx": 0,
+      "title": "场景一",
+      "content": "...",
+      "environment_desc": "森林",
+      "script": "",
+      "compositedVideo": "/local/proj_1/scenes/0/composite.mp4",
+      "compositedPreview": "/local/proj_1/scenes/0/preview.jpg",
+      "shots": [
+        {
+          "title": "远景镜头",
+          "visualDescription": "...",
+          "voiceDescription": "...",
+          "motionDescription": "...",
+          "variationType": "small",
+          "firstFrame": "/local/proj_1/scenes/0/shots/0/start_frame.png",
+          "lastFrame": "/local/proj_1/scenes/0/shots/0/end_frame.png",
+          "video": "/local/proj_1/scenes/0/shots/0/video.mp4",
+          "videoPreview": "/local/proj_1/scenes/0/shots/0/video_preview.mp4",
+          "startFrameStatus": 1,
+          "endFrameStatus": 1,
+          "imageStatus": 2,
+          "videoStatus": "completed",
+          "videoDependency": ""
+        }
+      ]
+    }
+  ]
+}</code></pre>
+<p><strong>错误码:</strong> <code>404</code> — 项目不存在</p>
+
+<div class="endpoint">
+  <span class="method method-put">PUT</span>
+  <span class="path">/api/projects/{project_id}</span>
+</div>
+<p>更新项目数据（全量替换 characters 和 scenes）。</p>
+<p><strong>Path Parameters:</strong> <code>project_id</code> (integer)</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>项目名称</td></tr>
+    <tr><td><code>language</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>语言</td></tr>
+    <tr><td><code>idea</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>创意描述</td></tr>
+    <tr><td><code>style</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视觉风格</td></tr>
+    <tr><td><code>size</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>画面比例，<code>"16:9"</code> / <code>"9:16"</code> / <code>"1:1"</code></td></tr>
+    <tr><td><code>resolution</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>分辨率，<code>"480p"</code> / <code>"720p"</code> / <code>"1080p"</code></td></tr>
+    <tr><td><code>frame_rate</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>帧率</td></tr>
+    <tr><td><code>duration</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>视频时长（秒）</td></tr>
+    <tr><td><code>chat_model</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>LLM 模型名</td></tr>
+    <tr><td><code>image_model</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>图像模型名</td></tr>
+    <tr><td><code>video_model</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视频模型名</td></tr>
+    <tr><td><code>stage</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>手动模式阶段</td></tr>
+    <tr><td><code>story</code></td><td>string | null</td><td><span class="field-optional">可选</span></td><td>故事内容，传 null 删除</td></tr>
+    <tr><td><code>characters</code></td><td>CharacterSave[]</td><td><span class="field-optional">可选</span></td><td>角色列表（全量替换）</td></tr>
+    <tr><td><code>scenes</code></td><td>SceneSave[]</td><td><span class="field-optional">可选</span></td><td>场景列表（全量替换）</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>ProjectFull</code></p>
+<p><strong>错误码:</strong> <code>404</code> — 项目不存在</p>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/duplicate</span>
+</div>
+<p>复制项目（含所有关联数据：story、characters、scenes、shots 等）。</p>
+<p><strong>Response:</strong> <code>ProjectFull</code>（新项目的完整数据）</p>
+<p><strong>错误码:</strong> <code>404</code> — 原项目不存在</p>
+
+<!-- ============================================================ -->
+<h2 id="legacy">3. 单步 AI 生成（旧架构）</h2>
+<p>这些端点保留原有的<strong>同步阻塞</strong>模式，供手动单步调试使用。新功能建议走 Pipeline 自动编排。</p>
+<!-- ============================================================ -->
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/story</span>
+</div>
+<p>从创意描述（idea）生成故事大纲。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>idea</code></td><td>string</td><td><span class="field-required">必填</span></td><td>创意描述</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>LLM 模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key，默认空</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+    <tr><td><code>user_requirement</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>用户附加要求</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong></p>
+<pre><code>{"result": "故事正文..."}</code></pre>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/extract-characters</span>
+</div>
+<p>从剧本中提取角色列表。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>script</code></td><td>string</td><td><span class="field-required">必填</span></td><td>剧本正文</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>LLM 模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "characters": [
+    {"role_name": "角色A", "appearance": "...", "attire": "..."}
+  ]
+}</code></pre>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/scene-scripts</span>
+</div>
+<p>从故事生成分场剧本。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>story</code></td><td>string</td><td><span class="field-required">必填</span></td><td>故事正文</td></tr>
+    <tr><td><code>characters_text</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>角色描述文本</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>LLM 模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+    <tr><td><code>user_requirement</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>用户附加要求</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "text": "完整剧本...",
+  "scenes": [
+    {"title": "场景一", "content": "..."}
+  ]
+}</code></pre>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/scene-storyboard</span>
+</div>
+<p>为单个场景生成分镜、镜头描述和摄像机树。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>scene_content</code></td><td>string</td><td><span class="field-required">必填</span></td><td>场景内容</td></tr>
+    <tr><td><code>characters</code></td><td>object[]</td><td><span class="field-optional">可选</span></td><td>角色列表，格式 <code>[{role_name, appearance, attire}]</code></td></tr>
+    <tr><td><code>user_requirement</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>用户附加要求</td></tr>
+    <tr><td><code>style</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视觉风格</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>LLM 模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "storyboard": [{"title": "...", "visual_desc": "..."}],
+  "shot_descriptions": [{"visual_desc": "...", "audio_desc": "...", "sf_dec": "...", "sf_desc": "...", "motion_desc": "...", "variation_type": "...", "cam_idx": 0, "idx": 0}],
+  "camera_tree": [{"idx": 0, "active_shot_idxs": [0, 1], "parent_cam_idx": null, "parent_shot_idx": null, "reason": "...", "is_parent_fully_covers_child": false}]
+}</code></pre>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/generate-portraits</span>
+</div>
+<p>生成角色肖像图片。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>characters</code></td><td>PortraitCharacter[]</td><td><span class="field-required">必填</span></td><td>角色列表</td></tr>
+    <tr><td><code>view</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视角：<code>"front"</code> / <code>"side"</code> / <code>"back"</code> / <code>"side_back"</code>，默认 <code>"front"</code></td></tr>
+    <tr><td><code>style</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视觉风格</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>图像模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+    <tr><td><code>size</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>图片尺寸如 <code>"1280x720"</code></td></tr>
+    <tr><td><code>project_id</code></td><td>integer</td><td><span class="field-required">必填</span></td><td>所属项目 ID</td></tr>
+  </tbody>
+</table>
+<pre><code>PortraitCharacter: {
+  "role_name": "string (必填)",
+  "appearance": "string (可选)",
+  "attire": "string (可选)",
+  "front_image": "string (可选，已有正面图 URL，用于生成侧/背面)"
+}</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "portraits": {
+    "角色A": {
+      "front": "/local/proj_1/portraits/A_front.png",
+      "source_url": "https://..."
+    }
+  }
+}</code></pre>
+<p><code>view=side_back</code> 时返回 <code>{"side": "url", "back": "url"}</code></p>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/generate-frame</span>
+</div>
+<p>生成单张图片帧。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>prompt</code></td><td>string</td><td><span class="field-required">必填</span></td><td>图片描述</td></tr>
+    <tr><td><code>size</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>尺寸，默认 <code>"1024x576"</code></td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>图像模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+    <tr><td><code>reference_images</code></td><td>string[]</td><td><span class="field-optional">可选</span></td><td>参考图片 URL 列表</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>{"url": "/local/frames/frame_xxx.png"}</code></p>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/generate-shot-frames</span>
+</div>
+<p>为单个场景的所有镜头生成首帧和尾帧图片。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>camera_tree</code></td><td>object[]</td><td><span class="field-required">必填</span></td><td>摄像机树</td></tr>
+    <tr><td><code>shot_descriptions</code></td><td>object[]</td><td><span class="field-required">必填</span></td><td>镜头描述列表</td></tr>
+    <tr><td><code>characters</code></td><td>object[]</td><td><span class="field-required">必填</span></td><td>角色列表</td></tr>
+    <tr><td><code>character_portraits_registry</code></td><td>object</td><td><span class="field-optional">可选</span></td><td>角色肖像注册表 <code>{identifier: {front: {path, url}, side: {...}, back: {...}}}</code></td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>图像/视频模型名</td></tr>
+    <tr><td><code>chat_model</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>LLM 模型名，默认同 model</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+    <tr><td><code>project_id</code></td><td>integer</td><td><span class="field-required">必填</span></td><td>项目 ID</td></tr>
+    <tr><td><code>size</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>尺寸，默认 <code>"1024x576"</code></td></tr>
+    <tr><td><code>scene_idx</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>场景索引</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "frames": [
+    {"shot_idx": 0, "frame_type": "start_frame", "url": "/local/proj_1/scenes/0/shots/0/start_frame.png"},
+    {"shot_idx": 0, "frame_type": "end_frame", "url": "/local/proj_1/scenes/0/shots/0/end_frame.png"}
+  ]
+}</code></pre>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/generate</span>
+</div>
+<p>通用 LLM 调用。直接透传 prompt 到 LLM 并返回结果。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>prompt</code></td><td>string</td><td><span class="field-required">必填</span></td><td>用户 prompt</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td><span class="field-required">必填</span></td><td>LLM 模型名</td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Key</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>API Base URL</td></tr>
+    <tr><td><code>system_prompt</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>System prompt</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>{"result": "LLM 回复内容"}</code></p>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/scenes/{scene_id}/composite-video</span>
+</div>
+<p>合成单个场景的视频（将场景下所有镜头的视频拼接）。</p>
+<p><strong>Path Parameters:</strong> <code>scene_id</code> (integer)</p>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "composited_video": "/local/proj_1/scenes/0/composite.mp4",
+  "composited_preview": "/local/proj_1/scenes/0/preview.jpg",
+  "scene_id": 1
+}</code></pre>
+<p><strong>错误码:</strong> <code>404</code> — 场景不存在，<code>400</code> — 没有可合成的镜头视频</p>
+
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/composite-video</span>
+</div>
+<p>合成整个项目的最终视频（将所有场景的 composite 视频拼接）。</p>
+<p><strong>Path Parameters:</strong> <code>project_id</code> (integer)</p>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "final_video": "/local/proj_1/final.mp4",
+  "final_preview": "/local/proj_1/final_preview.jpg",
+  "project_id": 1
+}</code></pre>
+<p><strong>错误码:</strong> <code>400</code> — 项目没有剧本或没有可合成的场景视频</p>
+
+<!-- ============================================================ -->
+<h2 id="pipeline">4. Pipeline 控制（新架构）</h2>
+<p>所有端点位于 <code>/api/projects/{project_id}/pipeline/...</code>。REST 提交命令，SSE 事件流推送状态。</p>
+
+<p><strong>Pipeline 步骤顺序：</strong></p>
+<table>
+  <thead><tr><th>步骤名</th><th>中文名</th><th>依赖上游</th><th>产出</th></tr></thead>
+  <tbody>
+    <tr><td><code>story</code></td><td>故事大纲</td><td>—</td><td><code>stories</code> 表</td></tr>
+    <tr><td><code>characters</code></td><td>角色提取</td><td>story</td><td><code>characters</code> 表</td></tr>
+    <tr><td><code>portraits</code></td><td>角色肖像</td><td>characters</td><td><code>character_portraits</code> 表 + 图片文件</td></tr>
+    <tr><td><code>scene_scripts</code></td><td>分场剧本</td><td>story</td><td><code>scripts</code> + <code>scenes</code> 表</td></tr>
+    <tr><td><code>storyboard</code></td><td>分镜设计</td><td>scene_scripts, characters</td><td><code>storyboards</code> + <code>shots</code> + <code>cameras</code> 表</td></tr>
+    <tr><td><code>shot_frames</code></td><td>镜头帧生成</td><td>storyboard, portraits</td><td><code>shots.image_url</code> + 图片文件 + 视频文件</td></tr>
+    <tr><td><code>composite_video</code></td><td>视频合成</td><td>shot_frames</td><td><code>scenes.composited_video</code> + <code>final.mp4</code></td></tr>
+  </tbody>
+</table>
+
+<!-- ── events ── -->
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="path">/api/projects/{project_id}/pipeline/events</span>
+</div>
+<p>SSE（Server-Sent Events）事件流。通过 <code>EventSource</code> 连接实时接收 pipeline 进度推送。返回 <code>text/event-stream</code>。</p>
+<pre><code>// 前端连接示例
+const es = new EventSource("http://localhost:8765/api/projects/1/pipeline/events")
+es.onmessage = (e) => {
+  const event = JSON.parse(e.data)
+  console.log(event.type, event)
+}
+es.onerror = () => {
+  es.close()
+  setTimeout(() => reconnect(), 3000)
+}</code></pre>
+<p>完整事件协议见 <a href="sse.html">SSE 事件协议文档</a>。</p>
+
+<!-- ── start ── -->
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/pipeline/start</span>
+</div>
+<p>启动 Pipeline。支持指定 <code>start_step</code> 从某一步开始。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>start_step</code></td><td>string | null</td><td><span class="field-optional">可选</span></td><td>从指定步骤开始，如 <code>"shot_frames"</code>，null 从头开始</td></tr>
+    <tr><td><code>chat_api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>LLM API Key，空则复用项目已有配置</td></tr>
+    <tr><td><code>chat_base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>LLM Base URL</td></tr>
+    <tr><td><code>image_api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>图像模型 API Key</td></tr>
+    <tr><td><code>image_base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>图像模型 Base URL</td></tr>
+    <tr><td><code>video_api_key</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视频模型 API Key</td></tr>
+    <tr><td><code>video_base_url</code></td><td>string</td><td><span class="field-optional">可选</span></td><td>视频模型 Base URL</td></tr>
+    <tr><td><code>chat_rate_limit_min</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>LLM 每分钟请求上限，默认 50</td></tr>
+    <tr><td><code>chat_rate_limit_day</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>LLM 每日请求上限，默认 2000</td></tr>
+    <tr><td><code>image_rate_limit_min</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>图像每分钟上限，默认 10</td></tr>
+    <tr><td><code>image_rate_limit_day</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>图像每日上限，默认 500</td></tr>
+    <tr><td><code>video_rate_limit_min</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>视频每分钟上限，默认 50</td></tr>
+    <tr><td><code>video_rate_limit_day</code></td><td>integer</td><td><span class="field-optional">可选</span></td><td>视频每日上限，默认 1000</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>{"status": "started"}</code></p>
+<p><strong>错误码:</strong> <code>404</code> — 项目不存在，<code>409</code> — Pipeline 已在运行</p>
+
+<!-- ── pause ── -->
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/pipeline/pause</span>
+</div>
+<p>暂停 Pipeline（当前步骤完成后停下，不会暴力中断）。</p>
+<p><strong>Response:</strong> <code>{"status": "paused"}</code></p>
+
+<!-- ── resume ── -->
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/pipeline/resume</span>
+</div>
+<p>恢复被暂停的 Pipeline。如果 Pipeline 本身已完成或失败也会自动重启。</p>
+<p><strong>Response:</strong> <code>{"status": "resumed"}</code></p>
+
+<!-- ── cancel ── -->
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/pipeline/cancel</span>
+</div>
+<p>取消 Pipeline 执行。任务被标记取消后无法恢复。</p>
+<p><strong>Response:</strong> <code>{"status": "cancelled"}</code></p>
+
+<!-- ── regenerate-step ── -->
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="path">/api/projects/{project_id}/pipeline/regenerate-step</span>
+</div>
+<p>定点重做某一步。将该步及其所有下游步骤标记为 <code>pending</code>，然后从该步启动 Pipeline。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>step</code></td><td>string</td><td><span class="field-required">必填</span></td><td>步骤名，必须是 <code>STEP_NAMES</code> 中之一</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>{"status": "regenerating", "step": "shot_frames"}</code></p>
+<p><strong>错误码:</strong> <code>400</code> — 无效步骤名，<code>404</code> — 项目不存在，<code>409</code> — Pipeline 正在运行</p>
+
+<!-- ── status ── -->
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="path">/api/projects/{project_id}/pipeline/status</span>
+</div>
+<p>查询当前 Pipeline 状态快照（从 SQLite 读取）。</p>
+<p><strong>Response:</strong></p>
+<pre><code>{
+  "pipeline_status": "running",
+  "pipeline_step": "shot_frames",
+  "pipeline_error": "",
+  "pipeline_progress": 0.65,
+  "is_running": true,
+  "steps": {
+    "story": {
+      "step_name": "story",
+      "status": "completed",
+      "progress": 1.0,
+      "error": "",
+      "result": "{\"story_content\": \"...\"}",
+      "started_at": "2025-01-01T00:00:00",
+      "completed_at": "2025-01-01T00:01:00"
+    },
+    "characters": { "step_name": "characters", "status": "completed", "progress": 1.0, "error": "", "result": "{\"character_count\": 3}", "started_at": "...", "completed_at": "..." },
+    "portraits": { "step_name": "portraits", "status": "completed", "progress": 1.0, "error": "", "result": "{\"portrait_count\": 3}", "started_at": "...", "completed_at": "..." },
+    "scene_scripts": { "step_name": "scene_scripts", "status": "completed", "progress": 1.0, "error": "", "result": "{\"scene_count\": 2}", "started_at": "...", "completed_at": "..." },
+    "storyboard": { "step_name": "storyboard", "status": "completed", "progress": 1.0, "error": "", "result": "{\"scene_count\": 2}", "started_at": "...", "completed_at": "..." },
+    "shot_frames": { "step_name": "shot_frames", "status": "running", "progress": 0.3, "error": "", "result": "{}", "started_at": "...", "completed_at": null },
+    "composite_video": { "step_name": "composite_video", "status": "pending", "progress": 0.0, "error": "", "result": "{}", "started_at": null, "completed_at": null }
+  }
+}</code></pre>
+<p><code>pipeline_status</code> 枚举值：<code>idle</code> | <code>running</code> | <code>paused</code> | <code>cancelled</code> | <code>completed</code> | <code>failed</code></p>
+<p><code>steps[].status</code> 枚举值：<code>pending</code> | <code>running</code> | <code>completed</code> | <code>failed</code> | <code>skipped</code></p>
+
+<!-- ── running ── -->
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="path">/api/projects/{project_id}/pipeline/running</span>
+</div>
+<p>检查是否有任何项目的 Pipeline 正在运行（全局检查，忽略 <code>project_id</code>）。</p>
+<p><strong>Response:</strong></p>
+<pre><code>{"running": true, "project_id": 1}
+{"running": false}</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="pipeline-data">5. Pipeline 数据编辑</h2>
+<!-- ============================================================ -->
+
+<div class="endpoint">
+  <span class="method method-put">PUT</span>
+  <span class="path">/api/projects/{project_id}/pipeline/step/story</span>
+</div>
+<p>手动编辑故事内容。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>content</code></td><td>string</td><td><span class="field-required">必填</span></td><td>新的故事内容</td></tr>
+  </tbody>
+</table>
+<p><strong>Response:</strong> <code>{"status": "updated"}</code></p>
+
+<div class="endpoint">
+  <span class="method method-put">PUT</span>
+  <span class="path">/api/projects/{project_id}/pipeline/step/shot-frames</span>
+</div>
+<p>手动编辑镜头帧描述。支持字段：<code>visual_desc</code>、<code>sf_dec</code>、<code>sf_desc</code>、<code>audio_desc</code>、<code>motion_desc</code>。</p>
+<p><strong>Request Body:</strong></p>
+<table class="req-table">
+  <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>shots</code></td><td>object[]</td><td><span class="field-required">必填</span></td><td>镜头更新列表</td></tr>
+  </tbody>
+</table>
+<pre><code>ShotUpdate: {
+  "idx": 0,                      // 镜头索引（必填）
+  "storyboard_id": 5,           // 分镜 ID，不传则通过 scene_idx 查找
+  "scene_idx": 0,               // 场景索引（当 storyboard_id 不传时使用）
+  "visual_desc": "新描述",      // 可选，视觉描述
+  "sf_dec": "新首帧 prompt",   // 可选，首帧 prompt
+  "sf_desc": "新尾帧 prompt",   // 可选，尾帧 prompt
+  "audio_desc": "新音频描述",   // 可选，音频描述
+  "motion_desc": "新运镜描述"   // 可选，运镜描述
+}</code></pre>
+<p><strong>Response:</strong> <code>{"status": "updated"}</code></p>
+
+<!-- ============================================================ -->
+<h2 id="errors">6. 全局错误码</h2>
+<!-- ============================================================ -->
+
+<table class="status-table">
+  <thead><tr><th>状态码</th><th>说明</th><th>常见原因</th></tr></thead>
+  <tbody>
+    <tr><td>200</td><td>成功</td><td>请求正常处理</td></tr>
+    <tr><td>400</td><td>请求参数错误</td><td>缺少必填字段、无效步骤名、无数据可合成</td></tr>
+    <tr><td>404</td><td>资源不存在</td><td>项目 ID、场景 ID 不存在</td></tr>
+    <tr><td>409</td><td>冲突</td><td>Pipeline 已在运行，无法重复启动</td></tr>
+    <tr><td>500</td><td>服务端错误</td><td>AI 调用失败、数据库异常等，<code>error</code> 字段含详情</td></tr>
+  </tbody>
+</table>
+
+<hr>
+<p style="color: var(--muted); font-size: 0.9em;">文档自动生成自代码 <code>backend/api/routes.py</code> 和 <code>backend/api/pipeline.py</code>。</p>
+
+</body>
+</html>

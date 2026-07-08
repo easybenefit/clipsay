@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Clipsay SSE 事件协议文档</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #6e7681;
+    --border: #d0d7de;
+    --code-bg: #f6f8fa;
+    --table-head: #f6f8fa;
+    --table-stripe: #fafbfc;
+    --link: #0969da;
+    --accent: #0969da;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+                 "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65;
+    color: var(--fg);
+    background: var(--bg);
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1, h2, h3, h4 { color: var(--fg); line-height: 1.3; margin-top: 1.6em; margin-bottom: 0.6em; }
+  h1 { font-size: 2.0em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  h3 { font-size: 1.2em; margin-top: 1.8em; }
+  p { margin: 0.6em 0; }
+  ul, ol { padding-left: 1.6em; }
+  li { margin: 0.2em 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    background: var(--code-bg);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.88em;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; border-radius: 0; font-size: 1em; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    overflow-x: auto;
+    display: block;
+    max-width: 100%;
+    font-size: 0.92em;
+  }
+  table thead th {
+    background: var(--table-head);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+  }
+  table tbody td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    vertical-align: top;
+  }
+  table tbody tr:nth-child(even) td { background: var(--table-stripe); }
+  blockquote {
+    border-left: 4px solid var(--border);
+    color: var(--muted);
+    padding: 0 1em;
+    margin: 1em 0;
+  }
+  .event-type {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .event-group {
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    padding: 1px 16px;
+    margin: 1.2em 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .diagram {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    overflow-x: auto;
+    white-space: pre;
+    line-height: 1.5;
+    border-radius: 0 6px 6px 0;
+  }
+  .action-fetch { color: #1a7f37; font-weight: 600; }
+  .action-merge { color: #8250df; font-weight: 600; }
+  .action-callback { color: #d48806; font-weight: 600; }
+  .toc { columns: 2; column-gap: 32px; }
+  .toc li { break-inside: avoid; margin: 0.3em 0; }
+</style>
+</head>
+<body>
+
+<h1>Clipsay SSE 事件协议文档</h1>
+<p>端点：<code>GET /api/projects/{project_id}/pipeline/events</code></p>
+<p>返回类型：<code>text/event-stream</code></p>
+<p>事件格式：每行 <code>data: {json}\n\n</code></p>
+
+<hr>
+
+<h2>目录</h2>
+<div class="toc">
+<ol>
+  <li><a href="#overview">概览</a></li>
+  <li><a href="#pipeline-lifecycle">Pipeline 生命周期事件</a></li>
+  <li><a href="#step-lifecycle">步骤生命周期事件</a></li>
+  <li><a href="#business">业务事件</a></li>
+  <li><a href="#frontend">前端事件路由</a></li>
+  <li><a href="#consistency">一致性与重连策略</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. 概览</h2>
+<!-- ============================================================ -->
+
+<div class="diagram">┌─────────────────────┐         POST /start (REST)       ┌─────────────────────┐
+│  Frontend           │ ───────────────────────────────►  │  Backend            │
+│  (EventSource)      │                                    │  PipelineRunner     │
+│                     │ ◄───────────────────────────────  │  + EventBus         │
+│                     │    SSE: data: {json}\n\n           │                     │
+│                     │    pipeline_started                │  Step Executors     │
+│                     │    emit_progress                    │  emit 19 种事件类型  │
+│                     │    step_complete                    └─────────────────────┘
+│                     │    portrait_image_status
+│                     │    ...
+└─────────────────────┘</div>
+
+<p>SSE 是<strong>单向</strong>协议（后端 → 前端）。所有客户端到后端的操作（启动、暂停、取消、重试）通过 <a href="api.html">REST API</a> 完成。</p>
+
+<p><strong>后端组件：</strong></p>
+<ul>
+  <li><code>EventBus</code> — 进程内发布/订阅，每个 project_id 维护一个订阅者队列列表</li>
+  <li><code>EventEmitter</code> — 带类型的发布辅助类，step executor 通过它发送事件</li>
+  <li><code>sse_encode(event)</code> — 将事件 dict 格式化为 <code>data: {json}\n\n</code> 帧</li>
+</ul>
+
+<p><strong>事件连接生命周期：</strong></p>
+<pre><code>// 前端连接
+const es = new EventSource(`${BASE}/api/projects/${pid}/pipeline/events`)
+
+es.onmessage = (e) => {
+  const event = JSON.parse(e.data)
+  handleEvent(event)
+}
+
+// 断开时 3 秒后自动重连
+es.onerror = () => {
+  es.close()
+  setTimeout(connect, 3000)
+}</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="pipeline-lifecycle">2. Pipeline 生命周期事件</h2>
+<!-- ============================================================ -->
+
+<div class="event-group">
+
+<h3 id="event-pipeline-started">
+  <span class="event-type">pipeline_started</span>
+</h3>
+<p><strong>触发时机：</strong> <code>start()</code> 或 <code>regenerate_step()</code> 完成数据库初始化后</p>
+<p><strong>Payload:</strong> 无额外字段</p>
+<pre><code>{"type": "pipeline_started"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+<hr>
+
+<h3 id="event-pipeline-paused">
+  <span class="event-type">pipeline_paused</span>
+</h3>
+<p><strong>触发时机：</strong> <code>pause()</code> 成功执行</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"pipeline_paused"</code></td></tr>
+    <tr><td><code>reason</code></td><td>string</td><td>否</td><td>暂停原因（如有）</td></tr>
+    <tr><td><code>error</code></td><td>string</td><td>否</td><td>暂停时的错误信息（如步骤失败后自动暂停）</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "pipeline_paused"}
+{"type": "pipeline_paused", "reason": "Step 'shot_frames' failed after 5 attempts", "error": "ValueError: ..."}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+<hr>
+
+<h3 id="event-pipeline-resumed">
+  <span class="event-type">pipeline_resumed</span>
+</h3>
+<p><strong>触发时机：</strong> <code>resume()</code> 成功执行</p>
+<p><strong>Payload:</strong> 无额外字段</p>
+<pre><code>{"type": "pipeline_resumed"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+<hr>
+
+<h3 id="event-pipeline-cancelled">
+  <span class="event-type">pipeline_cancelled</span>
+</h3>
+<p><strong>触发时机：</strong> <code>cancel()</code> 成功执行</p>
+<p><strong>Payload:</strong> 无额外字段</p>
+<pre><code>{"type": "pipeline_cancelled"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+<hr>
+
+<h3 id="event-pipeline-completed">
+  <span class="event-type">pipeline_completed</span>
+</h3>
+<p><strong>触发时机：</strong> 所有 7 个步骤全部成功完成</p>
+<p><strong>Payload:</strong> 无额外字段</p>
+<pre><code>{"type": "pipeline_completed"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-merge">本地合并</span> — 设置 <code>pipeline_status='completed'</code>, <code>pipeline_progress=1</code></p>
+
+<hr>
+
+<h3 id="event-pipeline-failed">
+  <span class="event-type">pipeline_failed</span>
+</h3>
+<p><strong>触发时机：</strong> <code>_run_impl()</code> 在外层 <code>_run()</code> 捕获到未处理异常</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"pipeline_failed"</code></td></tr>
+    <tr><td><code>error</code></td><td>string</td><td>是</td><td>错误信息</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "pipeline_failed", "error": "ValueError: No characters found; run characters step first"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-merge">本地合并</span> — 设置 <code>pipeline_status='failed'</code>, <code>pipeline_error=event.error</code></p>
+
+</div>
+
+<!-- ============================================================ -->
+<h2 id="step-lifecycle">3. 步骤生命周期事件</h2>
+<!-- ============================================================ -->
+
+<div class="event-group">
+
+<h3 id="event-step-start">
+  <span class="event-type">step_start</span>
+</h3>
+<p><strong>触发时机：</strong> 每个 step executor 调用之前</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"step_start"</code></td></tr>
+    <tr><td><code>step</code></td><td>string</td><td>是</td><td>步骤名：<code>story</code> / <code>characters</code> / <code>portraits</code> / <code>scene_scripts</code> / <code>storyboard</code> / <code>shot_frames</code> / <code>composite_video</code></td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "step_start", "step": "portraits"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+<hr>
+
+<h3 id="event-step-progress">
+  <span class="event-type">emit_progress</span>
+</h3>
+<p><strong>触发时机：</strong> 步骤执行过程中由 step executor 主动发出</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"emit_progress"</code></td></tr>
+    <tr><td><code>step</code></td><td>string</td><td>是</td><td>步骤名</td></tr>
+    <tr><td><code>progress</code></td><td>float</td><td>是</td><td>0.0 ~ 1.0 进度值</td></tr>
+    <tr><td><code>message</code></td><td>string</td><td>否</td><td>中文进度描述</td></tr>
+  </tbody>
+</table>
+<p><strong>各步骤发出的 progress 消息示例：</strong></p>
+<table>
+  <thead><tr><th>步骤</th><th>示例</th></tr></thead>
+  <tbody>
+    <tr><td><code>story</code></td><td>无 progress（LLM 调用是 opaque 的）</td></tr>
+    <tr><td><code>portraits</code></td><td><code>{"progress": 0.3, "message": "正在生成 铃兰 正面肖像..."}</code></td></tr>
+    <tr><td><code>scene_scripts</code></td><td><code>{"progress": 0.2, "message": "正在将故事拆分为场次脚本… (角色 3 个)"}</code></td></tr>
+    <tr><td><code>storyboard</code></td><td><code>{"progress": 0.5, "message": "正在生成场景 2 分镜..."}</code></td></tr>
+    <tr><td><code>shot_frames</code></td><td><code>{"progress": 0.33, "message": "正在生成场景 1 的镜头帧..."}</code></td></tr>
+    <tr><td><code>composite_video</code></td><td><code>{"progress": 0.5, "message": "正在合成场景 1..."}</code></td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "emit_progress", "step": "portraits", "progress": 0.5, "message": "正在生成 铃兰 正面肖像..."}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-merge">本地合并</span> — 直接更新 React state 中的 <code>pipeline_step</code>、<code>pipeline_progress</code>、<code>pipeline_message</code>，不触发 fetchStatus()</p>
+
+<hr>
+
+<h3 id="event-step-complete">
+  <span class="event-type">step_complete</span>
+</h3>
+<p><strong>触发时机：</strong> step executor 成功返回后</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"step_complete"</code></td></tr>
+    <tr><td><code>step</code></td><td>string</td><td>是</td><td>步骤名</td></tr>
+    <tr><td><code>result</code></td><td>object</td><td>是</td><td>步骤产出摘要</td></tr>
+  </tbody>
+</table>
+<p><strong>各步骤的 result 结构：</strong></p>
+<table>
+  <thead><tr><th>步骤</th><th>result 示例</th></tr></thead>
+  <tbody>
+    <tr><td><code>story</code></td><td><code>{"story_content": "故事正文..."}</code></td></tr>
+    <tr><td><code>characters</code></td><td><code>{"character_count": 3}</code></td></tr>
+    <tr><td><code>portraits</code></td><td><code>{"portrait_count": 3}</code></td></tr>
+    <tr><td><code>scene_scripts</code></td><td><code>{"scene_count": 2}</code></td></tr>
+    <tr><td><code>storyboard</code></td><td><code>{"scene_count": 2}</code></td></tr>
+    <tr><td><code>shot_frames</code></td><td><code>{"frame_count": 24}</code></td></tr>
+    <tr><td><code>composite_video</code></td><td><code>{"scene_count": 2}</code></td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "step_complete", "step": "storyboard", "result": {"scene_count": 2}}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span> → 触发 <code>getProject()</code> 拉取完整数据</p>
+
+<hr>
+
+<h3 id="event-step-failed">
+  <span class="event-type">step_failed</span>
+</h3>
+<p><strong>触发时机：</strong> step executor 经过最多 5 次重试后仍然失败</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"step_failed"</code></td></tr>
+    <tr><td><code>step</code></td><td>string</td><td>是</td><td>步骤名</td></tr>
+    <tr><td><code>error</code></td><td>string</td><td>是</td><td>错误信息</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "step_failed", "step": "portraits", "error": "Image generation failed after 3 retries"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+<hr>
+
+<h3 id="event-step-retry">
+  <span class="event-type">step_retry</span>
+</h3>
+<p><strong>触发时机：</strong> step executor 抛出异常后，自动重试前</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"step_retry"</code></td></tr>
+    <tr><td><code>step</code></td><td>string</td><td>是</td><td>步骤名</td></tr>
+    <tr><td><code>attempt</code></td><td>integer</td><td>是</td><td>当前重试次数（从 1 开始）</td></tr>
+    <tr><td><code>max_retries</code></td><td>integer</td><td>是</td><td>最大重试次数，固定 5</td></tr>
+    <tr><td><code>error</code></td><td>string</td><td>是</td><td>失败原因</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "step_retry", "step": "portraits", "attempt": 2, "max_retries": 5, "error": "Timeout connecting to API"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-merge">本地合并</span> — 更新进度状态，不触发 fetchStatus()</p>
+
+<hr>
+
+<h3 id="event-step-skipped">
+  <span class="event-type">step_skipped</span>
+</h3>
+<p><strong>触发时机：</strong> 步骤被跳过（保留字段，当前未使用）</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"step_skipped"</code></td></tr>
+    <tr><td><code>step</code></td><td>string</td><td>是</td><td>被跳过的步骤名</td></tr>
+  </tbody>
+</table>
+<p><strong>前端行为：</strong> <span class="action-fetch">fetchStatus()</span></p>
+
+</div>
+
+<!-- ============================================================ -->
+<h2 id="business">4. 业务事件</h2>
+<!-- ============================================================ -->
+
+<div class="event-group">
+
+<h3 id="event-portrait-image-status">
+  <span class="event-type">portrait_image_status</span>
+</h3>
+<p><strong>触发时机：</strong> 单个角色肖像图片的生成状态变更（<code>portraits</code> 步骤中）</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"portrait_image_status"</code></td></tr>
+    <tr><td><code>identifier</code></td><td>string</td><td>是</td><td>角色标识名</td></tr>
+    <tr><td><code>view</code></td><td>string</td><td>是</td><td>视角：<code>"front"</code> | <code>"side"</code> | <code>"back"</code></td></tr>
+    <tr><td><code>status</code></td><td>string</td><td>是</td><td>状态：<code>"waiting"</code> → <code>"generating"</code> → <code>"generated"</code> | <code>"error"</code></td></tr>
+    <tr><td><code>image_url</code></td><td>string | null</td><td>否</td><td>生成完成时的本地图片 URL</td></tr>
+  </tbody>
+</table>
+<pre><code>// 状态转换示例
+{"type": "portrait_image_status", "identifier": "铃兰", "view": "front", "status": "generating"}
+{"type": "portrait_image_status", "identifier": "铃兰", "view": "front", "status": "generated", "image_url": "/local/proj_1/portraits/铃兰_front.png"}
+{"type": "portrait_image_status", "identifier": "铃兰", "view": "side", "status": "generating"}
+{"type": "portrait_image_status", "identifier": "铃兰", "view": "side", "status": "error"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span> — 直接更新对应角色的肖像状态和 URL，不触发 fetchStatus()。支持事件队列暂存：如果在角色数据加载前到达，暂存待数据就绪后回放。</p>
+
+<hr>
+
+<h3 id="event-storyboard-scene-ready">
+  <span class="event-type">storyboard_scene_ready</span>
+</h3>
+<p><strong>触发时机：</strong> <code>storyboard</code> 步骤中单个场景的分镜生成完成</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"storyboard_scene_ready"</code></td></tr>
+    <tr><td><code>scene_idx</code></td><td>integer</td><td>是</td><td>场景索引（从 0 开始）</td></tr>
+    <tr><td><code>scene</code></td><td>object</td><td>是</td><td>场景完整数据，包含 <code>idx</code>、<code>title</code>、<code>content</code>、<code>shots</code> 等</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "storyboard_scene_ready", "scene_idx": 0, "scene": {"idx": 0, "title": "森林相遇", "content": "...", "shots": [...]}}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span> — 触发场景/分镜数据刷新</p>
+
+<hr>
+
+<h3 id="event-shot-frame-ready">
+  <span class="event-type">shot_frame_ready</span>
+</h3>
+<p><strong>触发时机：</strong> <code>shot_frames</code> 步骤中单个镜头的单帧图片生成完成</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"shot_frame_ready"</code></td></tr>
+    <tr><td><code>scene_idx</code></td><td>integer</td><td>是</td><td>场景索引</td></tr>
+    <tr><td><code>shot_idx</code></td><td>integer</td><td>是</td><td>镜头索引</td></tr>
+    <tr><td><code>frame_type</code></td><td>string</td><td>是</td><td>帧类型：<code>"start_frame"</code> | <code>"end_frame"</code></td></tr>
+    <tr><td><code>image_url</code></td><td>string</td><td>是</td><td>图片本地 URL</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "shot_frame_ready", "scene_idx": 0, "shot_idx": 1, "frame_type": "start_frame", "image_url": "/local/proj_1/scenes/0/shots/1/start_frame.png"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span></p>
+
+<hr>
+
+<h3 id="event-shot-video-ready">
+  <span class="event-type">shot_video_ready</span>
+</h3>
+<p><strong>触发时机：</strong> <code>shot_frames</code> 步骤中单个镜头的视频生成完成</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"shot_video_ready"</code></td></tr>
+    <tr><td><code>scene_idx</code></td><td>integer</td><td>是</td><td>场景索引</td></tr>
+    <tr><td><code>shot_idx</code></td><td>integer</td><td>是</td><td>镜头索引</td></tr>
+    <tr><td><code>video_url</code></td><td>string</td><td>是</td><td>视频本地 URL</td></tr>
+    <tr><td><code>video_preview_url</code></td><td>string</td><td>否</td><td>预览视频 URL</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "shot_video_ready", "scene_idx": 0, "shot_idx": 1, "video_url": "/local/proj_1/scenes/0/shots/1/video.mp4", "video_preview_url": "/local/proj_1/scenes/0/shots/1/video_preview.mp4"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span></p>
+
+<hr>
+
+<h3 id="event-shot-video-preview-ready">
+  <span class="event-type">shot_video_preview_ready</span>
+</h3>
+<p><strong>触发时机：</strong> 镜头预览视频生成完成（独立于完整视频）</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"shot_video_preview_ready"</code></td></tr>
+    <tr><td><code>scene_idx</code></td><td>integer</td><td>是</td><td>场景索引</td></tr>
+    <tr><td><code>shot_idx</code></td><td>integer</td><td>是</td><td>镜头索引</td></tr>
+    <tr><td><code>video_preview_url</code></td><td>string</td><td>是</td><td>预览视频 URL</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "shot_video_preview_ready", "scene_idx": 0, "shot_idx": 1, "video_preview_url": "/local/proj_1/scenes/0/shots/1/video_preview.mp4"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span></p>
+
+<hr>
+
+<h3 id="event-scene-composite-ready">
+  <span class="event-type">scene_composite_ready</span>
+</h3>
+<p><strong>触发时机：</strong> 单个场景的合成视频完成</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"scene_composite_ready"</code></td></tr>
+    <tr><td><code>scene_idx</code></td><td>integer</td><td>是</td><td>场景索引</td></tr>
+    <tr><td><code>composited_video</code></td><td>string</td><td>是</td><td>合成视频 URL（可能为空字符串）</td></tr>
+    <tr><td><code>composited_preview</code></td><td>string</td><td>是</td><td>预览图 URL（可能为空字符串）</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "scene_composite_ready", "scene_idx": 0, "composited_video": "/local/proj_1/scenes/0/composite.mp4", "composited_preview": "/local/proj_1/scenes/0/preview.jpg"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span></p>
+
+<hr>
+
+<h3 id="event-final-video-ready">
+  <span class="event-type">final_video_ready</span>
+</h3>
+<p><strong>触发时机：</strong> 最终合成视频完成（所有场景拼接后）</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"final_video_ready"</code></td></tr>
+    <tr><td><code>final_video_url</code></td><td>string</td><td>是</td><td>最终视频 URL</td></tr>
+    <tr><td><code>final_preview_url</code></td><td>string</td><td>否</td><td>最终视频预览图 URL</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "final_video_ready", "final_video_url": "/local/proj_1/final.mp4", "final_preview_url": "/local/proj_1/final_preview.jpg"}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span> — 显示最终视频播放器</p>
+
+<hr>
+
+<h3 id="event-task-status">
+  <span class="event-type">task_status</span>
+</h3>
+<p><strong>触发时机：</strong> 内部任务状态变更（来自 <code>task_notifier.py</code>）</p>
+<p><strong>Payload:</strong></p>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>必含</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>type</code></td><td>string</td><td>是</td><td><code>"task_status"</code></td></tr>
+    <tr><td><code>task_id</code></td><td>string</td><td>是</td><td>任务 ID</td></tr>
+    <tr><td><code>status</code></td><td>string</td><td>是</td><td>状态描述</td></tr>
+    <tr><td><code>message</code></td><td>string</td><td>是</td><td>文本描述</td></tr>
+    <tr><td><code>model</code></td><td>string</td><td>是</td><td>模型名</td></tr>
+    <tr><td><code>attempt</code></td><td>integer</td><td>否</td><td>当前尝试次数</td></tr>
+    <tr><td><code>max_retries</code></td><td>integer</td><td>否</td><td>最大重试次数</td></tr>
+    <tr><td><code>result</code></td><td>any</td><td>否</td><td>任务结果</td></tr>
+  </tbody>
+</table>
+<pre><code>{"type": "task_status", "task_id": "frame_gen_001", "status": "running", "message": "正在生成镜头帧...", "model": "agnes-image-2.1-flash", "attempt": 1, "max_retries": 3}</code></pre>
+<p><strong>前端行为：</strong> <span class="action-callback">onEvent() 回调</span></p>
+
+</div>
+
+<!-- ============================================================ -->
+<h2 id="frontend">5. 前端事件路由</h2>
+<!-- ============================================================ -->
+
+<p>前端 <code>usePipelineSSE</code> hook 的 <code>handleEvent(event)</code> 方法按事件类型执行不同操作：</p>
+
+<table>
+  <thead>
+    <tr><th>事件类型</th><th>路由</th><th>说明</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>emit_progress</code></td>
+      <td><span class="action-merge">本地合并</span></td>
+      <td>直接更新 React state 中的进度值，不请求后端</td>
+    </tr>
+    <tr>
+      <td><code>pipeline_completed</code></td>
+      <td><span class="action-merge">本地合并</span></td>
+      <td>设置 <code>pipeline_status='completed'</code></td>
+    </tr>
+    <tr>
+      <td><code>pipeline_failed</code></td>
+      <td><span class="action-merge">本地合并</span></td>
+      <td>设置 <code>pipeline_status='failed'</code>, <code>pipeline_error</code></td>
+    </tr>
+    <tr>
+      <td><code>pipeline_started</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取</td>
+    </tr>
+    <tr>
+      <td><code>pipeline_paused</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取</td>
+    </tr>
+    <tr>
+      <td><code>pipeline_resumed</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取</td>
+    </tr>
+    <tr>
+      <td><code>pipeline_cancelled</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取</td>
+    </tr>
+    <tr>
+      <td><code>step_start</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取</td>
+    </tr>
+    <tr>
+      <td><code>step_complete</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取，随后触发 <code>getProject()</code> 拉取业务数据</td>
+    </tr>
+    <tr>
+      <td><code>step_failed</code></td>
+      <td><span class="action-fetch">fetchStatus()</span></td>
+      <td>触发完整状态拉取</td>
+    </tr>
+    <tr>
+      <td><code>portrait_image_status</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调，实时更新角色肖像状态</td>
+    </tr>
+    <tr>
+      <td><code>storyboard_scene_ready</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调，触发场景数据刷新</td>
+    </tr>
+    <tr>
+      <td><code>shot_frame_ready</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调</td>
+    </tr>
+    <tr>
+      <td><code>shot_video_ready</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调</td>
+    </tr>
+    <tr>
+      <td><code>scene_composite_ready</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调</td>
+    </tr>
+    <tr>
+      <td><code>final_video_ready</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调，显示最终视频</td>
+    </tr>
+    <tr>
+      <td><code>task_status</code></td>
+      <td><span class="action-callback">onEvent()</span></td>
+      <td>直接回调</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="consistency">6. 一致性与重连策略</h2>
+<!-- ============================================================ -->
+
+<ul>
+  <li><strong>SQLite 是最终真相源。</strong>前端从不单独信任 SSE 事件的内容——所有非进度事件都会触发 <code>fetchStatus()</code> 从 SQLite 读取全量状态。</li>
+  <li><strong>进度事件是易失的。</strong><code>emit_progress</code> 只存在于 React state 中。如果客户端断开后重连，缺失的进度事件不会导致不一致——下一个 <code>step_complete</code> + <code>fetchStatus()</code> 会补全所有信息。</li>
+  <li><strong>页面刷新。</strong><code>usePipelineSSE</code> 在挂载时立即调用 <code>fetchStatus()</code>，即使没有收到任何 SSE 事件，UI 也能显示正确的状态。</li>
+  <li><strong>业务事件暂存。</strong><code>portrait_image_status</code> 等事件可能在角色数据加载前到达，前端使用 <code>pendingPortraitEventsRef</code> 缓存起来，待数据就绪后回放。</li>
+  <li><strong>SSE 重连。</strong>浏览器原生 EventSource 在断开后自动重连，前端另加 3 秒容错。重连后下一个事件触发 <code>fetchStatus()</code> 填补空白。</li>
+</ul>
+
+<hr>
+<p style="color: var(--muted); font-size: 0.9em;">文档自动生成自代码 <code>backend/pipeline/events.py</code>、<code>backend/pipeline/runner.py</code> 和 <code>src/renderer/usePipelineSSE.ts</code>。</p>
+
+</body>
+</html>
