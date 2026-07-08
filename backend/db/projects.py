@@ -1,0 +1,365 @@
+"""Project-level CRUD operations."""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Optional
+
+import aiosqlite
+
+from backend.utils.paths import DATA_ROOT
+from backend.schemas.models import ModelConfig
+
+
+def _get_connection():
+    from backend.db._config import DB_PATH
+    return aiosqlite.connect(DB_PATH)
+
+
+async def create_project_row(name: str, language: str = "zh") -> dict:
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "INSERT INTO projects (name, language) VALUES (?, ?)", (name, language))
+        await db.commit()
+        pid = cursor.lastrowid
+        row = await (await db.execute("SELECT * FROM projects WHERE id = ?", (pid,))).fetchone()
+        return dict(row)
+
+
+async def list_project_rows(limit: int = 50, offset: int = 0) -> list[dict]:
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        rows = await (await db.execute(
+            "SELECT * FROM projects ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset))).fetchall()
+        return [dict(r) for r in rows]
+
+
+async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Optional[dict]:
+    db.row_factory = aiosqlite.Row
+    row = await (await db.execute(
+        "SELECT * FROM projects WHERE id = ?", (project_id,))).fetchone()
+    if not row:
+        return None
+    project = dict(row)
+    project["story"] = row["story_content"] or None
+
+    # ── characters from attributes table ──
+    char_rows = await (await db.execute(
+        "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url FROM attributes "
+        "WHERE project_id = ? ORDER BY identifier",
+        (project_id,))).fetchall()
+    from backend.utils.image import to_filename
+    from backend.utils.paths import PathResolver
+    _resolver = PathResolver()
+    _ps = _resolver.project(project_id).portrait
+    project["characters"] = [
+        {
+            "identifier": r["identifier"],
+            "appearance": r["appearance"] or "",
+            "attire": r["attire"] or "",
+            "idx": r["idx"] or 0,
+            "front_url": _ps.url(to_filename(r["identifier"], "front")) if r["front_url"] else "",
+            "side_url": _ps.url(to_filename(r["identifier"], "side")) if r["side_url"] else "",
+            "back_url": _ps.url(to_filename(r["identifier"], "back")) if r["back_url"] else "",
+        }
+        for r in char_rows
+    ]
+
+    sc_rows = await (await db.execute(
+        "SELECT * FROM scenes WHERE project_id = ? ORDER BY idx",
+        (project_id,))).fetchall()
+    project["scenes"] = []
+    for sc in sc_rows:
+        scene = dict(sc)
+        scene_scope = PathResolver().project(project_id).scene(scene["id"])
+        scene["compositedVideo"] = scene.get("composited_video", "")
+        scene["compositedPreview"] = scene.get("composited_preview", "")
+        if scene["compositedVideo"] and not scene["compositedVideo"].startswith("/"):
+            scene["compositedVideo"] = scene_scope.url(
+                scene["compositedVideo"])
+            scene["compositedPreview"] = scene_scope.url(
+                scene["compositedPreview"])
+        sh_rows = await (await db.execute(
+            "SELECT * FROM shots WHERE scene_id = ? ORDER BY idx",
+            (scene["id"],))).fetchall()
+        scene["shots"] = []
+        for sh in sh_rows:
+            sd = dict(sh)
+            sf_path = sd.get("start_frame_path", "")
+            sf_url = "/local/" + os.path.relpath(sf_path, str(
+                DATA_ROOT)) if sf_path and os.path.exists(sf_path) else sd.get("start_frame_url", "")
+            ef_path = sd.get("end_frame_path", "")
+            ef_url = "/local/" + os.path.relpath(ef_path, str(
+                DATA_ROOT)) if ef_path and os.path.exists(ef_path) else sd.get("end_frame_url", "")
+            scene["shots"].append({
+                "title": sd["visual_desc"][:50] if sd["visual_desc"] else "",
+                "visualDescription": sd["visual_desc"],
+                "voiceDescription": sd["audio_desc"],
+                "motionDescription": sd["motion_desc"],
+                "variationType": sd["variation_type"],
+                "firstFrame": sf_url,
+                "lastFrame": ef_url,
+                "video": sd.get("shot_video_url", ""),
+                "videoPreview": sd.get("shot_preview_url", ""),
+                "startFrameStatus": sd.get("start_frame_status", 0),
+                "endFrameStatus": sd.get("end_frame_status", 0),
+                "imageStatus": sd.get("image_status_int", 0),
+                "videoStatus": sd.get("video_status", "pending"),
+                "videoDependency": sd.get("video_dependency", ""),
+            })
+        project["scenes"].append(scene)
+    return project
+
+
+async def save_full_project(db, project_id: int, data) -> None:
+    fields = {}
+    for k in ("name", "language", "idea", "style", "size", "resolution", "frame_rate",
+              "duration", "chat_model", "chat_api_key", "chat_base_url",
+              "image_model", "image_api_key", "image_base_url",
+              "video_model", "video_api_key", "video_base_url"):
+        v = getattr(data, k, None)
+        if v is not None:
+            fields[k] = v
+    if fields:
+        from datetime import datetime
+        sets = ", ".join(f"{k} = ?" for k in fields) + ", updated_at = ?"
+        await db.execute(f"UPDATE projects SET {sets} WHERE id = ?",
+                         (*fields.values(), datetime.now().isoformat(timespec="seconds"), project_id))
+
+    sent = data.model_dump(exclude_unset=True)
+    if "story" in sent:
+        await db.execute("UPDATE projects SET story_content = ? WHERE id = ?",
+                         (sent["story"] or "", project_id))
+
+    if data.characters is not None:
+        await db.execute("DELETE FROM attributes WHERE project_id = ?", (project_id,))
+        for i, ch in enumerate(data.characters):
+            name = ch.identifier or ""
+            await db.execute(
+                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (project_id, name, ch.appearance or "", ch.attire or "", ch.idx or i))
+
+    if data.scenes is not None:
+        await db.execute("DELETE FROM scenes WHERE project_id = ?", (project_id,))
+        for si, sc in enumerate(data.scenes):
+            cur = await db.execute(
+                "INSERT INTO scenes (project_id, idx, title, content, "
+                "environment_desc, script, composited_video, composited_preview) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, si, sc.title, sc.content, sc.environment_desc,
+                 sc.script, sc.composited_video, sc.composited_preview))
+            scid = cur.lastrowid
+            if not sc.shots:
+                continue
+            for shi, sh in enumerate(sc.shots):
+                await db.execute(
+                    "INSERT INTO shots (scene_id, idx, is_last, cam_idx, "
+                    "variation_type, visual_desc, audio_desc, motion_desc, "
+                    "start_frame_url, end_frame_url, shot_video_url, shot_preview_url) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (scid, shi, shi == len(sc.shots) - 1, 0,
+                     sh.variation_type, sh.visual_description, sh.voice_description,
+                     sh.motion_description, sh.first_frame, sh.last_frame,
+                     sh.video, getattr(sh, 'video_preview', '') or getattr(sh, 'videoPreview', '')))
+    await db.commit()
+
+
+async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
+    original = await read_full_project(db, project_id)
+    if not original:
+        return None
+    from backend.db._config import DB_PATH
+    async with aiosqlite.connect(DB_PATH) as conn:
+        cur = await conn.execute(
+            "INSERT INTO projects (name, language, idea, style, size, resolution, "
+            "frame_rate, duration, chat_model, chat_api_key, chat_base_url, "
+            "image_model, image_api_key, image_base_url, "
+            "video_model, video_api_key, video_base_url) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (f"{original['name']} (副本)", original.get("language", "zh"),
+             original.get("idea", ""), original.get("style", ""),
+             original.get("size", ""), original.get("resolution", ""),
+             original.get("frame_rate", 24), original.get("duration", 10),
+             original.get("chat_model", ""),
+             original.get("chat_api_key", ""), original.get("chat_base_url", ""),
+             original.get("image_model", ""),
+             original.get("image_api_key", ""), original.get("image_base_url", ""),
+             original.get("video_model", ""),
+             original.get("video_api_key", ""), original.get("video_base_url", "")))
+        new_id = cur.lastrowid
+        if original.get("story"):
+            await conn.execute(
+                "UPDATE projects SET story_content = ? WHERE id = ?",
+                (original["story"], new_id))
+        for ch in original.get("characters", []):
+            name = ch.get("identifier", "")
+            await conn.execute(
+                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (new_id, name, ch.get("appearance", ""), ch.get("attire", ""),
+                 ch.get("idx", 0)))
+        for sc in original.get("scenes", []):
+            cur = await conn.execute(
+                "INSERT INTO scenes (project_id, idx, title, content, "
+                "environment_desc, script, composited_video, composited_preview) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (new_id, sc.get("idx", 0), sc.get("title", ""), sc.get("content", ""),
+                 sc.get("environment_desc", ""), sc.get("script", ""),
+                 sc.get("compositedVideo", ""), sc.get("compositedPreview", "")))
+            scid = cur.lastrowid
+            for sh in sc.get("shots", []):
+                await conn.execute(
+                    "INSERT INTO shots (scene_id, idx, is_last, cam_idx, "
+                    "variation_type, visual_desc, audio_desc, motion_desc, "
+                    "start_frame_url, end_frame_url, shot_video_url, shot_preview_url) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (scid, sh.get("idx", 0), sh.get("isLast", False), 0,
+                     sh.get("variationType", "medium"), sh.get(
+                         "visualDescription", ""),
+                     sh.get("voiceDescription", ""), sh.get(
+                         "motionDescription", ""),
+                     sh.get("firstFrame", ""), sh.get("lastFrame", ""),
+                     sh.get("video", ""), sh.get("videoPreview", "")))
+        await conn.commit()
+    return await read_full_project(db, new_id)
+
+
+async def update_story(project_id: int, content: str, **kwargs) -> None:
+    async with _get_connection() as db:
+        await db.execute(
+            "UPDATE projects SET story_content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (content, project_id))
+        await db.commit()
+
+
+async def get_story(project_id: int) -> str | None:
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute(
+            "SELECT story_content FROM projects WHERE id = ?", (project_id,))).fetchone()
+        return row["story_content"] if row and row["story_content"] else None
+
+
+async def read_story(db, project_id: int) -> str | None:
+    db.row_factory = aiosqlite.Row
+    row = await (await db.execute(
+        "SELECT story_content FROM projects WHERE id = ?", (project_id,))).fetchone()
+    return row["story_content"] if row and row["story_content"] else None
+
+
+async def read_characters(db, project_id: int) -> list:
+    from backend.schemas import CharacterRead
+    from backend.utils.paths import PathResolver
+    from backend.utils.image import to_filename
+    db.row_factory = __import__("aiosqlite").Row
+    rows = await (await db.execute(
+        "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url FROM attributes "
+        "WHERE project_id = ? ORDER BY identifier",
+        (project_id,))).fetchall()
+    _ps = PathResolver().project(project_id).portrait
+    result = []
+    for r in rows:
+        ident = r["identifier"]
+        result.append(CharacterRead(
+            identifier=ident,
+            appearance=r["appearance"] or "",
+            attire=r["attire"] or "",
+            char_idx=r["idx"] or 0,
+            front_url=_ps.url(to_filename(ident, "front")) if r["front_url"] else "",
+            side_url=_ps.url(to_filename(ident, "side")) if r["side_url"] else "",
+            back_url=_ps.url(to_filename(ident, "back")) if r["back_url"] else "",
+        ))
+    return result
+
+
+async def get_characters(project_id: int) -> list:
+    async with _get_connection() as db:
+        return await read_characters(db, project_id)
+
+
+async def save_characters(project_id: int, characters: list) -> None:
+    async with _get_connection() as db:
+        await db.execute("DELETE FROM attributes WHERE project_id = ?", (project_id,))
+        for ch in characters:
+            name = ch.identifier or ""
+            await db.execute(
+                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (project_id, name, ch.appearance or "", ch.attire or "", ch.idx))
+        await db.commit()
+
+
+async def read_scenes(db, project_id: int) -> list[dict]:
+    db.row_factory = aiosqlite.Row
+    scenes = []
+    for sc in await (await db.execute(
+            "SELECT * FROM scenes WHERE project_id = ? ORDER BY idx",
+            (project_id,))).fetchall():
+        scene = dict(sc)
+        sh_rows = await (await db.execute(
+            "SELECT * FROM shots WHERE scene_id = ? ORDER BY idx",
+            (scene["id"],))).fetchall()
+        scene["shots"] = [dict(sh) for sh in sh_rows]
+        scenes.append(scene)
+    return scenes
+
+
+async def get_scene_count(project_id: int) -> int:
+    async with _get_connection() as db:
+        row = await (await db.execute(
+            "SELECT COUNT(*) FROM scenes WHERE project_id = ?",
+            (project_id,))).fetchone()
+        return row[0] if row else 0
+
+
+async def load_session_config(project_id: int) -> "SessionConfig":
+    """Load a SessionConfig from the projects table."""
+    from backend.core.types import SessionConfig
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute(
+            "SELECT * FROM projects WHERE id = ?", (project_id,)
+        )).fetchone()
+        if not row:
+            raise ValueError(f"Project {project_id} not found")
+        return SessionConfig(
+            project_id=project_id,
+            idea=row["idea"] or "",
+            style=row["style"] or "realistic",
+            size=row["size"] or "16:9",
+            resolution=row["resolution"] or "720p",
+            duration=row["duration"] or 10,
+            frame_rate=row["frame_rate"] or 24,
+            language=row["language"] or "zh",
+            chat=ModelConfig(
+                model=row["chat_model"] or "",
+                api_key=row["chat_api_key"] or "",
+                base_url=row["chat_base_url"] or "",
+            ),
+            image=ModelConfig(
+                model=row["image_model"] or "",
+                api_key=row["image_api_key"] or "",
+                base_url=row["image_base_url"] or "",
+            ),
+            video=ModelConfig(
+                model=row["video_model"] or "",
+                api_key=row["video_api_key"] or "",
+                base_url=row["video_base_url"] or "",
+            ),
+        )
+
+
+async def update_character_portrait_url(project_id: int, identifier: str, view: str, url: str) -> None:
+    """Update a portrait URL column (front_url / side_url / back_url) for a character."""
+    col = f"{view}_url"
+    async with _get_connection() as db:
+        await db.execute(
+            f"UPDATE attributes SET {col} = ? WHERE project_id = ? AND identifier = ?",
+            (url, project_id, identifier),
+        )
+        await db.commit()

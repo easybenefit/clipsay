@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -15,3 +16,38 @@ wheels/
 .output/
 
 .DS_Store
+=======
+node_modules/
+out/
+dist/
+*.db
+.env
+backend/.env
+_dev/
+backend/static/portraits/
+backend/__pycache__/
+backend/utils/__pycache__/
+backend/api/__pycache__/
+backend/db/__pycache__/
+backend/models/__pycache__/
+backend/agents/__pycache__/
+backend/core/__pycache__/
+backend/pipeline/steps/__pycache__/
+backend/pipeline/conductor/__pycache__/
+backend/pipeline/composite/__pycache__/
+backend/providers/__pycache__/
+backend/pipeline/__pycache__/
+backend/services/__pycache__/
+backend/pipeline/frame_generator/__pycache__/
+backend/core/shot_frame_video/__pycache__/
+backend/schemas/__pycache__/
+backend/clients/__pycache__/
+backend/clients/legacy/__pycache__/
+backend/.pytest_cache/
+backend/tests/__pycache__/
+.DS_Store
+project_data.json
+app_data
+c[0-9]*/
+.vscode/
+>>>>>>> 0ae36f2 (feat: Clipsay AI 视频创作工具初始版本)
