@@ -119,10 +119,11 @@ class PortraitGenerator:
         if not url:
             raise ValueError(f"No url in response data: {data[0]}")
 
-        # Use the local serve path (frontend-accessible URL) instead of the
-        # remote API URL, so downstream consumers (SSE events, DB storage)
-        # get a directly loadable address.
-        return ImageRef(identifier=identifier, url=url, prompt=prompt)
+        local_url = ""
+        if filename:
+            local_url = self._project.portrait.url(filename)
+
+        return ImageRef(identifier=identifier, url=url, local_url=local_url, prompt=prompt)
 
     async def generate_front(
         self,

@@ -151,8 +151,8 @@ async def generate_portraits(body: PortraitRequest):
             results = await asyncio.gather(*tasks)
             portraits = {
                 body.characters[i].identifier: {
-                    "side": results[i]['side'].url,
-                    "back": results[i]['back'].url,
+                    "side": results[i]['side'].local_url or results[i]['side'].url,
+                    "back": results[i]['back'].local_url or results[i]['back'].url,
                 }
                 for i in range(len(body.characters))
             }
@@ -170,7 +170,7 @@ async def generate_portraits(body: PortraitRequest):
             results = await asyncio.gather(*tasks)
             portraits = {
                 body.characters[i].identifier: {
-                    "side": results[i].url,
+                    "side": results[i].local_url or results[i].url,
                 }
                 for i in range(len(body.characters))
             }
@@ -188,7 +188,7 @@ async def generate_portraits(body: PortraitRequest):
             results = await asyncio.gather(*tasks)
             portraits = {
                 body.characters[i].identifier: {
-                    "back": results[i].url,
+                    "back": results[i].local_url or results[i].url,
                 }
                 for i in range(len(body.characters))
             }
@@ -208,7 +208,7 @@ async def generate_portraits(body: PortraitRequest):
             results = await asyncio.gather(*tasks)
             portraits = {
                 body.characters[i].identifier: {
-                    "front": results[i].url,
+                    "front": results[i].local_url or results[i].url,
                     "source_url": results[i].url,
                 }
                 for i in range(len(body.characters))

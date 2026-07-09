@@ -1033,7 +1033,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       // Process each character independently in parallel with retry
       // For each character: front → (immediately update UI) → side+back
       const updatedCharsMap = new Map<string, CharacterData>()
-      const MAX_RETRIES = 50
+      const MAX_RETRIES = 5
       await Promise.all(chars.map(async (char) => {
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
           try {

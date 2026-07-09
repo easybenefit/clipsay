@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import mimetypes
@@ -92,19 +93,30 @@ class AgnesImageProvider(BaseProvider):
     @staticmethod
     async def _download(url: str, save_path: str) -> None:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        timeout = aiohttp.ClientTimeout(total=60)
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url) as resp:
-                    resp.raise_for_status()
-                    with open(save_path, "wb") as f:
-                        f.write(await resp.read())
-        except Exception as e:
+        timeout = aiohttp.ClientTimeout(total=300)
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.get(url) as resp:
+                        resp.raise_for_status()
+                        with open(save_path, "wb") as f:
+                            f.write(await resp.read())
+                break
+            except Exception as e:
+                last_exc = e
+                logger.warning(
+                    "Image download attempt %d/3 failed: url=%s err=%s: %s",
+                    attempt, url, type(e).__name__, e,
+                )
+                if attempt < 3:
+                    await asyncio.sleep(2 ** attempt * 5)  # 10s, 20s
+        else:
             logger.error(
-                "Image download failed: url=%s save_path=%s err=%s: %s",
-                url, save_path, type(e).__name__, e,
+                "Image download failed after 3 attempts: url=%s save_path=%s err=%s: %s",
+                url, save_path, type(last_exc).__name__, last_exc,
             )
-            raise
+            raise last_exc or RuntimeError(f"Download failed: {save_path}")
         if not os.path.exists(save_path) or os.path.getsize(save_path) == 0:
             logger.error("Image download produced empty/missing file: %s", save_path)
             raise RuntimeError(f"Downloaded image is missing or empty: {save_path}")

@@ -19,8 +19,9 @@ from backend.db._enums import PipelineStatus, AssetStatus
 class ImageRef:
     """A reference to a generated image with its metadata."""
     identifier: str = ""
-    url: str = ""
+    url: str = ""       # Remote API URL (used for side/back reference images)
     prompt: str = ""
+    local_url: str = ""  # Frontend-accessible local serving path
 
 
 STEP_NAMES = [
