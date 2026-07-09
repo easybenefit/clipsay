@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, generateFrame, generateShotFrames, getProject, updateProject } from './api'
 import { usePipelineSSE } from './usePipelineSSE'
-import { PipelineControls } from './PipelineControls'
+
 import StoryCard from './StoryCard'
 import CharacterCard from './CharacterCard'
 import ShootingScriptCard from './ShootingScriptCard'
@@ -84,12 +84,26 @@ function shotPlaceholderImg(label: string): string {
   )}`
 }
 
-const STEPS = [
-  { num: 1, title: '创意构思', icon: '💡', desc: '确定视频主题与核心创意方向', detail: '基于项目名称和描述，AI 将自动生成创意方案供你选择。' },
-  { num: 2, title: '剧本生成', icon: '✍️', desc: 'AI 生成剧本与旁白文案', detail: '选择叙事风格和情感基调，AI 生成完整的剧本结构和旁白。' },
-  { num: 3, title: '分镜设计', icon: '🎨', desc: '生成视觉分镜与构图方案', detail: '为每个场景生成视觉参考图，调整构图、光影和色彩方案。' },
-  { num: 4, title: '视频生成', icon: '🎥', desc: 'AI 合成视频画面与音频', detail: '将分镜转化为完整视频，叠加配音、背景音乐和字幕。' },
-  { num: 5, title: '导出成片', icon: '🚀', desc: '渲染并导出最终视频', detail: '选择分辨率与格式，导出成品视频，分享到各大平台。' },
+const STEP_KEYS = ['story', 'characters', 'portraits', 'scene_scripts', 'storyboard', 'shot_frames', 'composite_video'] as const
+type StepKey = typeof STEP_KEYS[number]
+
+interface StepDef {
+  num: number
+  title: string
+  stepKey: StepKey
+  icon: string
+  desc: string
+  detail: string
+}
+
+const STEPS: StepDef[] = [
+  { num: 1, title: '故事大纲', stepKey: 'story', icon: '📝', desc: 'AI 生成完整故事文本', detail: '输入视频主题和风格，AI 自动生成完整的故事大纲。' },
+  { num: 2, title: '角色提取', stepKey: 'characters', icon: '👤', desc: '提取角色外貌与服饰', detail: 'AI 分析剧本，识别角色并生成详细的外貌和服装描述。' },
+  { num: 3, title: '角色肖像', stepKey: 'portraits', icon: '🎭', desc: '生成三视图全身肖像', detail: '基于角色描述，AI 为每个角色绘制三个视角的全身肖像。' },
+  { num: 4, title: '分场剧本', stepKey: 'scene_scripts', icon: '📜', desc: '拆分多场景剧本', detail: 'AI 将故事按场景切分，生成每个场景的对话和动作描述。' },
+  { num: 5, title: '分镜设计', stepKey: 'storyboard', icon: '🎨', desc: '设计镜头列表与机位', detail: '每个场景拆分为多个镜头，设计构图、运动和音频描述。' },
+  { num: 6, title: '镜头帧与视频', stepKey: 'shot_frames', icon: '🎥', desc: '生成帧图片与镜头视频', detail: 'AI 生成每个镜头的起始帧和结束帧，再合成镜头视频。' },
+  { num: 7, title: '视频合成', stepKey: 'composite_video', icon: '✨', desc: '合成场景与最终视频', detail: '将所有镜头视频拼接为场景视频，最终输出完整视频。' },
 ]
 
 function NewProject(props: NewProjectProps): JSX.Element {
@@ -1476,29 +1490,32 @@ function NewProject(props: NewProjectProps): JSX.Element {
             })()
           )}
 
-          <PipelineControls
-            projectId={getEffectiveProjectId()}
-            pipelineStatus={pipeline.status}
-            connected={pipeline.connected}
-            onRegenerateStep={pipeline.regenerateStep}
-            disabled={creating}
-          />
         </aside>
 
         <main className="new-project-main">
           <div className="npm-header">
             <h2 className="npm-title">创作流程</h2>
-            <p className="npm-subtitle">从创意到成片，一气呵成</p>
           </div>
 
           <div className="npm-steps">
-            {STEPS.map(step => (
-              <div key={step.num} className="npm-step">
-                <span className="npm-step-icon">{step.icon}</span>
-                <div className="npm-step-title-sm">{step.title}</div>
-                <div className="npm-step-desc-sm">{step.desc}</div>
-              </div>
-            ))}
+            {STEPS.map(step => {
+              const stepState = pipeline.status?.steps?.[step.stepKey]
+              const rawStatus = stepState?.status || 'pending'
+              const statusClass = rawStatus === 'completed' ? 'npm-step-completed'
+                : rawStatus === 'running' ? 'npm-step-running'
+                : rawStatus === 'failed' ? 'npm-step-failed'
+                : 'npm-step-pending'
+              return (
+                <div key={step.num} className={`npm-step ${statusClass}`}>
+                  <span className="npm-step-icon">{step.icon}</span>
+                  <div className="npm-step-title-sm">
+                    {rawStatus === 'running' && <span className="npm-step-dot" />}
+                    {step.title}
+                  </div>
+                  <div className="npm-step-desc-sm">{step.desc}</div>
+                </div>
+              )
+            })}
           </div>
 
           {showPlaceholder && !creating && (

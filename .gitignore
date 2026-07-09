@@ -24,6 +24,7 @@ backend/core/shot_frame_video/__pycache__/
 backend/schemas/__pycache__/
 backend/clients/__pycache__/
 backend/clients/legacy/__pycache__/
+backend/clients/providers/__pycache__/
 backend/.pytest_cache/
 backend/tests/__pycache__/
 .DS_Store

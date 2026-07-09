@@ -205,12 +205,11 @@
 .np-center-grid {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 6px;
 }
 
 .np-center-grid .np-size-btn {
-  flex: none;
+  flex: 1;
   min-width: 64px;
 }
 
@@ -322,20 +321,19 @@
 }
 
 .npm-header {
-  padding-bottom: 4px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding-bottom: 8px;
 }
 
 .npm-title {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.01em;
-  margin-bottom: 4px;
-}
-
-.npm-subtitle {
-  font-size: 0.82rem;
-  color: var(--text-muted);
+  margin: 0;
+  line-height: 1;
 }
 
 .npm-steps {
@@ -352,9 +350,10 @@
   gap: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 8px;
-  transition: border-color 0.2s;
+  border-radius: 10px;
+  padding: 12px 8px;
+  transition: border-color 0.2s, background 0.2s;
+  min-width: 0;
 }
 
 .npm-step:hover {
@@ -362,23 +361,70 @@
 }
 
 .npm-step-icon {
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1;
+  margin-bottom: 2px;
 }
 
 .npm-step-title-sm {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text);
   text-align: center;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .npm-step-desc-sm {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   text-align: center;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── States ── */
+.npm-step-pending {
+  opacity: 0.45;
+}
+
+.npm-step-running {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.npm-step-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: npm-step-dot-blink 1s ease-in-out infinite;
+}
+
+@keyframes npm-step-dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.npm-step-completed {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.npm-step-completed .npm-step-title-sm,
+.npm-step-completed .npm-step-icon {
+  color: var(--text);
+}
+
+.npm-step-failed {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  opacity: 0.75;
+}
+.npm-step-failed .npm-step-title-sm,
+.npm-step-failed .npm-step-icon {
+  color: var(--text-muted);
 }
 
 .npm-output {
