@@ -16,6 +16,7 @@ import './NewProject.css'
 interface NewProjectProps {
   onCreated: () => void
   onCancel: () => void
+  onProjectSelected?: (projectId: number) => void
   chatOptions: string[]
   imageOptions: string[]
   videoOptions: string[]
@@ -671,6 +672,20 @@ function NewProject(props: NewProjectProps): JSX.Element {
     })
   }, [props.editProjectId])
 
+  // When user navigates from an existing project back to blank creation, reset all state
+  useEffect(() => {
+    if (props.editProjectId !== undefined) return
+    setCharacters([])
+    setScenes([])
+    setOutput(null)
+    setError(null)
+    setProjectId(null)
+    projectIdRef.current = null
+    setStage('new')
+    setCreating(false)
+    pipelineStartedRef.current = false
+  }, [props.editProjectId])
+
   useEffect(() => {
     if (!creating) return
     const id = setInterval(() => setDotCount(n => (n + 1) % 4), 2000)
@@ -721,6 +736,11 @@ function NewProject(props: NewProjectProps): JSX.Element {
       await pipeline.start()
       pipelineStartedRef.current = true
       setStage('story')
+
+      // 4. Now propagate project ID to parent so it persists in localStorage
+      if (isNew) {
+        props.onProjectSelected?.(pid)
+      }
     } catch (e: any) {
       console.error('启动 pipeline 失败:', e)
       setError(`启动失败: ${e?.message || String(e)}`)
@@ -1457,7 +1477,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             </div>
           </div>
 
-          {props.editProjectId ? (
+          {props.editProjectId && !creating && !pipelineStartedRef.current && pipeline.status?.pipeline_status !== 'running' ? (
             <button className="np-generate-btn" onClick={handleSave} disabled={saving}>
               {saving ? '保存中...' : '💾 保存'}
             </button>

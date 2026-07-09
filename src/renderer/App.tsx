@@ -55,14 +55,46 @@ const CHAT_OPTIONS = CHAT_PRESETS.map(p => p.model)
 const IMAGE_OPTIONS = IMAGE_PRESETS.map(p => p.model)
 const VIDEO_OPTIONS = VIDEO_PRESETS.map(p => p.model)
 
+const STYLE_LABEL: Record<string, string> = {
+  realistic: '写实',
+  anime: '动漫',
+  cyberpunk: '赛博朋克',
+  cinematic: '电影感',
+  fantasy: '奇幻',
+  minimalist: '极简',
+}
+
+const LS_KEY = 'clipsay-ui-state'
+
+interface UiState {
+  page: Page
+  editProjectId: number | null
+}
+
+function loadUiState(): UiState | null {
+  try {
+    const raw = sessionStorage.getItem(LS_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as UiState
+  } catch { return null }
+}
+
+function saveUiState(state: UiState): void {
+  try {
+    sessionStorage.setItem(LS_KEY, JSON.stringify(state))
+  } catch { /* quota exceeded — ignore */ }
+}
+
 function App(): JSX.Element {
-  const [page, _setPage] = useState<Page>('home')
+  const initState = loadUiState()
+  const [page, _setPage] = useState<Page>(initState?.page ?? 'home')
+  const [pageRestored, setPageRestored] = useState(false)
   // ── debug: log every page navigation with caller stack ────────
   const setPage = useCallback((p: Page) => {
     console.log(`[nav] page: ${page} -> ${p}`, new Error().stack?.split('\n').slice(2, 5).join(' | '))
     _setPage(p)
   }, [page])
-  const [editProjectId, setEditProjectId] = useState<number | undefined>()
+  const [editProjectId, setEditProjectId] = useState<number | undefined>(initState?.editProjectId ?? undefined)
   const [health, setHealth] = useState('checking...')
   const [expanded, setExpanded] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
@@ -107,6 +139,10 @@ function App(): JSX.Element {
         applyRateLimitDefaults(merged)
       }
     }).catch(() => {})
+    if (initState && initState.page !== 'home') {
+      console.log('[nav] restored page from localStorage:', initState.page, 'editProjectId:', initState.editProjectId)
+    }
+    setPageRestored(true)
   }, [])
   // ── debug: log if page resets to home (possible refresh/crash) ──
   useEffect(() => {
@@ -114,6 +150,24 @@ function App(): JSX.Element {
       console.log('[nav] mounted/reset to home', new Error().stack?.split('\n').slice(2, 5).join(' | '))
     }
   }, [])
+
+  // ── persist page state to localStorage (sync — survives renderer reload after wake) ──
+  useEffect(() => {
+    if (!pageRestored) return
+    if (page === 'home' && editProjectId === undefined) return
+    saveUiState({ page, editProjectId: editProjectId ?? null })
+  }, [page, editProjectId, pageRestored])
+
+  // Save on visibilitychange → hidden (sleep/lid-close)
+  useEffect(() => {
+    const save = () => saveUiState({ page, editProjectId: editProjectId ?? null })
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') save()
+    })
+    return () => {
+      document.removeEventListener('visibilitychange', save)
+    }
+  }, [page, editProjectId])
 
   const applyRateLimitDefaults = async (s: AppSettings) => {
     const defaults: Record<string, [number, number]> = {}
@@ -280,31 +334,31 @@ function App(): JSX.Element {
               ) : (
                 <div className="project-grid">
                   {projects.map(p => (
-                    <div key={p.id} className="project-card">
-                      <div className="project-info">
-                        <div className="project-name">{p.name || '未命名项目'}</div>
-                        <div className="project-meta">{p.style || '未设置风格'} · {p.size} · {p.resolution}</div>
-                        <div className="project-time">创建于 {p.created_at?.slice(0, 10)}</div>
+                    <div key={p.id} className="project-card" onClick={async () => {
+                      if (await requireNoRunningPipeline()) {
+                        setEditProjectId(p.id); setPage('new')
+                      }
+                    }}>
+                      <div className="project-thumb">
+                        {(p as any).final_preview ? (
+                          <img className="project-thumb-img" src={(p as any).final_preview} alt="" />
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="project-thumb-icon">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                          </svg>
+                        )}
                       </div>
-                      <div className="project-actions">
-                        <button className="project-btn" onClick={async () => {
-                          if (await requireNoRunningPipeline()) {
-                            setEditProjectId(p.id); setPage('new')
-                          }
-                        }} title="编辑">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          编辑
-                        </button>
-                        <button className="project-btn" onClick={() => handleDuplicate(p.id)} title="复制">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          复制
-                        </button>
+                      <div className="project-card-body">
+                        <div className="project-name">{p.name || '未命名项目'}</div>
+                        <div className="project-actions">
+                          <div className="project-meta">{STYLE_LABEL[p.style] || p.style || '写实'}</div>
+                          <button className="project-btn" onClick={e => { e.stopPropagation(); setEditProjectId(p.id); setPage('new') }} title="编辑">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </button>
+                          <button className="project-btn" onClick={e => { e.stopPropagation(); handleDuplicate(p.id) }} title="复制">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -315,9 +369,9 @@ function App(): JSX.Element {
 
           {page === 'new' && (
             <NewProject
-              key={editProjectId || 'new'}
               onCreated={() => { setEditProjectId(undefined); refreshProjects(); setPage('home') }}
               onCancel={() => { setEditProjectId(undefined); setPage('home') }}
+              onProjectSelected={(id) => { setEditProjectId(id) }}
               chatOptions={CHAT_OPTIONS}
               imageOptions={IMAGE_OPTIONS}
               videoOptions={VIDEO_OPTIONS}
