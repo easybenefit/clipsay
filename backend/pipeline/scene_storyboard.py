@@ -154,12 +154,7 @@ async def _run_scene_once(
     await update_storyboard_shots(config.project_id, scene["idx"], shot_descs)
 
     # ── 4. Notify frontend ────────────────────────────────────────────
-    await emit.storyboard_scene_ready(scene_idx, {
-        "idx": scene_idx,
-        "title": scene.get("title", ""),
-        "content": scene.get("content", ""),
-        "shots": [s.model_dump() for s in shot_descs],
-    })
+    await emit.project_updated()
 
     # ── 5. Build camera tree ──────────────────────────────────────────
     camera_tree = await CameraTreeBuilder.build(

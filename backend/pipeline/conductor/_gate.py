@@ -42,7 +42,7 @@ class Gate:
         if sf < StageStatus.COMPLETE:
             return False
         ef = self._registry.status(project_id, scene_idx, shot_id, END_FRAME)
-        return not (StageStatus.PENDING < ef < StageStatus.COMPLETE)
+        return ef == StageStatus.COMPLETE
 
     # ── scene-level gate ──────────────────────────────────────────────
 

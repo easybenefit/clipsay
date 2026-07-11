@@ -129,11 +129,20 @@ async def generate_script(body: ScriptRequest):
 @router.post("/api/generate-portraits")
 async def generate_portraits(body: PortraitRequest):
     try:
+        logger.info("[portraits] === POST /api/generate-portraits view=%s char_count=%d size=%s ===",
+                    body.view, len(body.characters), body.size)
+        for c in body.characters:
+            logger.info("[portraits]   char: identifier=%s front_image=%s appearance_len=%d attire_len=%d",
+                        c.identifier,
+                        c.front_image[:40] + "..." if c.front_image and len(c.front_image) > 40 else c.front_image or "NONE",
+                        len(c.appearance or ""), len(c.attire or ""))
+
         generator = PortraitGenerator(
             body.model, body.api_key, body.base_url, body.project_id)
 
         async def _delayed_task(delay: int, fn, **kwargs):
             if delay > 0:
+                logger.debug("[portraits] delay %ds before %s %s", delay, fn.__name__, kwargs.get("identifier", ""))
                 await asyncio.sleep(delay)
             return await fn(**kwargs)
 
@@ -214,9 +223,15 @@ async def generate_portraits(body: PortraitRequest):
                 for i in range(len(body.characters))
             }
 
+        # Log result summary
+        for ident, urls in portraits.items():
+            for view_key, url in urls.items():
+                logger.info("[portraits] result %s %s: %s", ident, view_key,
+                           url[:60] + "..." if url and len(url) > 60 else url or "EMPTY")
+
         return {"portraits": portraits}
     except Exception as e:
-        logger.error("Generate portraits failed: %s", e)
+        logger.error("[portraits] Generate portraits FAILED: %s", e, exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": str(e)},

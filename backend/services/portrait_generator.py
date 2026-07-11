@@ -85,14 +85,6 @@ BACK_PROMPT = (
     "不得出现任何面部特征。"
 )
 
-
-_FILENAME_SANITIZE_PATTERN = re.compile(r"[^a-zA-Z0-9_\u4e00-\u9fff]")
-
-
-def _sanitize_filename(name: str) -> str:
-    return _FILENAME_SANITIZE_PATTERN.sub("_", name)
-
-
 class PortraitGenerator:
     def __init__(self, model: str, api_key: str, base_url: str, project_id: int | str):
         self._model = model
@@ -105,19 +97,39 @@ class PortraitGenerator:
         from backend.clients.image import Image
 
         payload: dict = {"prompt": prompt, "n": 1, "size": size or "1024x1024"}
+        ref_count = 0
         if reference_images:
-            payload["reference_images"] = [
-                {"url": r.url} for r in reference_images]
+            ref_urls = [r.url for r in reference_images]
+            ref_count = len(ref_urls)
+            payload["reference_images"] = [{"url": url} for url in ref_urls]
+            logger.info("[%s] _generate prompt_len=%d ref_count=%d size=%s filename=%s",
+                        identifier, len(prompt), ref_count, payload["size"], filename)
+        else:
+            logger.info("[%s] _generate prompt_len=%d size=%s filename=%s",
+                        identifier, len(prompt), payload["size"], filename)
+
+        logger.debug("[%s] _generate prompt (first 200 chars): %s",
+                     identifier, prompt[:200])
         if filename:
             payload["save_path"] = self._project.portrait.path(filename)
 
         result, _ = await Image.generate(self._model, payload, self._api_key, self._base_url)
+        logger.info("[%s] _generate API response keys=%s",
+                    identifier, list(result.keys()))
+
         data = result.get("data", [])
         if not data:
+            logger.error("[%s] _generate FAILED: no image data in response. full=%s",
+                         identifier, result)
             raise ValueError(f"No image data in response: {result}")
         url = data[0].get("url", "")
         if not url:
+            logger.error("[%s] _generate FAILED: empty url in data[0]=%s. full=%s",
+                         identifier, data[0], result)
             raise ValueError(f"No url in response data: {data[0]}")
+
+        logger.info("[%s] _generate SUCCESS url_len=%s filename=%s",
+                    identifier, url, filename)
 
         local_url = ""
         if filename:
@@ -139,14 +151,16 @@ class PortraitGenerator:
             features=features,
             style=style,
         )
-        logger.info("Generating front portrait for %s", identifier)
+        logger.info("[%s] generate_front start appearance=%d attire=%d style=%s",
+                    identifier, len(appearance), len(attire), style)
 
-        stem = _sanitize_filename(identifier)
-
-        return await self._generate(
-            prompt=prompt, size=size, filename=to_filename(stem, "front"),
+        ref = await self._generate(
+            prompt=prompt, size=size, filename=to_filename(identifier, "front"),
             identifier=identifier,
         )
+        logger.info("[%s] generate_front done url=%s", identifier,
+                    ref.url if ref.url else "EMPTY")
+        return ref
 
     async def _generate_with_reference(
         self,
@@ -156,7 +170,8 @@ class PortraitGenerator:
         filename: str = "",
         identifier: str = "",
     ) -> ImageRef:
-        logger.info("Generating %s from reference", filename)
+        logger.info("[%s] _generate_with_reference filename=%s ref_url=%s",
+                    identifier, filename, reference.url if reference.url else "NONE")
         return await self._generate(
             prompt=prompt, reference_images=[reference],
             size=size, filename=filename, identifier=identifier,
@@ -168,13 +183,25 @@ class PortraitGenerator:
         front_url: str,
         size: Optional[str] = None,
     ) -> ImageRef:
-        return await self._generate_with_reference(
-            SIDE_PROMPT.format(identifier=identifier),
+        logger.info("[%s] generate_side start front_url=%s",
+                    identifier, front_url if front_url else "EMPTY")
+        if not front_url:
+            logger.error(
+                "[%s] generate_side ABORTED: front_url is empty", identifier)
+            raise ValueError(
+                f"Cannot generate side portrait for {identifier}: front_url is empty")
+        prompt = SIDE_PROMPT.format(identifier=identifier)
+        logger.debug("[%s] generate_side prompt: %s", identifier, prompt)
+        ref = await self._generate_with_reference(
+            prompt,
             ImageRef(identifier=identifier, url=front_url),
             size,
-            f"{_sanitize_filename(identifier)}_side.png",
+            to_filename(identifier, "side"),
             identifier=identifier,
         )
+        logger.info("[%s] generate_side done url=%s", identifier,
+                    ref.url[:80] if ref.url else "EMPTY")
+        return ref
 
     async def generate_back(
         self,
@@ -182,13 +209,25 @@ class PortraitGenerator:
         front_url: str,
         size: Optional[str] = None,
     ) -> ImageRef:
-        return await self._generate_with_reference(
-            BACK_PROMPT.format(identifier=identifier),
+        logger.info("[%s] generate_back start front_url=%s",
+                    identifier, front_url[:80] if front_url else "EMPTY")
+        if not front_url:
+            logger.error(
+                "[%s] generate_back ABORTED: front_url is empty", identifier)
+            raise ValueError(
+                f"Cannot generate back portrait for {identifier}: front_url is empty")
+        prompt = BACK_PROMPT.format(identifier=identifier)
+        logger.debug("[%s] generate_back prompt: %s", identifier, prompt)
+        ref = await self._generate_with_reference(
+            prompt,
             ImageRef(identifier=identifier, url=front_url),
             size,
-            f"{_sanitize_filename(identifier)}_back.png",
+            to_filename(identifier, "back"),
             identifier=identifier,
         )
+        logger.info("[%s] generate_back done url=%s", identifier,
+                    ref.url[:80] if ref.url else "EMPTY")
+        return ref
 
     async def generate_side_back(
         self,
@@ -196,8 +235,13 @@ class PortraitGenerator:
         front_url: str,
         size: Optional[str] = None,
     ) -> dict[str, ImageRef]:
+        logger.info("[%s] generate_side_back start", identifier)
         side_result, back_result = await asyncio.gather(
             self.generate_side(identifier, front_url, size),
             self.generate_back(identifier, front_url, size),
         )
+        logger.info("[%s] generate_side_back done: side=%s back=%s",
+                    identifier,
+                    side_result.url[:40] if side_result.url else "EMPTY",
+                    back_result.url[:40] if back_result.url else "EMPTY")
         return {"side": side_result, "back": back_result}

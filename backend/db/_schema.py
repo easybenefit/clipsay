@@ -48,7 +48,8 @@ TABLES = [
         idx INTEGER DEFAULT 0,
         front_url TEXT DEFAULT '',
         side_url TEXT DEFAULT '',
-        back_url TEXT DEFAULT ''
+        back_url TEXT DEFAULT '',
+        portrait_status INTEGER DEFAULT 0
     )
     """,
     """
@@ -106,7 +107,9 @@ TABLES = [
         start_frame_status INTEGER DEFAULT 0,
         end_frame_status INTEGER DEFAULT 0,
         video_dependency TEXT DEFAULT '',
-        source_url TEXT DEFAULT ''
+        source_url TEXT DEFAULT '',
+        sf_vis_char_idxs TEXT DEFAULT '[]',
+        ef_vis_char_idxs TEXT DEFAULT '[]'
     )
     """,
     """
@@ -135,6 +138,8 @@ MIGRATIONS = [
     "ALTER TABLE projects ADD COLUMN image_base_url TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN video_api_key TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN video_base_url TEXT DEFAULT ''",
+    "ALTER TABLE shots ADD COLUMN sf_vis_char_idxs TEXT DEFAULT '[]'",
+    "ALTER TABLE shots ADD COLUMN ef_vis_char_idxs TEXT DEFAULT '[]'",
 ]
 
 INDEXES = [

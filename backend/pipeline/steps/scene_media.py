@@ -198,14 +198,44 @@ async def generate_scene_frames_and_videos(
     logger.info("[project=%d] awaiting %d concurrent scene tasks (frames + videos)",
                 project_id, len(all_tasks))
     results = await asyncio.gather(*all_tasks, return_exceptions=True)
-    errs = [r for r in results if isinstance(r, Exception)]
-    for r in errs:
-        logger.error("[project=%d] generation failed: %s",
+
+    frame_errs = []
+    video_errs = []
+    for i, r in enumerate(results):
+        if not isinstance(r, Exception):
+            continue
+        if i % 2 == 0:
+            frame_errs.append(r)
+        else:
+            video_errs.append(r)
+
+    if frame_errs:
+        logger.error("[project=%d] frame generation failed: %s",
+                     project_id, frame_errs[0], exc_info=frame_errs[0])
+        raise RuntimeError(
+            f"镜头帧生成失败: {frame_errs[0]}"
+        )
+
+    for r in video_errs:
+        logger.error("[project=%d] video generation failed: %s",
                      project_id, r, exc_info=r)
 
-    if errs:
+    if video_errs:
         raise RuntimeError(
-            f"{len(errs)}/{len(all_tasks)} 镜头帧/视频生成失败，首个错误: {errs[0]}"
+            f"{len(video_errs)}/{len(all_tasks) // 2} 场景视频生成失败，首个错误: {video_errs[0]}"
         )
+
+    # ── Compose scene-level videos from shot videos ──
+    from backend.pipeline.composite.scene import composite_scene_video
+    for scene in scenes:
+        scene_idx = scene["idx"]
+        try:
+            await composite_scene_video(config, scene, scene_idx, emit)
+        except Exception as e:
+            logger.error(
+                "[project=%d] scene=%d composite failed: %s",
+                project_id, scene_idx, e, exc_info=e,
+            )
+            raise RuntimeError(f"场景 {scene_idx} 视频合成失败: {e}")
 
     logger.info("[project=%d] shot_frames step complete", project_id)

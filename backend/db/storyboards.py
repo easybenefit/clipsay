@@ -44,18 +44,21 @@ async def update_storyboard_shots(
     if scene_id is None:
         raise ValueError(f"Scene (project={project_id}, idx={scene_idx}) not found")
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM shots WHERE scene_id = ?", (scene_id,))
         shot_values = [
             (scene_id, sd.idx, sd.is_last, sd.cam_idx, sd.variation_type,
              sd.visual_desc, sd.audio_desc or "",
              sd.sf_dec, sd.sf_desc, sd.motion_desc,
+             json.dumps(sd.sf_vis_char_idxs), json.dumps(sd.ef_vis_char_idxs),
              "pending", "pending", "pending", 0)
             for sd in shot_descriptions
         ]
         await db.executemany(
             "INSERT INTO shots (scene_id, idx, is_last, cam_idx, "
             "variation_type, visual_desc, audio_desc, sf_dec, sf_desc, "
-            "motion_desc, status, image_status, video_status, image_status_int) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "motion_desc, sf_vis_char_idxs, ef_vis_char_idxs, "
+            "status, image_status, video_status, image_status_int) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             shot_values,
         )
         await db.commit()
@@ -72,6 +75,7 @@ async def update_storyboard_cameras(
     if scene_id is None:
         raise ValueError(f"Scene (project={project_id}, idx={scene_idx}) not found")
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM cameras WHERE scene_id = ?", (scene_id,))
         cam_values = [
             (scene_id, cam.idx, json.dumps(cam.active_shot_idxs),
              cam.parent_cam_idx, cam.parent_shot_idx,

@@ -17,13 +17,7 @@ class EventType:
     STEP_FAILED = "step_failed"
     STEP_RETRY = "step_retry"
     EMIT_PROGRESS = "emit_progress"
-    STORYBOARD_SCENE_READY = "storyboard_scene_ready"
-    SHOT_FRAME_READY = "shot_frame_ready"
-    SHOT_VIDEO_READY = "shot_video_ready"
-    SHOT_VIDEO_PREVIEW_READY = "shot_video_preview_ready"
-    SCENE_COMPOSITE_READY = "scene_composite_ready"
-    FINAL_VIDEO_READY = "final_video_ready"
-    PORTRAIT_IMAGE_STATUS = "portrait_image_status"
+    PROJECT_UPDATED = "project_updated"
     TASK_STATUS = "task_status"
 
 
@@ -114,101 +108,10 @@ class EventEmitter:
             event["message"] = message
         await self._publish(event)
 
-    # ── business events (step is auto-tagged if emitter is step-bound) ───
+    # ── project data update ──────────────────────────────────────────────
 
-    async def storyboard_scene_ready(self, scene_idx: int, scene: dict) -> None:
-        await self._publish({
-            "type": EventType.STORYBOARD_SCENE_READY,
-            "scene_idx": scene_idx, "scene": scene,
-        })
-
-    async def shot_frame_ready(
-        self,
-        scene_idx: int,
-        shot_idx: int,
-        frame_type: str,
-        image_url: str,
-    ) -> None:
-        await self._publish({
-            "type": EventType.SHOT_FRAME_READY,
-            "scene_idx": scene_idx,
-            "shot_idx": shot_idx,
-            "frame_type": frame_type,
-            "image_url": image_url,
-        })
-
-    async def shot_video_ready(
-        self,
-        scene_idx: int,
-        shot_idx: int,
-        video_url: str,
-        video_preview_url: str = "",
-    ) -> None:
-        event = {
-            "type": EventType.SHOT_VIDEO_READY,
-            "scene_idx": scene_idx,
-            "shot_idx": shot_idx,
-            "video_url": video_url,
-        }
-        if video_preview_url:
-            event["video_preview_url"] = video_preview_url
-        await self._publish(event)
-
-    async def shot_video_preview_ready(
-        self,
-        scene_idx: int,
-        shot_idx: int,
-        video_preview_url: str,
-    ) -> None:
-        await self._publish({
-            "type": EventType.SHOT_VIDEO_PREVIEW_READY,
-            "scene_idx": scene_idx,
-            "shot_idx": shot_idx,
-            "video_preview_url": video_preview_url,
-        })
-
-    async def scene_composite_ready(
-        self,
-        scene_idx: int,
-        composited_video: str,
-        composited_preview: str,
-    ) -> None:
-        await self._publish({
-            "type": EventType.SCENE_COMPOSITE_READY,
-            "scene_idx": scene_idx,
-            "composited_video": composited_video,
-            "composited_preview": composited_preview,
-        })
-
-    async def final_video_ready(
-        self,
-        final_video_url: str,
-        final_preview_url: str = "",
-    ) -> None:
-        event = {
-            "type": EventType.FINAL_VIDEO_READY,
-            "final_video_url": final_video_url,
-        }
-        if final_preview_url:
-            event["final_preview_url"] = final_preview_url
-        await self._publish(event)
-
-    async def portrait_image_status(
-        self,
-        identifier: str,
-        view: str,
-        status: str,
-        image_url: str | None = None,
-    ) -> None:
-        event: dict = {
-            "type": EventType.PORTRAIT_IMAGE_STATUS,
-            "identifier": identifier,
-            "view": view,
-            "status": status,
-        }
-        if image_url:
-            event["image_url"] = image_url
-        await self._publish(event)
+    async def project_updated(self) -> None:
+        await self._publish({"type": EventType.PROJECT_UPDATED})
 
 
 class EventBus:

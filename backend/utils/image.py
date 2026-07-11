@@ -9,7 +9,8 @@ from PIL import Image
 
 def to_filename(identifier: str, view_type: str, image_type: str = 'png') -> str:
     """Build a filename like ``alice_front.png``."""
-    return f"{identifier}_{view_type}.{image_type.removeprefix('.')}"
+    safe = identifier.replace("（", "_").replace("）", "_")
+    return f"{safe}_{view_type}.{image_type.removeprefix('.')}"
 
 
 def to_base64(

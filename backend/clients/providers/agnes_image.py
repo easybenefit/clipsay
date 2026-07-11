@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import logging
 import mimetypes
 import os
 from pathlib import Path
@@ -14,8 +13,9 @@ import aiohttp
 
 from backend.clients.base import BaseProvider
 from backend.clients.errors import ServerError
+from backend.utils.logging import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger("agnes_image")
 
 
 class AgnesImageProvider(BaseProvider):
@@ -23,8 +23,12 @@ class AgnesImageProvider(BaseProvider):
 
     async def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
         prompt = payload.get("prompt", "")
-        refs = payload.pop("reference_images", None)
-        save_path = payload.pop("save_path", None)
+        refs = payload.get("reference_images")
+        save_path = payload.get("save_path")
+
+        logger.info("[AgnesImage] invoke model=%s refs=%d save_path=%s",
+                    self.model, len(refs) if refs else 0, save_path or "NONE")
+        logger.debug("[AgnesImage] prompt (first 150): %s", prompt[:150])
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -33,6 +37,7 @@ class AgnesImageProvider(BaseProvider):
 
         if refs:
             resolved = await self._resolve_refs(refs)
+            logger.info("[AgnesImage] refs resolved: %d urls", len(resolved))
             extra_body = dict(payload.get("extra_body", {}))
             extra_body["image"] = resolved
             body = {**payload, "model": self.model, "extra_body": extra_body}
@@ -48,20 +53,32 @@ class AgnesImageProvider(BaseProvider):
         async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
             async with session.post(url, json=body) as resp:
                 resp_body = await resp.json(content_type=None)
+                logger.info("[AgnesImage] response status=%d body_keys=%s",
+                            resp.status, list(resp_body.keys()) if isinstance(resp_body, dict) else "N/A")
+
+                logger.info("[AgnesImage] response body = %s", resp_body)
                 self.check_content_filter(
                     resp.status, resp_body, prompt,
                     provider="agnes", model=self.model,
                 )
                 if resp.status >= 500:
+                    logger.error(
+                        "[AgnesImage] server error status=%d body=%s", resp.status, resp_body)
                     raise ServerError(status=resp.status, body=str(resp_body))
                 if resp.status >= 400:
+                    logger.error(
+                        "[AgnesImage] client error status=%d body=%s", resp.status, resp_body)
                     raise RuntimeError(
                         f"Image generation failed: status={resp.status} body={resp_body}"
                     )
 
                 result_url = self._extract_url(resp_body)
+                logger.info("[AgnesImage] result_url=%s", result_url if result_url and len(
+                    result_url) else result_url or "EMPTY")
+
                 if save_path and result_url:
                     await self._download(result_url, save_path)
+                    logger.info("[AgnesImage] saved to %s", save_path)
 
                 return resp_body
 
@@ -87,7 +104,8 @@ class AgnesImageProvider(BaseProvider):
                     b64 = base64.b64encode(f.read()).decode("utf-8")
                 result.append(f"data:{mime};base64,{b64}")
             else:
-                logger.warning("Reference image not found: url=%s path=%s", url, path)
+                logger.warning(
+                    "Reference image not found: url=%s path=%s", url, path)
         return result
 
     @staticmethod
@@ -102,6 +120,7 @@ class AgnesImageProvider(BaseProvider):
                         resp.raise_for_status()
                         with open(save_path, "wb") as f:
                             f.write(await resp.read())
+                            logger.info("====>download: %s", save_path)
                 break
             except Exception as e:
                 last_exc = e
@@ -118,5 +137,7 @@ class AgnesImageProvider(BaseProvider):
             )
             raise last_exc or RuntimeError(f"Download failed: {save_path}")
         if not os.path.exists(save_path) or os.path.getsize(save_path) == 0:
-            logger.error("Image download produced empty/missing file: %s", save_path)
-            raise RuntimeError(f"Downloaded image is missing or empty: {save_path}")
+            logger.error(
+                "Image download produced empty/missing file: %s", save_path)
+            raise RuntimeError(
+                f"Downloaded image is missing or empty: {save_path}")

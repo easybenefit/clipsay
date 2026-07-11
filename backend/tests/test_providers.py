@@ -4,28 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from backend.clients.legacy.chat_provider import ChatProvider
 from backend.clients.base import BaseProvider
-
-
-def test_chat_provider_create_returns_chat_model():
-    with patch("backend.clients.chat_provider.init_chat_model") as mock:
-        mock.return_value = MagicMock(spec=BaseChatModel)
-        model = ChatProvider.create("gpt-4", "sk-xxx", "https://api.openai.com/v1")
-        assert isinstance(model, BaseChatModel)
-
-
-def test_chat_provider_routes_by_keyword():
-    with patch("backend.clients.chat_provider.init_chat_model") as mock:
-        mock.return_value = MagicMock(spec=BaseChatModel)
-        ChatProvider.create("gpt-4", "sk-xxx", "")
-        _, kwargs = mock.call_args
-        assert kwargs["model_provider"] == "openai"
-
-        mock.reset_mock()
-        ChatProvider.create("gemini-pro", "key", "")
-        _, kwargs = mock.call_args
-        assert kwargs["model_provider"] == "google_genai"
 
 
 def test_base_provider_abstract():

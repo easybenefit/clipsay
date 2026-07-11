@@ -54,9 +54,9 @@ async def composite_video(config: SessionConfig, emit: EventEmitter) -> None:
 
     # 6. Persist to DB
     final_video_url = project.url(NEW_IDEA_VIDEO_NAME)
-    final_preview_url = project.url(SCENCE_PREVIEW_NAME)
+    final_preview_url = project.url(NEW_IDEA_PREVIEW_NAME)
     await update_project_final_video(config.project_id, final_video_url, final_preview_url)
 
     # 7. Emit complete notification
-    await emit.final_video_ready(final_video_url, final_preview_url)
+    await emit.project_updated()
     _logger.info("[composite_video] final video saved: %s", final_video_url)

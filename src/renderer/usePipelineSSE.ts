@@ -32,12 +32,7 @@ export type PipelineEvent =
   | { type: 'step_failed'; step: string; error: string }
   | { type: 'emit_progress'; step: string; progress: number; message?: string }
   | { type: 'step_skipped'; step: string }
-  | { type: 'portrait_image_status'; identifier: string; view: string; status: string; image_url?: string }
-  | { type: 'storyboard_scene_ready'; scene_idx: number; scene: { idx: number; title: string; content: string; shots: Array<any> } }
-  | { type: 'shot_frame_ready'; scene_idx: number; shot_idx: number; frame_type: string; image_url: string }
-  | { type: 'shot_video_ready'; scene_idx: number; shot_idx: number; video_url: string; video_preview_url?: string }
-  | { type: 'scene_composite_ready'; scene_idx: number; composited_video: string; composited_preview: string }
-  | { type: 'final_video_ready'; final_video_url: string; final_preview_url?: string }
+  | { type: 'project_updated' }
   | { type: 'task_status'; task_id: string; status: string; message: string; model: string; attempt?: number; max_retries?: number; result?: any }
 
 interface UsePipelineSSEReturn {
@@ -51,8 +46,6 @@ interface UsePipelineSSEReturn {
   regenerateStep: (step: string) => Promise<void>
   fetchStatus: () => Promise<void>
 }
-
-const BASE_URL = BASE
 
 export function usePipelineSSE(
   projectId: number | null,
@@ -69,18 +62,13 @@ export function usePipelineSSE(
     const pid = projectIdRef.current
     if (!pid) return
     try {
-      console.log('[usePipelineSSE] fetchStatus ->', `${BASE_URL}/api/projects/${pid}/pipeline/status`)
-      const res = await fetch(`${BASE_URL}/api/projects/${pid}/pipeline/status`)
+      const res = await fetch(`${BASE}/api/projects/${pid}/pipeline/status`)
       if (res.ok) {
         const data = await res.json()
-        console.log('[usePipelineSSE] fetchStatus <=', data)
-        // Backend response does NOT include `steps` — preserve optimistic state
         setStatus(prev => prev ? { ...prev, ...data, steps: prev.steps } : data)
-      } else {
-        console.warn('[usePipelineSSE] fetchStatus http=', res.status)
       }
-    } catch (err) {
-      console.warn('[usePipelineSSE] fetchStatus failed', err)
+    } catch {
+      // ignore
     }
   }, [])
 
@@ -95,28 +83,23 @@ export function usePipelineSSE(
 
     function connect() {
       eventSourceRef.current?.close()
-      const es = new EventSource(`${BASE_URL}/api/projects/${projectId}/pipeline/events`)
+      const es = new EventSource(`${BASE}/api/projects/${projectId}/pipeline/events`)
       eventSourceRef.current = es
       setConnected(true)
 
       es.onmessage = (e) => {
         try {
           const event: PipelineEvent = JSON.parse(e.data)
-          console.log('[usePipelineSSE] event:', event)
           handleEvent(event)
-        } catch (err) {
-          console.warn('[usePipelineSSE] failed to parse event', e.data, err)
+        } catch {
+          // ignore parse errors
         }
       }
 
-      es.onerror = (err) => {
-        console.warn('[usePipelineSSE] SSE connection error, will retry in 3s', err)
+      es.onerror = () => {
         setConnected(false)
         es.close()
-        reconnectTimerRef.current = setTimeout(() => {
-          console.log('[usePipelineSSE] reconnecting...')
-          connect()
-        }, 3000)
+        reconnectTimerRef.current = setTimeout(connect, 3000)
       }
     }
 
@@ -127,9 +110,9 @@ export function usePipelineSSE(
       eventSourceRef.current?.close()
       clearTimeout(reconnectTimerRef.current)
     }
-  }, [projectId])
+  }, [projectId, fetchStatus])
 
-  function handleEvent(event: PipelineEvent) {
+  const handleEvent = useCallback((event: PipelineEvent) => {
     switch (event.type) {
       case 'pipeline_started':
         setStatus(prev => prev ? { ...prev, pipeline_status: 'running' } : prev)
@@ -148,12 +131,9 @@ export function usePipelineSSE(
       case 'step_start':
       case 'step_complete':
       case 'step_failed':
-        console.log('[usePipelineSSE] step event:', event.type, (event as any).step, (event as any).result ?? (event as any).error)
-        // Optimistic local update so the UI responds immediately
         setStatus(prev => {
           if (!prev) return prev
-          const ev = event as any
-          const step = ev.step
+          const { step } = event as { step: string }
           const terminal = event.type === 'step_complete' ? 'completed'
             : event.type === 'step_failed' ? 'failed'
             : 'running'
@@ -171,7 +151,6 @@ export function usePipelineSSE(
             },
           }
         })
-        // Refresh full authoritative state from server in background
         fetchStatus()
         break
       case 'step_skipped':
@@ -183,7 +162,7 @@ export function usePipelineSSE(
             steps: {
               ...prev.steps,
               [step]: {
-                ...(prev.steps?.[step] as any),
+                ...(prev.steps?.[step] || {}),
                 status: 'skipped',
               },
             },
@@ -212,30 +191,22 @@ export function usePipelineSSE(
         })
         break
       case 'pipeline_failed':
-        console.error('[usePipelineSSE] pipeline_failed:', event.error)
         setStatus(prev => prev ? { ...prev, pipeline_status: 'failed', pipeline_error: event.error } : prev)
         break
       case 'pipeline_completed':
         setStatus(prev => prev ? { ...prev, pipeline_status: 'completed', pipeline_progress: 1 } : prev)
         break
+      case 'project_updated':
       case 'task_status':
         onEvent?.(event)
         break
-      case 'portrait_image_status':
-      case 'storyboard_scene_ready':
-      case 'shot_frame_ready':
-      case 'shot_video_ready':
-      case 'scene_composite_ready':
-      case 'final_video_ready':
-        onEvent?.(event)
-        break
     }
-  }
+  }, [fetchStatus, onEvent])
 
   const post = useCallback(async (path: string, body?: object) => {
     const pid = projectIdRef.current
     if (!pid) return
-    const res = await fetch(`${BASE_URL}/api/projects/${pid}/pipeline/${path}`, {
+    const res = await fetch(`${BASE}/api/projects/${pid}/pipeline/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
@@ -247,19 +218,7 @@ export function usePipelineSSE(
     return res.json()
   }, [])
 
-  const put = useCallback(async (path: string, body?: object) => {
-    const pid = projectIdRef.current
-    if (!pid) return
-    const res = await fetch(`${BASE_URL}/api/projects/${pid}/pipeline/${path}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
-  }, [])
-
-  function apiKeys() {
+  const apiKeys = useCallback(() => {
     const k = (window as any).__pipelineApiKeys || {}
     return {
       chat_api_key: k.chatApiKey || '',
@@ -275,7 +234,7 @@ export function usePipelineSSE(
       video_rate_limit_min: parseInt(k.videoRateLimitMin, 10) || 50,
       video_rate_limit_day: parseInt(k.videoRateLimitDay, 10) || 1000,
     }
-  }
+  }, [])
 
   const start = useCallback(async () => {
     await post('start', apiKeys())

@@ -7,7 +7,7 @@ from typing import Dict, Any
 _DEFAULT_DEV_ROOT = Path(__file__).resolve().parents[2] / "_dev" / "data"
 DATA_ROOT = Path(os.environ.get("CLIPSAY_DATA_ROOT") or _DEFAULT_DEV_ROOT)
 
-_BAD_FILENAME = re.compile(r"[\\/:*?\"<>|\x00-\x1f]")
+_BAD_FILENAME = re.compile(r"[\\/:*?\"<>|\x00-\x1f（）]")
 _MAX_FILENAME_LEN = 120
 
 

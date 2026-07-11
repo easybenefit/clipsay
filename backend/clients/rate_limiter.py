@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RateLimitConfig:
-    max_concurrency: int = 3
+    max_concurrency: int = 4
     rpm: int = 60
     rpd: int = 2000
     max_retries: int = 3
@@ -66,13 +66,15 @@ class TokenBucket:
                 if self._tokens >= tokens:
                     self._tokens -= tokens
                     return
-                wait = (tokens - self._tokens) / self._refill if self._refill > 0 else 1.0
+                wait = (tokens - self._tokens) / \
+                    self._refill if self._refill > 0 else 1.0
             await asyncio.sleep(min(wait, 5.0))
 
     def _refill_tokens(self) -> None:
         now = asyncio.get_event_loop().time()
         elapsed = now - self._last_refill
-        self._tokens = min(self._capacity, self._tokens + elapsed * self._refill)
+        self._tokens = min(self._capacity, self._tokens +
+                           elapsed * self._refill)
         self._last_refill = now
 
     def update_capacity(self, capacity: int) -> None:
@@ -197,7 +199,8 @@ class RateQueue:
         self._config.rpd = rpd
         self._rpm.update_capacity(rpm)
         self._rpd.update_max(rpd)
-        logger.info("[RateQueue] %s config updated: rpm=%d rpd=%d", self.model_key, rpm, rpd)
+        logger.info("[RateQueue] %s config updated: rpm=%d rpd=%d",
+                    self.model_key, rpm, rpd)
 
     async def submit(
         self,
@@ -256,7 +259,8 @@ class RateQueue:
         await self._rpm.acquire()
 
         if not await self._rpd.can_accept():
-            task.future.set_exception(DailyLimitExceeded(self.model_key, self._config.rpd))
+            task.future.set_exception(DailyLimitExceeded(
+                self.model_key, self._config.rpd))
             await self._notifier.failed(
                 self.project_id, task_id, self.model_key,
                 f"日配额({self._config.rpd})耗尽", 1, self._config.max_retries, metadata,
@@ -296,7 +300,8 @@ class RateQueue:
                     )
                     await self._notifier.retrying(
                         self.project_id, task_id, self.model_key,
-                        attempt, self._config.max_retries, delay, str(e), metadata,
+                        attempt, self._config.max_retries, delay, str(
+                            e), metadata,
                     )
                     await asyncio.sleep(delay)
                 else:

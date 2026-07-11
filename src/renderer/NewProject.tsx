@@ -6,7 +6,7 @@ import StoryCard from './StoryCard'
 import CharacterCard from './CharacterCard'
 import ShootingScriptCard from './ShootingScriptCard'
 import SceneScriptsCard from './SceneScriptsCard'
-import type { CharacterData, PortraitStatus, PortraitView } from './CharacterCard'
+import type { CharacterData, PortraitStatus, PortraitView, PortraitViewStatus } from './CharacterCard'
 import type { SceneData, ShotData } from './ShootingScriptCard'
 import { SIZE_OPTIONS, getSizeString } from './sizeConfig'
 import type { CreationStage } from './creationStore'
@@ -134,7 +134,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const [finalVideo, setFinalVideo] = useState('')
   const [finalPreview, setFinalPreview] = useState('')
   const portraitRegistryRef = useRef<Record<string, any>>({})
-  const pendingPortraitEventsRef = useRef<Array<{ identifier: string; view: string; status: string; image_url?: string }>>([])
   const [saving, setSaving] = useState(false)
   const [loadingEdit, setLoadingEdit] = useState(false)
   const [projectId, setProjectId] = useState<number | null>(null)
@@ -238,155 +237,151 @@ function NewProject(props: NewProjectProps): JSX.Element {
     if (clearFinalPreview) setFinalPreview('')
   }, [checkMediaExists])
 
-  const handlePipelineEvent = useCallback((event: any) => {
-    try {
-      if (event.type === 'portrait_image_status') {
-      const { identifier, view, status: imgStatus, image_url } = event
-      // Try to process immediately. If characters aren't populated yet,
-      // or there are already pending events, queue to avoid race with getProject replay.
+  const refreshProjectData = useCallback(async (pid: number) => {
+    const p = await getProject(pid)
+    if (p.story && p.story !== output) setOutput(p.story)
+    if (p.characters?.length) {
       setCharacters(prev => {
-        if (!prev || prev.length === 0 || !prev.find(c => c.name === identifier) || pendingPortraitEventsRef.current.length > 0) {
-          pendingPortraitEventsRef.current.push({ identifier, view, status: imgStatus, image_url })
-          return prev
-        }
-        return prev.map(c => {
-          if (c.name !== identifier) return c
-          const viewKey = view as 'front' | 'side' | 'back'
-          const currentStatus = c.portraitStatus?.[viewKey]
-
-          if (imgStatus === 'waiting' && currentStatus && currentStatus !== 'waiting') {
-            return c
+        const prevMap = new Map(prev.map(c => [c.name, c]))
+        return p.characters.map((c: any) => {
+          const name = c.name || c.identifier || ''
+          const existing = prevMap.get(name)
+          const portraitUrl = (url: unknown) => {
+            if (!url || typeof url !== 'string') return ''
+            return url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
+              ? url
+              : `${BASE}${url}`
           }
-
-          // generated 状态必须有 image_url 才生效，否则保持原状
-          if (imgStatus === 'generated' && !image_url) {
-            return c
+          const backPortraits = {
+            front: portraitUrl(c.front_url),
+            side: portraitUrl(c.side_url),
+            back: portraitUrl(c.back_url),
           }
-
-          const isWaiting = !currentStatus || currentStatus === 'waiting'
-
-          const newStatus = { ...c.portraitStatus } as Record<string, any>
-          const effectiveStatus = (isWaiting && imgStatus === 'waiting') ? 'generating' : imgStatus
-          newStatus[viewKey] = effectiveStatus as 'waiting' | 'generating' | 'generated' | 'error'
-
-          const newPortraits = { ...c.portraits }
-          if (image_url) {
-            newPortraits[viewKey] = image_url.startsWith(BASE) ? image_url : `${BASE}${image_url}`
+          const apiStatus = c.portrait_status as Record<string, number> | undefined
+          const status: PortraitStatus = apiStatus
+            ? {
+                front: PORTRAIT_STATUS_MAP[apiStatus.front] || 'waiting' as const,
+                side: PORTRAIT_STATUS_MAP[apiStatus.side] || 'waiting' as const,
+                back: PORTRAIT_STATUS_MAP[apiStatus.back] || 'waiting' as const,
+              }
+            : // fallback for old data without portrait_status
+              (backPortraits.front || backPortraits.side || backPortraits.back
+                ? {
+                    front: backPortraits.front ? 'generated' as const : 'waiting' as const,
+                    side: backPortraits.side ? 'generated' as const : 'waiting' as const,
+                    back: backPortraits.back ? 'generated' as const : 'waiting' as const,
+                  }
+                : (existing?.portraitStatus || { front: 'waiting' as const, side: 'waiting' as const, back: 'waiting' as const }))
+          const portraits: { front: string; side: string; back: string } = apiStatus
+            ? backPortraits
+            : (backPortraits.front || backPortraits.side || backPortraits.back
+                ? backPortraits
+                : existing?.portraits || { front: '', side: '', back: '' })
+          return {
+            name,
+            staticFeatures: c.appearance || c.staticFeatures || '',
+            dynamicFeatures: c.attire || c.dynamicFeatures || '',
+            portraits,
+            sourceUrl: c.sourceUrl || existing?.sourceUrl || '',
+            portraitStatus: status,
           }
-          
-          return { ...c, portraits: newPortraits, portraitStatus: newStatus }
         })
       })
-    } else if (event.type === 'storyboard_scene_ready') {
-      const { scene_idx, scene } = event
-      setScenes(prev => {
-        const next = [...prev]
-        while (next.length <= scene_idx) {
-          next.push({ title: '', content: '', shots: [], compositedVideo: '', compositedPreview: '' })
-        }
-        next[scene_idx] = {
-          title: scene.title || '',
-          content: scene.content || '',
-          shots: (scene.shots || []).map((s: any) => ({
-            title: (s.visual_desc || '').slice(0, 50),
-            visualDescription: s.visual_desc || '',
-            voiceDescription: s.audio_desc || '',
-            firstFrame: '',
-            lastFrame: '',
-            video: '',
-            variationType: s.variation_type || 'small',
-            firstFramePrompt: s.ff_desc || '',
-            lastFramePrompt: s.lf_desc || '',
-            firstFrameStatus: 'waiting' as const,
-            lastFrameStatus: 'waiting' as const,
-            videoStatus: 'waiting' as const,
-          })),
-          compositedVideo: '',
-          compositedPreview: '',
-        }
-        return next
-      })
-    } else if (event.type === 'shot_frame_ready') {
-      const { scene_idx, shot_idx, frame_type, image_url } = event
-      setScenes(prev => {
-        if (scene_idx >= prev.length || shot_idx >= prev[scene_idx].shots.length) return prev
-        const next = [...prev]
-        const scene = { ...next[scene_idx] }
-        const shots = [...scene.shots]
-        const shot = { ...shots[shot_idx] }
-        if (!image_url) {
-          // Empty image_url means the frame is being generated (status update only)
-          if (frame_type === 'start_frame') {
-            shot.firstFrameStatus = 'generating' as const
-          } else if (frame_type === 'end_frame') {
-            shot.lastFrameStatus = 'generating' as const
-          }
-        } else {
-          const url = image_url.startsWith(BASE) || image_url.startsWith('http://') || image_url.startsWith('https://')
-            ? image_url : `${BASE}${image_url}`
-          if (frame_type === 'start_frame') {
-            shot.firstFrame = url
-            shot.firstFrameStatus = 'generated' as const
-          } else if (frame_type === 'end_frame') {
-            shot.lastFrame = url
-            shot.lastFrameStatus = 'generated' as const
-          }
-        }
-        shots[shot_idx] = shot
-        scene.shots = shots
-        next[scene_idx] = scene
-        return next
-      })
-    } else if (event.type === 'shot_video_ready') {
-      const { scene_idx, shot_idx, video_url, video_preview_url } = event
-      setScenes(prev => {
-        if (scene_idx >= prev.length || shot_idx >= prev[scene_idx].shots.length) return prev
-        const next = [...prev]
-        const scene = { ...next[scene_idx] }
-        const shots = [...scene.shots]
-        const shot = { ...shots[shot_idx] }
-        if (!video_url) {
-          shot.videoStatus = 'generating' as const
-        } else {
-          shot.video = video_url.startsWith(BASE) ? video_url : `${BASE}${video_url}`
-          shot.videoStatus = 'generated' as const
-          if (video_preview_url) {
-            shot.videoPreview = video_preview_url.startsWith(BASE) ? video_preview_url : `${BASE}${video_preview_url}`
-          }
-        }
-        shots[shot_idx] = shot
-        scene.shots = shots
-        next[scene_idx] = scene
-        return next
-      })
-    } else if (event.type === 'scene_composite_ready') {
-      const { scene_idx, composited_video, composited_preview } = event
-      setScenes(prev => {
-        if (scene_idx >= prev.length) return prev
-        const next = [...prev]
-        next[scene_idx] = {
-          ...next[scene_idx],
-          compositedVideo: composited_video ? (composited_video.startsWith(BASE) ? composited_video : `${BASE}${composited_video}`) : '',
-          compositedPreview: composited_preview ? (composited_preview.startsWith(BASE) ? composited_preview : `${BASE}${composited_preview}`) : '',
-        }
-        return next
-      })
-    } else if (event.type === 'final_video_ready') {
-      const { final_video_url, final_preview_url } = event
-      if (final_video_url) {
-        setFinalVideo(final_video_url.startsWith(BASE) ? final_video_url : `${BASE}${final_video_url}`)
-      }
-      if (final_preview_url) {
-        setFinalPreview(final_preview_url.startsWith(BASE) ? final_preview_url : `${BASE}${final_preview_url}`)
-      }
     }
-  } catch (e) {
-    console.error('[NewProject] handlePipelineEvent crashed:', e, 'event:', event)
-  }
-  }, [])
+    if (p.scenes?.length) {
+      setScenes(prev => {
+        const hydratedScenes = p.scenes.map((s: any, si: number) => ({
+          title: s.title || '',
+          content: s.content || '',
+          shots: (s.shots || []).map((shot: any, shi: number) => {
+            const prevShot = prev?.[si]?.shots?.[shi]
+            const ff = shot.firstFrame ? (
+              shot.firstFrame.startsWith(BASE)
+              || shot.firstFrame.startsWith('http://')
+              || shot.firstFrame.startsWith('https://')
+            ) ? shot.firstFrame : `${BASE}${shot.firstFrame}` : ''
+            const lf = shot.lastFrame ? (
+              shot.lastFrame.startsWith(BASE)
+              || shot.lastFrame.startsWith('http://')
+              || shot.lastFrame.startsWith('https://')
+            ) ? shot.lastFrame : `${BASE}${shot.lastFrame}` : ''
+            const vid = shot.video ? (shot.video.startsWith(BASE) ? shot.video : `${BASE}${shot.video}`) : ''
+            const preview = shot.videoPreview ? (shot.videoPreview.startsWith(BASE) ? shot.videoPreview : `${BASE}${shot.videoPreview}`) : ''
+            return {
+              title: shot.title || '',
+              visualDescription: shot.visualDescription || '',
+              voiceDescription: shot.voiceDescription || '',
+              motionDescription: shot.motionDescription || '',
+              variationType: shot.variationType || 'small',
+              firstFrame: ff || prevShot?.firstFrame || '',
+              lastFrame: lf || prevShot?.lastFrame || '',
+              video: vid || prevShot?.video || '',
+              videoPreview: preview || prevShot?.videoPreview || '',
+              firstFrameStatus: ff
+                ? 'generated' as const
+                : (prevShot?.firstFrameStatus === 'generated' || prevShot?.firstFrameStatus === 'generating'
+                  ? prevShot.firstFrameStatus as ImageState
+                  : 'waiting' as const),
+              lastFrameStatus: lf
+                ? 'generated' as const
+                : (prevShot?.lastFrameStatus === 'generated' || prevShot?.lastFrameStatus === 'generating'
+                  ? prevShot.lastFrameStatus as ImageState
+                  : 'waiting' as const),
+              videoStatus: vid
+                ? 'generated' as const
+                : (prevShot?.videoStatus === 'generated' || prevShot?.videoStatus === 'generating'
+                  ? prevShot.videoStatus as ImageState
+                  : 'waiting' as const),
+            }
+          }),
+          compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
+          compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
+        }))
+        return hydratedScenes
+      })
+      const finalVideoUrl = p.final_video ? (p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`) : ''
+      const finalPreviewUrl = p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : ''
+      if (finalVideoUrl) setFinalVideo(finalVideoUrl)
+      if (finalPreviewUrl) setFinalPreview(finalPreviewUrl)
+      scrubMissingMedia({
+        scenes: p.scenes.map((s: any) => ({
+          title: s.title || '',
+          content: s.content || '',
+          shots: (s.shots || []).map((shot: any) => ({
+            firstFrame: shot.firstFrame || '',
+            lastFrame: shot.lastFrame || '',
+            video: shot.video || '',
+            videoPreview: shot.videoPreview || '',
+          })),
+          compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
+          compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
+        })),
+        finalVideo: finalVideoUrl,
+        finalPreview: finalPreviewUrl,
+      })
+    }
+  }, [output])
+
+  const handlePipelineEvent = useCallback((event: any) => {
+    try {
+      if (event.type === 'project_updated') {
+        const pid = getEffectiveProjectId()
+        if (pid) refreshProjectData(pid)
+      }
+    } catch (e) {
+      console.error('[NewProject] handlePipelineEvent crashed:', e, 'event:', event)
+    }
+  }, [refreshProjectData])
 
   const pipeline = usePipelineSSE(getEffectiveProjectId(), handlePipelineEvent)
   const pipelineRunning = pipeline.status?.pipeline_status === 'running'
+
+  const PORTRAIT_STATUS_MAP: Record<number, PortraitViewStatus> = {
+    0: 'waiting',
+    1: 'generating',
+    2: 'generated',
+    3: 'error',
+  }
 
   // Set API keys for pipeline use
   useEffect(() => {
@@ -408,122 +403,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       props.chatRateLimitMin, props.chatRateLimitDay, props.imageRateLimitMin, props.imageRateLimitDay,
       props.videoRateLimitMin, props.videoRateLimitDay])
 
-  // Refresh project data when pipeline steps complete or fail
-  // (data may have been committed to DB before the error occurred)
-  const lastCompletedStepsRef = useRef<Set<string>>(new Set())
-  const lastRunningStepsRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    const pid = getEffectiveProjectId()
-    if (!pid || !pipeline.status) return
-    const steps = pipeline.status.steps || {}
-    for (const [stepKey, stepState] of Object.entries(steps)) {
-      const terminalStatus = stepState.status === 'completed' || stepState.status === 'failed'
-      if (terminalStatus && !lastCompletedStepsRef.current.has(stepKey)) {
-        lastCompletedStepsRef.current.add(stepKey)
-        lastRunningStepsRef.current.delete(stepKey)
-        getProject(pid).then(p => {
-          if (p.story && p.story !== output) setOutput(p.story)
-          if (p.characters?.length) {
-            setCharacters(prev => {
-              const prevMap = new Map(prev.map(c => [c.name, c]))
-              const pending = pendingPortraitEventsRef.current
-              pendingPortraitEventsRef.current = []
-              return p.characters.map((c: any) => {
-                const name = c.name || c.identifier || ''
-                const existing = prevMap.get(name)
-                const portraitUrl = (url: unknown) => {
-                  if (!url || typeof url !== 'string') return ''
-                  return url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
-                    ? url
-                    : `${BASE}${url}`
-                }
-                const backPortraits = {
-                  front: portraitUrl(c.front_url),
-                  side: portraitUrl(c.side_url),
-                  back: portraitUrl(c.back_url),
-                }
-                const hasBackPortraits = !!(backPortraits.front || backPortraits.side || backPortraits.back)
 
-                // Start from existing or waiting status, then apply pending events
-                let status = hasBackPortraits
-                  ? { front: backPortraits.front ? 'generated' as const : 'waiting' as const, side: backPortraits.side ? 'generated' as const : 'waiting' as const, back: backPortraits.back ? 'generated' as const : 'waiting' as const }
-                  : (existing?.portraitStatus || { front: 'waiting' as const, side: 'waiting' as const, back: 'waiting' as const })
-
-                const portraits = hasBackPortraits
-                  ? backPortraits
-                  : (existing?.portraits || { front: '', side: '', back: '' })
-
-                // Replay any pending portrait events that arrived before characters were populated
-                for (const pe of pending) {
-                  if (name !== pe.identifier) continue
-                  const vk = pe.view as 'front' | 'side' | 'back'
-                  if (pe.status === 'waiting' && status[vk] !== 'waiting') continue
-                  // generated 状态必须有 image_url 才生效
-                  if (pe.status === 'generated' && !pe.image_url) continue
-                  status = { ...status, [vk]: (pe.status === 'waiting' ? 'generating' : pe.status) as 'waiting' | 'generating' | 'generated' | 'error' }
-                  if (pe.image_url) {
-                    portraits[vk] = pe.image_url.startsWith(BASE) ? pe.image_url : `${BASE}${pe.image_url}`
-                  }
-                }
-
-                return {
-                  name,
-                  staticFeatures: c.appearance || c.staticFeatures || '',
-                  dynamicFeatures: c.attire || c.dynamicFeatures || '',
-                  portraits,
-                  sourceUrl: c.sourceUrl || existing?.sourceUrl || '',
-                  portraitStatus: status,
-                }
-              })
-            })
-          }
-          if (p.scenes?.length) {
-            const hydratedScenes = p.scenes.map((s: any) => ({
-              title: s.title || '',
-              content: s.content || '',
-              shots: (s.shots || []).map((shot: any) => ({
-                title: shot.title || '',
-                visualDescription: shot.visualDescription || '',
-                voiceDescription: shot.voiceDescription || '',
-                motionDescription: shot.motionDescription || '',
-                variationType: shot.variationType || 'small',
-                firstFrame: shot.firstFrame ? (
-                  shot.firstFrame.startsWith(BASE)
-                  || shot.firstFrame.startsWith('http://')
-                  || shot.firstFrame.startsWith('https://')
-                ) ? shot.firstFrame : `${BASE}${shot.firstFrame}` : '',
-                lastFrame: shot.lastFrame ? (
-                  shot.lastFrame.startsWith(BASE)
-                  || shot.lastFrame.startsWith('http://')
-                  || shot.lastFrame.startsWith('https://')
-                ) ? shot.lastFrame : `${BASE}${shot.lastFrame}` : '',
-                video: shot.video ? (shot.video.startsWith(BASE) ? shot.video : `${BASE}${shot.video}`) : '',
-                videoPreview: shot.videoPreview ? (shot.videoPreview.startsWith(BASE) ? shot.videoPreview : `${BASE}${shot.videoPreview}`) : '',
-                firstFrameStatus: shot.firstFrame ? 'generated' as const : 'waiting' as const,
-                lastFrameStatus: shot.lastFrame ? 'generated' as const : 'waiting' as const,
-                videoStatus: shot.video ? 'generated' as const : 'waiting' as const,
-              })),
-              compositedVideo: s.compositedVideo || '',
-              compositedPreview: s.compositedPreview || '',
-            }))
-            const finalVideoUrl = p.final_video ? (p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`) : ''
-            const finalPreviewUrl = p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : ''
-            setScenes(hydratedScenes)
-            if (finalVideoUrl) setFinalVideo(finalVideoUrl)
-            if (finalPreviewUrl) setFinalPreview(finalPreviewUrl)
-            scrubMissingMedia({
-              scenes: hydratedScenes,
-              finalVideo: finalVideoUrl,
-              finalPreview: finalPreviewUrl,
-            })
-          }
-        }).catch(() => {})
-      }
-      if (stepKey === 'portraits' && stepState.status === 'running' && !lastRunningStepsRef.current.has('portraits')) {
-        lastRunningStepsRef.current.add('portraits')
-      }
-    }
-  }, [pipeline.status])
 
   // When shot_frames step is running, set pending shots to "generating"
   const lastShotFramesStatusRef = useRef<string>('')
@@ -546,42 +426,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
       lastShotFramesStatusRef.current = status
     }
   }, [pipeline.status?.steps?.shot_frames?.status])
-
-  // Update portrait placeholder statuses based on pipeline progress phase
-  const lastPortraitMsgRef = useRef('')
-  useEffect(() => {
-    if (!pipeline.status) return
-    const msg = pipeline.status.pipeline_message || ''
-    const portraitRunning = pipeline.status.steps?.portraits?.status === 'running'
-    if (!portraitRunning || msg === lastPortraitMsgRef.current) return
-    lastPortraitMsgRef.current = msg
-
-    // Parse "正在生成 <character> (<phase>)肖像..." → identify the active character and phase
-    // If the message doesn't match, don't touch existing statuses (SSE events handle them)
-    const m = msg.match(/正在生成 (.+?) (正面|侧面|背面)肖像/)
-    if (!m) return
-    const ident = m[1]
-    const phase = m[2]
-
-    // Only update the matched character by fuzzy name lookup;
-    // never reset other characters' statuses (handlePortraitImageEvent owns those).
-    setCharacters(prev => {
-      const matched = prev.find(c => ident.includes(c.name) || c.name.includes(ident))
-      if (!matched) return prev
-
-      const targetView = phase === '正面' ? 'front' : phase === '侧面' ? 'side' : 'back'
-      return prev.map(c => {
-        if (c.name !== matched.name) return c
-        const newStatus = {
-          front: (c.portraitStatus?.front === 'generated' || !!c.portraits?.front) ? 'generated' as const : (c.portraitStatus?.front === 'generating') ? 'generating' as const : 'waiting' as const,
-          side: (c.portraitStatus?.side === 'generated' || !!c.portraits?.side) ? 'generated' as const : (c.portraitStatus?.side === 'generating') ? 'generating' as const : 'waiting' as const,
-          back: (c.portraitStatus?.back === 'generated' || !!c.portraits?.back) ? 'generated' as const : (c.portraitStatus?.back === 'generating') ? 'generating' as const : 'waiting' as const,
-        }
-        newStatus[targetView] = c.portraits?.[targetView] ? 'generated' as const : 'generating' as const
-        return { ...c, portraitStatus: newStatus }
-      })
-    })
-  }, [pipeline.status?.pipeline_message, pipeline.status?.steps?.portraits?.status])
 
   const saveProjectData = async (extra: Record<string, any>) => {
     const pid = getEffectiveProjectId()
@@ -651,8 +495,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
             lastFrameStatus: shot.lastFrame ? 'generated' as const : 'waiting' as const,
             videoStatus: shot.video ? 'generated' as const : 'waiting' as const,
           })),
-          compositedVideo: s.compositedVideo || '',
-          compositedPreview: s.compositedPreview || '',
+          compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
+          compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
         })))
         if (p.final_video) {
           setFinalVideo(p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`)
@@ -781,8 +625,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
           slugline: '',
           environmentDesc: '',
           script: '',
-          compositedVideo: s.compositedVideo || '',
-          compositedPreview: s.compositedPreview || '',
+          compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
+          compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
           shots: s.shots.map(sh => ({
             title: sh.title,
             visualDescription: sh.visualDescription,
@@ -993,8 +837,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
             slugline: '',
             environmentDesc: '',
             script: '',
-            compositedVideo: s.compositedVideo || '',
-            compositedPreview: s.compositedPreview || '',
+            compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
+            compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
             shots: (sceneShotResults[i] || []).map(sh => ({
               title: sh.title,
               visualDescription: sh.visualDescription,
@@ -1038,6 +882,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
           try {
             // Step 1: Generate front portrait
+            console.log(`[portraits] === ${char.name} attempt=${attempt} step=front ===`)
             const frontRes = await generatePortraits({
               characters: [{
                 role_name: char.name,
@@ -1053,11 +898,13 @@ function NewProject(props: NewProjectProps): JSX.Element {
             })
 
             const frontData = frontRes.portraits[char.name]
+            console.log(`[portraits] ${char.name} front response:`, frontData)
             if (!frontData?.front) {
               throw new Error('正面肖像返回为空')
             }
             const frontUrl = `${BASE}${frontData.front}`
             const sourceUrl = frontData.source_url || ''
+            console.log(`[portraits] ${char.name} front success: localUrl=${frontData.front} sourceUrl=${sourceUrl}`)
             // Show front immediately, trigger side+back generation concurrently
             setCharacters(prev => prev.map(c =>
               c.name === char.name ? {
@@ -1069,6 +916,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             ))
 
             // Step 2: Generate side and back portraits concurrently
+            console.log(`[portraits] ${char.name} starting side+back (parallel) with sourceUrl length=${sourceUrl.length}`)
             const [sideRes, backRes] = await Promise.all([
               generatePortraits({
                 characters: [{ role_name: char.name, front_image: sourceUrl }],
@@ -1092,10 +940,19 @@ function NewProject(props: NewProjectProps): JSX.Element {
 
             const sideData = sideRes.portraits[char.name]
             const backData = backRes.portraits[char.name]
-            if (!sideData?.side) throw new Error('侧面肖像返回为空')
-            if (!backData?.back) throw new Error('背面肖像返回为空')
+            console.log(`[portraits] ${char.name} side response:`, sideData)
+            console.log(`[portraits] ${char.name} back response:`, backData)
+            if (!sideData?.side) {
+              console.error(`[portraits] ${char.name} side data missing:`, sideData)
+              throw new Error('侧面肖像返回为空')
+            }
+            if (!backData?.back) {
+              console.error(`[portraits] ${char.name} back data missing:`, backData)
+              throw new Error('背面肖像返回为空')
+            }
             const sideUrl = `${BASE}${sideData.side}`
             const backUrl = `${BASE}${backData.back}`
+            console.log(`[portraits] ${char.name} side+back success: side=${sideData.side} back=${backData.back}`)
 
             setCharacters(prev => prev.map(c =>
               c.name === char.name ? {
@@ -1111,11 +968,12 @@ function NewProject(props: NewProjectProps): JSX.Element {
             })
             break // success, exit retry loop
           } catch (e) {
+            console.warn(`[portraits] ${char.name} attempt ${attempt}/${MAX_RETRIES} failed:`, e)
             if (attempt < MAX_RETRIES) {
-              console.log(`角色 ${char.name} 肖像第 ${attempt} 次生成失败，等待后重试:`, e)
+              console.log(`[portraits] ${char.name} 肖像第 ${attempt} 次生成失败，等待后重试:`, e)
               await new Promise(r => setTimeout(r, 2000))
             } else {
-              console.error(`角色 ${char.name} 肖像生成失败（已重试 ${MAX_RETRIES} 次）:`, e)
+              console.error(`[portraits] ${char.name} 肖像生成失败（已重试 ${MAX_RETRIES} 次）:`, e)
               setCharacters(prev => prev.map(c =>
                 c.name === char.name ? {
                   ...c,
@@ -1223,7 +1081,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
     const char = characters[characterIdx]
     if (!char) return
 
+    console.log(`[portraits] handleRefreshImage charIdx=${characterIdx} view=${view} name=${char.name}`)
+
     if ((view === 'side' || view === 'back') && char.portraitStatus?.front !== 'generated') {
+      console.warn(`[portraits] handleRefreshImage rejected: front not generated yet for side/back`)
       return '请等正面照片生成后，再重试'
     }
 
@@ -1252,8 +1113,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
           project_id: pid,
         })
         const p = res.portraits[char.name]
+        console.log(`[portraits] handleRefreshImage front response:`, p)
         if (p?.front) {
           const frontUrl = `${BASE}${p.front}`
+          console.log(`[portraits] handleRefreshImage front success: ${p.front}`)
           setCharacters(prev => prev.map((c, i) =>
             i === characterIdx ? {
               ...c,
@@ -1264,9 +1127,12 @@ function NewProject(props: NewProjectProps): JSX.Element {
           ))
           await saveCharacterPortrait(pid, characterIdx, char.name, char.staticFeatures, char.dynamicFeatures,
             frontUrl, char.portraits?.side || '', char.portraits?.back || '', p.source_url || '')
+        } else {
+          console.error(`[portraits] handleRefreshImage front: no url in response`, p)
         }
       } else {
         const sourceUrl = char.sourceUrl || ''
+        console.log(`[portraits] handleRefreshImage ${view} sourceUrl length=${sourceUrl.length}`)
         const res = await generatePortraits({
           characters: [{
             role_name: char.name,
@@ -1280,8 +1146,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
           project_id: pid,
         })
         const p = res.portraits[char.name]
+        console.log(`[portraits] handleRefreshImage ${view} response:`, p)
         if (p?.[view]) {
           const url = `${BASE}${p[view]}`
+          console.log(`[portraits] handleRefreshImage ${view} success: ${p[view]}`)
           setCharacters(prev => prev.map((c, i) =>
             i === characterIdx ? {
               ...c,
@@ -1294,6 +1162,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
             view === 'side' ? url : char.portraits?.side || '',
             view === 'back' ? url : char.portraits?.back || '',
             sourceUrl)
+        } else {
+          console.error(`[portraits] handleRefreshImage ${view}: no url in response`, p)
         }
       }
     } catch (e: any) {

@@ -34,6 +34,7 @@ from backend.db.projects import (
     save_characters,
     save_full_project,
     update_character_portrait_url,
+    update_character_portrait_status,
     update_story,
 )
 from backend.db._config import DB_PATH

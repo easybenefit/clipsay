@@ -84,9 +84,7 @@ class FrameGenerator:
             scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.COMPLETE, url=url,
         )
         if self._emit:
-            await self._emit.shot_frame_ready(
-                scene.scene_idx, shot_idx, self._frame_type(resource), url,
-            )
+            await self._emit.project_updated()
         return True
 
     async def _build_ref_image(
@@ -158,16 +156,16 @@ class FrameGenerator:
         scene_idx: int,
         project_id: int,
     ) -> None:
-        logger.info("[cam=%d shot=%d] checking for existing START_FRAME",
-                    camera.idx, shot_idx)
+        # logger.info("[cam=%d shot=%d] checking for existing START_FRAME",
+        #             camera.idx, shot_idx)
 
-        existing = await self._try_use_existing(
-            scene, shot_idx, START_FRAME, conductor, log_tag=f"cam={camera.idx}",
-        )
-        if existing:
-            logger.info("[cam=%d shot=%d] START_FRAME already exists, skipping",
-                        camera.idx, shot_idx)
-            return
+        # existing = await self._try_use_existing(
+        #     scene, shot_idx, START_FRAME, conductor, log_tag=f"cam={camera.idx}",
+        # )
+        # if existing:
+        #     logger.info("[cam=%d shot=%d] START_FRAME already exists, skipping",
+        #                 camera.idx, shot_idx)
+        #     return
 
         logger.info("[cam=%d shot=%d] marking START_FRAME CREATING",
                     camera.idx, shot_idx)
@@ -175,7 +173,7 @@ class FrameGenerator:
         await update_shot(project_id, scene_idx, shot_idx, start_frame_status=StageStatus.CREATING)
         await conductor.change_stage(project_id, scene_idx, shot_idx, START_FRAME, StageStatus.CREATING)
         if self._emit:
-            await self._emit.shot_frame_ready(scene_idx, shot_idx, "start_frame", "")
+            await self._emit.project_updated()
 
         # ── build parent composition reference ──
         parent_ref = None
@@ -248,15 +246,17 @@ class FrameGenerator:
 
         logger.info(
             "[cam=%d shot=%d] persisting start_frame to DB", camera.idx, shot_idx)
-        await update_shot(project_id, scene_idx, shot_idx,
-                          start_frame_url=ref.url, start_frame_path=current_frame_path,
-                          start_frame_status=StageStatus.COMPLETE)
+        kwargs = {"start_frame_path": current_frame_path,
+                  "start_frame_status": StageStatus.COMPLETE}
+        if ref.url:
+            kwargs["start_frame_url"] = ref.url
+        await update_shot(project_id, scene_idx, shot_idx, **kwargs)
         logger.info("[cam=%d shot=%d] marking START_FRAME COMPLETE",
                     camera.idx, shot_idx)
 
         await conductor.change_stage(project_id, scene_idx, shot_idx, START_FRAME, StageStatus.COMPLETE, url=ref.url)
         if self._emit:
-            await self._emit.shot_frame_ready(scene_idx, shot_idx, "start_frame", ref.url)
+            await self._emit.project_updated()
 
     async def generate_start_frame(
         self,
@@ -312,14 +312,14 @@ class FrameGenerator:
         logger.info("[cam=%d shot=%d] generating %s",
                     camera.idx, shot_idx, resource)
 
-        # ── early skip if already exists ──
-        existing = await self._try_use_existing(
-            scene, shot_idx, resource, conductor,
-        )
-        if existing:
-            logger.info("[cam=%d shot=%d] %s already exists, skipping",
-                        camera.idx, shot_idx, resource)
-            return
+        # # ── early skip if already exists ──
+        # existing = await self._try_use_existing(
+        #     scene, shot_idx, resource, conductor,
+        # )
+        # if existing:
+        #     logger.info("[cam=%d shot=%d] %s already exists, skipping",
+        #                 camera.idx, shot_idx, resource)
+        #     return
 
         # ── conductor / db setup ──
         logger.info("[cam=%d shot=%d] waiting for first shot=%d START_FRAME (for %s)",
@@ -367,7 +367,7 @@ class FrameGenerator:
         await update_shot(scene.project_id, scene.scene_idx, shot_idx, **{f"{status_attr}": StageStatus.CREATING})
         await conductor.change_stage(scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.CREATING)
         if self._emit:
-            await self._emit.shot_frame_ready(scene.scene_idx, shot_idx, self._frame_type(resource), "")
+            await self._emit.project_updated()
 
         logger.info("[cam=%d shot=%d] building reference image for %s",
                     camera.idx, shot_idx, resource)
@@ -403,11 +403,13 @@ class FrameGenerator:
             raise RuntimeError(
                 f"{resource} file missing after generation: {frame_path}"
             )
-        await update_shot(scene.project_id, scene.scene_idx, shot_idx,
-                          **{f"{url_attr}": ref.url, f"{path_attr}": str(frame_path),
-                             f"{status_attr}": StageStatus.COMPLETE})
+        kwargs = {f"{path_attr}": str(frame_path),
+                  f"{status_attr}": StageStatus.COMPLETE}
+        if ref.url:
+            kwargs[url_attr] = ref.url
+        await update_shot(scene.project_id, scene.scene_idx, shot_idx, **kwargs)
         logger.info("[cam=%d shot=%d] marking %s COMPLETE",
                     camera.idx, shot_idx, resource)
         await conductor.change_stage(scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.COMPLETE, url=ref.url)
         if self._emit:
-            await self._emit.shot_frame_ready(scene.scene_idx, shot_idx, self._frame_type(resource), ref.url)
+            await self._emit.project_updated()

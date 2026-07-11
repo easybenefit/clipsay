@@ -177,6 +177,7 @@ class PipelineRunner:
                     await update_step_status(
                         self.project_id, step_name, "completed")
                     await self._emitter().step_complete(step_name, result)
+                    await self._emitter().project_updated()
                     last_exception = None
                     break
                 except NonRetryableError as e:

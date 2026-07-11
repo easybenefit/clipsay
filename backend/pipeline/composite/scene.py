@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 from backend.utils.logging import setup_logger
 from backend.utils.paths import PathResolver
@@ -30,14 +31,13 @@ async def composite_scene_video(config: SessionConfig, scene: dict, scene_idx: i
     video_paths = []
     for idx in shot_idxs:
         p = scene_scope.shot(idx).path(SHOT_VIDEO_NAME)
-        if not p.exists():
+        if not os.path.exists(p):
             _logger.warning(
                 "[scene_compositor] scene=%d shot=%d video not found, aborting", scene_idx, idx)
             return
         video_paths.append(str(p))
 
     await emit.emit_progress("scene_compositor", 0, message=f"正在合成场景 {scene_idx} 视频...")
-    await emit.scene_composite_ready(scene_idx, "", "")
 
     scene_video_path = scene_scope.path(SCENCE_VIDEO_NAME)
     await asyncio.to_thread(VideoCompositor.compose, video_paths, str(scene_video_path))
@@ -52,6 +52,6 @@ async def composite_scene_video(config: SessionConfig, scene: dict, scene_idx: i
 
     scene_video_url = scene_scope.url(SCENCE_VIDEO_NAME)
     scene_preview_url = scene_scope.url(SCENCE_PREVIEW_NAME)
-    await emit.scene_composite_ready(scene_idx, scene_video_url, scene_preview_url)
+    await emit.project_updated()
 
     await emit.emit_progress("scene_compositor", 1, message=f"场景 {scene_idx} 视频合成完成")

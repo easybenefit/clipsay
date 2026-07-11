@@ -57,7 +57,7 @@ Image 4: [机位2] 过肩镜头，机位在 Bob 身后。Bob 靠近摄影机一�
 </SEQ_DESC>
 
 [输出]
-你需要从参考图像描述中挑选至多 8 张最相关的参考图，将其索引填入输出的 selected_indices 字段。同时，生成一条文本提示描述待创建图像，明确指出生成图像中哪些元素应参照哪张参考图（及其中的哪些元素）。
+你需要从参考图像描述中挑选至多 4 张最相关的参考图，将其索引填入输出的 selected_indices 字段。同时，生成一条文本提示描述待创建图像，明确指出生成图像中哪些元素应参照哪张参考图（及其中的哪些元素）。
 
 {format_instructions}
 
@@ -69,7 +69,7 @@ Image 4: [机位2] 过肩镜头，机位在 Bob 身后。Bob 靠近摄影机一�
 - 所选参考图像描述应尽量精炼，避免冗余。例如，若 Image 3 已从正面展示 Bob 的面部特征，而 Image 1 同样是 Bob 的正面造型参考图，则 Image 1 冗余，不应选取。
 - 当帧描述中出现新角色时，优先选取其角色造型参考图（若有），以确保外貌描绘准确。注意角色面向摄影机是正面、侧面还是背面，选择最合适的视图作为该角色的参考图像。
 - 对于同一角色的多视图造型参考图（正面、侧面、背面），最多只能选择一张。根据帧描述选取最合适者。例如，描绘角色侧面时，优先选用该角色的侧面造型图。
-- 最多选择 **8** 张最优参考图像。
+- 最多选择 **4** 张最优参考图像。
 """
 
 SYSTEM_PROMPT_MULTIMODAL = """
@@ -116,7 +116,7 @@ Image 4: [机位2] 过肩镜头，机位在 Bob 身后。Bob 靠近摄影机一�
 - 前序帧图像按时间顺序排列，优先选择更靠近序列末尾（时间更近）的图像。
 - 所选参考图像描述应尽量精炼，避免冗余。例如，若 Image 3 已从正面展示 Bob 的面部特征，而 Image 1 同样是 Bob 的正面造型参考图，则 Image 1 冗余，不应选取。
 - 对于同一角色的多视图造型参考图（正面、侧面、背面），最多只能选择一张。根据帧描述选取最合适者。例如，描绘角色侧面时，优先选用该角色的侧面造型图。
-- 最多选择 **8** 张最优参考图像。
+- 最多选择 **4** 张最优参考图像。
 - 指导图像编辑的文本提示应尽量简洁。
 """
 
@@ -127,7 +127,7 @@ HUMAN_PROMPT_TEMPLATE = """
 """
 
 # Max candidates the text-only filter should produce.
-MAX_VISION_CANDIDATES = 8
+MAX_VISION_CANDIDATES = 4
 
 
 # ===================================================================
@@ -212,7 +212,7 @@ class ReferencePicker:
         candidates: List[ImageRef],
         frame_description: str,
     ) -> List[ImageRef]:
-        """Use the text-only LLM to narrow *candidates* to ≤ 8 entries."""
+        """Use the text-only LLM to narrow *candidates* to ≤ 4 entries."""
         content = [
             {"type": "text", "text": f"Image {idx}: {ref.prompt}"}
             for idx, ref in enumerate(candidates)
@@ -229,11 +229,15 @@ class ReferencePicker:
             )),
             HumanMessage(content=content),
         ]
+        logger.info("==>content: %s", content)
 
         try:
             raw = await LLM.chat(self._llm.model, messages, self._llm.api_key, self._llm.base_url)
+            logger.info("==>raw: %s", raw)
+
             result = parser.parse(raw)
-            logger.info("Text-filter selected indices: %s", result.selected_indices)
+            logger.info("Text-filter selected indices: %s",
+                        result.selected_indices)
             return [candidates[i] for i in result.selected_indices]
         except Exception:
             logger.exception("Text-only LLM filter failed")
@@ -276,7 +280,8 @@ class ReferencePicker:
             raw = await LLM.chat(self._vision.model, messages, self._vision.api_key, self._vision.base_url)
             result = parser.parse(raw)
             n = len(candidates)
-            selected = [candidates[i] for i in result.selected_indices if 0 <= i < n]
+            selected = [candidates[i]
+                        for i in result.selected_indices if 0 <= i < n]
             logger.info("Vision selected %d reference(s)", len(selected))
             return {"references": selected, "generation_prompt": result.generation_prompt}
         except Exception:

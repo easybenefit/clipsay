@@ -15,7 +15,7 @@ from backend.pipeline.conductor import (
 )
 from backend.core.types import SHOT_PREVIEW_NAME, SHOT_VIDEO_NAME, SCENCE_VIDEO_NAME
 from backend.schemas.models import ModelConfig
-from backend.db.storyboards import update_shot
+from backend.db.storyboards import get_shot_by_project_scene, update_shot
 from backend.services.video_compositor import VideoCompositor
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ async def _persist_and_complete(
     logger.info("[video] shot=%d persisted, preview=%s",
                 shot_idx, bool(video_preview_url))
     if emit:
-        await emit.shot_video_ready(scene_idx, shot_idx, video_url, video_preview_url)
+        await emit.project_updated()
     return video_preview_url
 
 
@@ -73,13 +73,12 @@ async def _wait_frames(
     scene_idx: int,
     shot_idx: int,
 ) -> None:
-    logger.info("[video] shot=%d waiting for start_frame...", shot_idx)
-    await conductor.stages.wait(project_id, scene_idx, shot_idx, START_FRAME)
-    logger.info("[video] shot=%d start_frame ready", shot_idx)
-
-    logger.info("[video] shot=%d waiting for end_frame...", shot_idx)
-    await conductor.stages.wait(project_id, scene_idx, shot_idx, END_FRAME)
-    logger.info("[video] shot=%d end_frame ready", shot_idx)
+    logger.info("[video] shot=%d waiting for start_frame + end_frame...", shot_idx)
+    await asyncio.gather(
+        conductor.stages.wait(project_id, scene_idx, shot_idx, START_FRAME),
+        conductor.stages.wait(project_id, scene_idx, shot_idx, END_FRAME),
+    )
+    logger.info("[video] shot=%d start_frame + end_frame ready", shot_idx)
 
 
 async def generate_shot_video(
@@ -102,14 +101,20 @@ async def generate_shot_video(
         return str(video_path)
 
     if emit:
-        await emit.shot_video_ready(scene_idx, shot_idx, "", "")
+        await emit.project_updated()
 
     await _wait_frames(conductor, project_id, scene_idx, shot_idx)
 
+    shot_db = await get_shot_by_project_scene(project_id, scene_idx, shot_idx)
     ref_urls = [
-        str(shot_scope.url(name))
-        for name in [START_FRAME, END_FRAME]
-    ]
+        shot_db.get("start_frame_url", ""),
+        shot_db.get("end_frame_url", ""),
+    ] if shot_db else []
+    missing = [k for k, v in [("start_frame", ref_urls[0]), ("end_frame", ref_urls[1])] if not v]
+    if missing:
+        raise RuntimeError(
+            f"shot={shot_idx} missing frame(s) after _wait_frames: {', '.join(missing)}"
+        )
     prompt = (shot_description.motion_desc or "") + \
         "\n" + (shot_description.audio_desc or "")
     logger.info("[video] shot=%d generating, prompt_len=%d, refs=%d",

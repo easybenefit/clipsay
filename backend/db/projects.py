@@ -13,6 +13,18 @@ from backend.utils.paths import DATA_ROOT
 from backend.schemas.models import ModelConfig
 
 
+# ── portrait_status bit-field helpers ──────────────────────────────────
+_PS_SHIFT = {"front": 0, "back": 4, "side": 8}
+_PS_MASK = 0xF
+
+def _ps_decode(val: int) -> dict[str, int]:
+    return {v: (val >> s) & _PS_MASK for v, s in _PS_SHIFT.items()}
+
+def _ps_update(current: int, view: str, status: int) -> int:
+    shift = _PS_SHIFT[view]
+    return (current & ~(_PS_MASK << shift)) | (status << shift)
+
+
 def _get_connection():
     from backend.db._config import DB_PATH
     return aiosqlite.connect(DB_PATH)
@@ -49,7 +61,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
 
     # ── characters from attributes table ──
     char_rows = await (await db.execute(
-        "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url FROM attributes "
+        "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url, portrait_status FROM attributes "
         "WHERE project_id = ? ORDER BY identifier",
         (project_id,))).fetchall()
     from backend.utils.image import to_filename
@@ -65,6 +77,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
             "front_url": _ps.url(to_filename(r["identifier"], "front")) if r["front_url"] else "",
             "side_url": _ps.url(to_filename(r["identifier"], "side")) if r["side_url"] else "",
             "back_url": _ps.url(to_filename(r["identifier"], "back")) if r["back_url"] else "",
+            "portrait_status": _ps_decode(r["portrait_status"] or 0),
         }
         for r in char_rows
     ]
@@ -75,7 +88,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
     project["scenes"] = []
     for sc in sc_rows:
         scene = dict(sc)
-        scene_scope = PathResolver().project(project_id).scene(scene["id"])
+        scene_scope = PathResolver().project(project_id).scene(scene["idx"])
         scene["compositedVideo"] = scene.get("composited_video", "")
         scene["compositedPreview"] = scene.get("composited_preview", "")
         if scene["compositedVideo"] and not scene["compositedVideo"].startswith("/"):
@@ -136,15 +149,31 @@ async def save_full_project(db, project_id: int, data) -> None:
                          (sent["story"] or "", project_id))
 
     if data.characters is not None:
+        existing_chars = {
+            r["identifier"]: r for r in await (await db.execute(
+                "SELECT identifier, front_url, side_url, back_url, portrait_status FROM attributes "
+                "WHERE project_id = ?", (project_id,))).fetchall()
+        }
         await db.execute("DELETE FROM attributes WHERE project_id = ?", (project_id,))
         for i, ch in enumerate(data.characters):
             name = ch.identifier or ""
+            prev = existing_chars.get(name, {})
             await db.execute(
-                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (project_id, name, ch.appearance or "", ch.attire or "", ch.idx or i))
+                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx, "
+                "front_url, side_url, back_url, portrait_status) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, name, ch.appearance or "", ch.attire or "", ch.idx or i,
+                 prev.get("front_url", ""), prev.get("side_url", ""),
+                 prev.get("back_url", ""), prev.get("portrait_status", 0)))
 
     if data.scenes is not None:
+        existing_frames = {
+            (r["scene_idx"], r["shot_idx"]): r for r in await (await db.execute(
+                "SELECT s.idx AS scene_idx, sh.idx AS shot_idx, "
+                "sh.start_frame_url, sh.end_frame_url, sh.shot_video_url, sh.shot_preview_url "
+                "FROM scenes s JOIN shots sh ON sh.scene_id = s.id "
+                "WHERE s.project_id = ?", (project_id,))).fetchall()
+        }
         await db.execute("DELETE FROM scenes WHERE project_id = ?", (project_id,))
         for si, sc in enumerate(data.scenes):
             cur = await db.execute(
@@ -157,6 +186,12 @@ async def save_full_project(db, project_id: int, data) -> None:
             if not sc.shots:
                 continue
             for shi, sh in enumerate(sc.shots):
+                prev = existing_frames.get((si, shi), {})
+                sf_url = sh.first_frame or prev.get("start_frame_url", "")
+                ef_url = sh.last_frame or prev.get("end_frame_url", "")
+                sv_url = sh.video or prev.get("shot_video_url", "")
+                sp_url = (getattr(sh, 'video_preview', '') or getattr(sh, 'videoPreview', '')
+                          or prev.get("shot_preview_url", ""))
                 await db.execute(
                     "INSERT INTO shots (scene_id, idx, is_last, cam_idx, "
                     "variation_type, visual_desc, audio_desc, motion_desc, "
@@ -164,8 +199,8 @@ async def save_full_project(db, project_id: int, data) -> None:
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (scid, shi, shi == len(sc.shots) - 1, 0,
                      sh.variation_type, sh.visual_description, sh.voice_description,
-                     sh.motion_description, sh.first_frame, sh.last_frame,
-                     sh.video, getattr(sh, 'video_preview', '') or getattr(sh, 'videoPreview', '')))
+                     sh.motion_description, sf_url, ef_url,
+                     sv_url, sp_url))
     await db.commit()
 
 
@@ -199,10 +234,10 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
         for ch in original.get("characters", []):
             name = ch.get("identifier", "")
             await conn.execute(
-                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx, portrait_status) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
                 (new_id, name, ch.get("appearance", ""), ch.get("attire", ""),
-                 ch.get("idx", 0)))
+                 ch.get("idx", 0), ch.get("portrait_status", 0)))
         for sc in original.get("scenes", []):
             cur = await conn.execute(
                 "INSERT INTO scenes (project_id, idx, title, content, "
@@ -254,25 +289,22 @@ async def read_story(db, project_id: int) -> str | None:
 
 async def read_characters(db, project_id: int) -> list:
     from backend.schemas import CharacterRead
-    from backend.utils.paths import PathResolver
-    from backend.utils.image import to_filename
     db.row_factory = __import__("aiosqlite").Row
     rows = await (await db.execute(
-        "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url FROM attributes "
+        "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url, portrait_status FROM attributes "
         "WHERE project_id = ? ORDER BY identifier",
         (project_id,))).fetchall()
-    _ps = PathResolver().project(project_id).portrait
     result = []
     for r in rows:
-        ident = r["identifier"]
         result.append(CharacterRead(
-            identifier=ident,
+            identifier=r["identifier"],
             appearance=r["appearance"] or "",
             attire=r["attire"] or "",
             char_idx=r["idx"] or 0,
-            front_url=_ps.url(to_filename(ident, "front")) if r["front_url"] else "",
-            side_url=_ps.url(to_filename(ident, "side")) if r["side_url"] else "",
-            back_url=_ps.url(to_filename(ident, "back")) if r["back_url"] else "",
+            front_url=r["front_url"] or "",
+            side_url=r["side_url"] or "",
+            back_url=r["back_url"] or "",
+            portrait_status=_ps_decode(r["portrait_status"] or 0),
         ))
     return result
 
@@ -284,13 +316,25 @@ async def get_characters(project_id: int) -> list:
 
 async def save_characters(project_id: int, characters: list) -> None:
     async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        existing = {
+            r["identifier"]: r for r in await (await db.execute(
+                "SELECT identifier, front_url, side_url, back_url, portrait_status FROM attributes "
+                "WHERE project_id = ?", (project_id,))).fetchall()
+        }
+
         await db.execute("DELETE FROM attributes WHERE project_id = ?", (project_id,))
         for ch in characters:
             name = ch.identifier or ""
+            prev = existing.get(name, {})
             await db.execute(
-                "INSERT INTO attributes (project_id, identifier, appearance, attire, idx) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (project_id, name, ch.appearance or "", ch.attire or "", ch.idx))
+                "INSERT INTO attributes "
+                "(project_id, identifier, appearance, attire, idx, "
+                "front_url, side_url, back_url, portrait_status) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, name, ch.appearance or "", ch.attire or "", ch.idx,
+                 prev.get("front_url", ""), prev.get("side_url", ""),
+                 prev.get("back_url", ""), prev.get("portrait_status", 0)))
         await db.commit()
 
 
@@ -362,4 +406,19 @@ async def update_character_portrait_url(project_id: int, identifier: str, view: 
             f"UPDATE attributes SET {col} = ? WHERE project_id = ? AND identifier = ?",
             (url, project_id, identifier),
         )
+        await db.commit()
+
+
+async def update_character_portrait_status(project_id: int, identifier: str, view: str, status: int) -> None:
+    """Update one view's portrait_status bit-field for a character, in-place."""
+    shift = _PS_SHIFT[view]
+    sql = (
+        "UPDATE attributes SET portrait_status = "
+        "(portrait_status & ?) | ? "
+        "WHERE project_id = ? AND identifier = ?"
+    )
+    mask = ~(_PS_MASK << shift) & 0xFFFFFFFF
+    value = status << shift
+    async with _get_connection() as db:
+        await db.execute(sql, (mask, value, project_id, identifier))
         await db.commit()

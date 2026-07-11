@@ -18,7 +18,7 @@ class CharactersResponse(BaseModel):
 
 
 class CharacterSave(BaseModel):
-    identifier: str
+    identifier: str = Field(alias="name")
     appearance: str = Field(default="", alias="staticFeatures")
     attire: str = Field(default="", alias="dynamicFeatures")
     source: str = "script"
@@ -39,6 +39,7 @@ class CharacterRead(BaseModel):
     side_url: str = ""
     back_url: str = ""
     char_idx: int = 0
+    portrait_status: dict = {}
 
 
 class PortraitCharacter(BaseModel):

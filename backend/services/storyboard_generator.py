@@ -206,10 +206,8 @@ class StoryboardGenerator:
 
         content = await LLM.chat(self._model, messages, self._api_key, self._base_url)
 
-        import json
-        raw = json.loads(content)
-        decomposition: _VisDescDecompositionResponse = parser.parse(
-            json.dumps(raw))
+        logger.info("-----------> content: %s", content)
+        decomposition: _VisDescDecompositionResponse = parser.parse(content)
 
         logger.info(
             "=== StoryboardGenerator.decompose_visual_description Response ===")

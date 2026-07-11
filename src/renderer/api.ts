@@ -38,6 +38,8 @@ export interface ProjectFull extends Project {
   story: string | null
   characters: any[]
   scenes: any[]
+  final_video: string
+  final_preview: string
   story_fresh: number
   characters_fresh: number
   script_fresh: number

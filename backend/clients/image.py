@@ -195,11 +195,17 @@ class Image:
         if key not in cls._queues:
             cls._queues[key] = RateQueue(
                 model_key=key,
-                config=RateLimitConfig(rpm=rpm, rpd=rpd),
+                config=RateLimitConfig(rpm=rpm, rpd=rpd, max_concurrency=2),
                 project_id=project_id,
             )
         queue = cls._queues[key]
         provider = _create(model, api_key, base_url)
+
+        logger.info("[Image.generate] model=%s task_id=%s project_id=%d prompt_len=%d size=%s",
+                    model, task_id or "N/A", project_id, len(prompt),
+                    payload.get("size", "N/A"))
+        if "reference_images" in payload:
+            logger.info("[Image.generate] reference_images=%d", len(payload["reference_images"]))
 
         for attempt in range(max_retries_content_filter):
             try:
@@ -209,9 +215,14 @@ class Image:
                     metadata=metadata,
                     urgent=urgent,
                 )
+                logger.info("[Image.generate] SUCCESS attempt=%d task_id=%s",
+                            attempt + 1, task_id or "N/A")
                 return result, prompt
-            except ContentFilterError:
+            except ContentFilterError as cf_err:
+                logger.warning("[Image.generate] ContentFilterError attempt=%d/%d task_id=%s prompt_len=%d",
+                               attempt + 1, max_retries_content_filter, task_id or "N/A", len(prompt))
                 if attempt == max_retries_content_filter - 1 or not on_filter:
+                    logger.error("[Image.generate] ContentFilterError retries exhausted")
                     raise
                 new_prompt = await on_filter(ContentFilterError(
                     prompt=prompt,
@@ -221,4 +232,5 @@ class Image:
                 ))
                 prompt = sanitizer.sanitize(new_prompt)
                 payload = {**payload, "prompt": prompt}
+                logger.info("[Image.generate] ContentFilterError retry with new prompt len=%d", len(prompt))
         raise RuntimeError("Content filter retry exhausted")
