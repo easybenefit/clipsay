@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 
 from backend.utils.logging import setup_logger
-from backend.utils.paths import PathResolver
+from backend.utils.paths import PathResolver, normalize_local_url
 from backend.core.types import SCENCE_VIDEO_NAME, SCENCE_PREVIEW_NAME, NEW_IDEA_PREVIEW_NAME, NEW_IDEA_VIDEO_NAME
 from backend.db import update_project_final_video, get_scene_count
 from backend.pipeline.config import SessionConfig
@@ -55,7 +55,11 @@ async def composite_video(config: SessionConfig, emit: EventEmitter) -> None:
     # 6. Persist to DB
     final_video_url = project.url(NEW_IDEA_VIDEO_NAME)
     final_preview_url = project.url(NEW_IDEA_PREVIEW_NAME)
-    await update_project_final_video(config.project_id, final_video_url, final_preview_url)
+    await update_project_final_video(
+        config.project_id,
+        normalize_local_url(final_video_url),
+        normalize_local_url(final_preview_url),
+    )
 
     # 7. Emit complete notification
     await emit.project_updated()

@@ -341,7 +341,7 @@ function App(): JSX.Element {
                     }}>
                       <div className="project-thumb">
                         {(p as any).final_preview ? (
-                          <img className="project-thumb-img" src={(p as any).final_preview} alt="" />
+                          <img className="project-thumb-img" src={(p as any).final_preview.startsWith(BASE) ? (p as any).final_preview : `${BASE}${(p as any).final_preview}`} alt="" />
                         ) : (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="project-thumb-icon">
                             <polygon points="5 3 19 12 5 21 5 3" />

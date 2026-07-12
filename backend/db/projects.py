@@ -9,7 +9,7 @@ from typing import Optional
 
 import aiosqlite
 
-from backend.utils.paths import DATA_ROOT
+from backend.utils.paths import DATA_ROOT, normalize_local_url
 from backend.schemas.models import ModelConfig
 
 
@@ -91,7 +91,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
         scene_scope = PathResolver().project(project_id).scene(scene["idx"])
         scene["compositedVideo"] = scene.get("composited_video", "")
         scene["compositedPreview"] = scene.get("composited_preview", "")
-        if scene["compositedVideo"] and not scene["compositedVideo"].startswith("/"):
+        if scene["compositedVideo"] and not scene["compositedVideo"].startswith(("/", "http://", "https://")):
             scene["compositedVideo"] = scene_scope.url(
                 scene["compositedVideo"])
             scene["compositedPreview"] = scene_scope.url(
@@ -104,10 +104,10 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
             sd = dict(sh)
             sf_path = sd.get("start_frame_path", "")
             sf_url = "/local/" + os.path.relpath(sf_path, str(
-                DATA_ROOT)) if sf_path and os.path.exists(sf_path) else sd.get("start_frame_url", "")
+                DATA_ROOT)) if sf_path and os.path.exists(sf_path) else normalize_local_url(sd.get("start_frame_url", ""))
             ef_path = sd.get("end_frame_path", "")
             ef_url = "/local/" + os.path.relpath(ef_path, str(
-                DATA_ROOT)) if ef_path and os.path.exists(ef_path) else sd.get("end_frame_url", "")
+                DATA_ROOT)) if ef_path and os.path.exists(ef_path) else normalize_local_url(sd.get("end_frame_url", ""))
             scene["shots"].append({
                 "title": sd["visual_desc"][:50] if sd["visual_desc"] else "",
                 "visualDescription": sd["visual_desc"],
@@ -181,16 +181,16 @@ async def save_full_project(db, project_id: int, data) -> None:
                 "environment_desc, script, composited_video, composited_preview) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, si, sc.title, sc.content, sc.environment_desc,
-                 sc.script, sc.composited_video, sc.composited_preview))
+                 sc.script, normalize_local_url(sc.composited_video), normalize_local_url(sc.composited_preview)))
             scid = cur.lastrowid
             if not sc.shots:
                 continue
             for shi, sh in enumerate(sc.shots):
                 prev = existing_frames.get((si, shi), {})
-                sf_url = sh.first_frame or prev.get("start_frame_url", "")
-                ef_url = sh.last_frame or prev.get("end_frame_url", "")
-                sv_url = sh.video or prev.get("shot_video_url", "")
-                sp_url = (getattr(sh, 'video_preview', '') or getattr(sh, 'videoPreview', '')
+                sf_url = normalize_local_url(sh.first_frame or prev.get("start_frame_url", ""))
+                ef_url = normalize_local_url(sh.last_frame or prev.get("end_frame_url", ""))
+                sv_url = normalize_local_url(sh.video or prev.get("shot_video_url", ""))
+                sp_url = normalize_local_url(getattr(sh, 'video_preview', '') or getattr(sh, 'videoPreview', '')
                           or prev.get("shot_preview_url", ""))
                 await db.execute(
                     "INSERT INTO shots (scene_id, idx, is_last, cam_idx, "
@@ -245,7 +245,7 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (new_id, sc.get("idx", 0), sc.get("title", ""), sc.get("content", ""),
                  sc.get("environment_desc", ""), sc.get("script", ""),
-                 sc.get("compositedVideo", ""), sc.get("compositedPreview", "")))
+                 normalize_local_url(sc.get("compositedVideo", "")), normalize_local_url(sc.get("compositedPreview", ""))))
             scid = cur.lastrowid
             for sh in sc.get("shots", []):
                 await conn.execute(
@@ -258,8 +258,8 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
                          "visualDescription", ""),
                      sh.get("voiceDescription", ""), sh.get(
                          "motionDescription", ""),
-                     sh.get("firstFrame", ""), sh.get("lastFrame", ""),
-                     sh.get("video", ""), sh.get("videoPreview", "")))
+                     normalize_local_url(sh.get("firstFrame", "")), normalize_local_url(sh.get("lastFrame", "")),
+                     normalize_local_url(sh.get("video", "")), normalize_local_url(sh.get("videoPreview", ""))))
         await conn.commit()
     return await read_full_project(db, new_id)
 

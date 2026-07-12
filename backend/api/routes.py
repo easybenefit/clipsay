@@ -21,7 +21,7 @@ from backend.services.character_generator import CharacterGenerator
 from backend.services.script_writer import ScriptWriter
 from backend.services.portrait_generator import PortraitGenerator
 from backend.services.video_compositor import VideoCompositor
-from backend.utils.paths import PathResolver, DATA_ROOT
+from backend.utils.paths import PathResolver, DATA_ROOT, normalize_local_url
 from backend.pipeline.runner import PipelineRunner
 from backend.db import (
     DB_PATH, create_project_row, list_project_rows,
@@ -363,7 +363,7 @@ async def composite_scene_video(scene_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE scenes SET composited_video = ?, composited_preview = ? WHERE id = ?",
-            (composite_video_url, preview_url, scene_id))
+            (normalize_local_url(composite_video_url), normalize_local_url(preview_url), scene_id))
         await db.commit()
 
     return {"composited_video": composite_video_url, "composited_preview": preview_url, "scene_id": scene_id}
@@ -423,7 +423,7 @@ async def composite_project_video(project_id: int):
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute(
                     "UPDATE scenes SET composited_video = ? WHERE id = ?",
-                    (scene_video, sc["id"]))
+                    (normalize_local_url(scene_video), sc["id"]))
                 await db.commit()
             scene_video_paths.append(scene_path)
 
@@ -454,7 +454,7 @@ async def composite_project_video(project_id: int):
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(
                 "UPDATE projects SET final_video = ?, final_preview = ? WHERE id = ?",
-                (final_video_url, final_preview_url, project_id),
+                (normalize_local_url(final_video_url), normalize_local_url(final_preview_url), project_id),
             )
             await db.commit()
     except Exception as e:

@@ -24,6 +24,17 @@ _PATH_TEMPLATES = {
 }
 
 
+def normalize_local_url(url: str) -> str:
+    """Strip protocol+host leaving /local/... relative path, or return as-is."""
+    if not url:
+        return url
+    if url.startswith(("http://", "https://")):
+        idx = url.find("/", 8)
+        if idx != -1:
+            return url[idx:]
+    return url
+
+
 class PathResolver:
 
     def __init__(self, base_root: Path = DATA_ROOT) -> None:

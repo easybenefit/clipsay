@@ -455,16 +455,34 @@ function NewProject(props: NewProjectProps): JSX.Element {
           staticFeatures: c.appearance || c.staticFeatures || '',
           dynamicFeatures: c.attire || c.dynamicFeatures || '',
           portraits: {
-            front: c.portraits?.front || '',
-            side: c.portraits?.side || '',
-            back: c.portraits?.back || '',
+            front: c.front_url
+              ? (c.front_url.startsWith(BASE) || c.front_url.startsWith('http://') || c.front_url.startsWith('https://')
+                ? c.front_url
+                : `${BASE}${c.front_url}`)
+              : '',
+            side: c.side_url
+              ? (c.side_url.startsWith(BASE) || c.side_url.startsWith('http://') || c.side_url.startsWith('https://')
+                ? c.side_url
+                : `${BASE}${c.side_url}`)
+              : '',
+            back: c.back_url
+              ? (c.back_url.startsWith(BASE) || c.back_url.startsWith('http://') || c.back_url.startsWith('https://')
+                ? c.back_url
+                : `${BASE}${c.back_url}`)
+              : '',
           },
           sourceUrl: c.sourceUrl || '',
-          portraitStatus: {
-            front: c.portraits?.front ? 'generated' as const : 'waiting' as const,
-            side: c.portraits?.side ? 'generated' as const : 'waiting' as const,
-            back: c.portraits?.back ? 'generated' as const : 'waiting' as const,
-          },
+          portraitStatus: c.portrait_status
+            ? {
+                front: PORTRAIT_STATUS_MAP[c.portrait_status.front] || 'waiting' as const,
+                side: PORTRAIT_STATUS_MAP[c.portrait_status.side] || 'waiting' as const,
+                back: PORTRAIT_STATUS_MAP[c.portrait_status.back] || 'waiting' as const,
+              }
+            : {
+                front: c.front_url ? 'generated' as const : 'waiting' as const,
+                side: c.side_url ? 'generated' as const : 'waiting' as const,
+                back: c.back_url ? 'generated' as const : 'waiting' as const,
+              },
           portraitDescriptions: c.portraitDescriptions || makePortraitDescriptions(c.name || c.identifier || ''),
         })) as CharacterData[])
         setPortraitsReady(true)
