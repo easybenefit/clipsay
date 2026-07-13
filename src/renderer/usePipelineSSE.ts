@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { BASE } from './api'
 
+export const EVENT_PROJECT_UPDATED = 'project_data_changed'
+
 export interface StepState {
   status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
   progress: number
@@ -32,7 +34,7 @@ export type PipelineEvent =
   | { type: 'step_failed'; step: string; error: string }
   | { type: 'emit_progress'; step: string; progress: number; message?: string }
   | { type: 'step_skipped'; step: string }
-  | { type: 'project_updated' }
+  | { type: typeof EVENT_PROJECT_UPDATED }
   | { type: 'task_status'; task_id: string; status: string; message: string; model: string; attempt?: number; max_retries?: number; result?: any }
 
 interface UsePipelineSSEReturn {
@@ -196,7 +198,7 @@ export function usePipelineSSE(
       case 'pipeline_completed':
         setStatus(prev => prev ? { ...prev, pipeline_status: 'completed', pipeline_progress: 1 } : prev)
         break
-      case 'project_updated':
+      case EVENT_PROJECT_UPDATED:
       case 'task_status':
         onEvent?.(event)
         break

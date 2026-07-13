@@ -45,7 +45,6 @@ TABLES = [
     )
     """,
     """
-    DROP TABLE IF EXISTS attributes;
     CREATE TABLE IF NOT EXISTS attributes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

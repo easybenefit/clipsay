@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, generateFrame, generateShotFrames, getProject, updateProject } from './api'
-import { usePipelineSSE } from './usePipelineSSE'
+import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
 import CharacterCard from './CharacterCard'
@@ -367,7 +367,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
 
   const handlePipelineEvent = useCallback((event: any) => {
     try {
-      if (event.type === 'project_updated') {
+      if (event.type === EVENT_PROJECT_UPDATED) {
         const pid = getEffectiveProjectId()
         if (pid) refreshProjectData(pid)
       }
@@ -609,6 +609,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       await pipeline.start()
       pipelineStartedRef.current = true
       setStage('story')
+      setStepStatuses({ story: 1 })
 
       // 4. Now propagate project ID to parent so it persists in localStorage
       if (isNew) {

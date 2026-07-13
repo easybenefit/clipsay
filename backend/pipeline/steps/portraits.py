@@ -62,6 +62,11 @@ async def _generate_character_portraits(
     identifier = character.identifier
     _logger.info("[portraits] === character start: %s ===", identifier)
 
+    ps = character.portrait_status or {}
+    if isinstance(ps, dict) and all(ps.get(v) == PORTRAIT_STATUS_GENERATED for v in (VIEW_FRONT, VIEW_SIDE, VIEW_BACK)):
+        _logger.info("[portraits] %s all views already generated, skipping", identifier)
+        return
+
     ref = await _generate_view(
         generator, emit, identifier, character, VIEW_FRONT, aspect_size,
         style=config.style, project_id=config.project_id,

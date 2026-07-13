@@ -198,13 +198,23 @@ async def save_full_project(db, project_id: int, data) -> None:
         for i, ch in enumerate(data.characters):
             name = ch.identifier or ""
             prev = existing_chars.get(name, {})
+            pd = ch.portraits or {}
+            front_url = normalize_local_url(pd.get("front", "")) or prev.get("front_url", "")
+            side_url = normalize_local_url(pd.get("side", "")) or prev.get("side_url", "")
+            back_url = normalize_local_url(pd.get("back", "")) or prev.get("back_url", "")
+            portrait_status = prev.get("portrait_status", 0)
+            if front_url:
+                portrait_status = _ps_update(portrait_status, "front", 2)
+            if side_url:
+                portrait_status = _ps_update(portrait_status, "side", 2)
+            if back_url:
+                portrait_status = _ps_update(portrait_status, "back", 2)
             await db.execute(
                 "INSERT INTO attributes (project_id, identifier, appearance, attire, idx, "
                 "front_url, side_url, back_url, portrait_status) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, name, ch.appearance or "", ch.attire or "", ch.idx or i,
-                 prev.get("front_url", ""), prev.get("side_url", ""),
-                 prev.get("back_url", ""), prev.get("portrait_status", 0)))
+                 front_url, side_url, back_url, portrait_status))
 
     if data.scenes is not None:
         existing_frames = {
