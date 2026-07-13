@@ -5,6 +5,7 @@ import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 import StoryCard from './StoryCard'
 import CharacterCard from './CharacterCard'
 import ShootingScriptCard from './ShootingScriptCard'
+import CreativeVideoCard from './CreativeVideoCard'
 import SceneScriptsCard from './SceneScriptsCard'
 import type { CharacterData, PortraitStatus, PortraitView, PortraitViewStatus } from './CharacterCard'
 import type { SceneData, ShotData } from './ShootingScriptCard'
@@ -1517,6 +1518,14 @@ function NewProject(props: NewProjectProps): JSX.Element {
                 onSceneUpdate={handleSceneUpdate}
                 onRegenerate={handleRegenerateStoryboard}
                 onRefreshFrame={handleRefreshFrame}
+                aspectRatio={size}
+              />
+            </div>
+          )}
+          {(finalVideo || scenes.some(s => s.compositedVideo)) && (
+            <div className="npm-card-enter">
+              <CreativeVideoCard
+                scenes={scenes}
                 aspectRatio={size}
                 finalVideo={finalVideo}
                 finalPreview={finalPreview}

@@ -37,21 +37,19 @@ interface ScriptCardProps {
   loading?: boolean
   disabled?: boolean
   aspectRatio?: string
-  finalVideo?: string
-  finalPreview?: string
 
   onSceneUpdate?: (idx: number, data: SceneData) => void
   onRegenerate?: () => void
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
 }
 
-interface MediaPreviewData {
+export interface MediaPreviewData {
   src: string
   isVideo: boolean
   label: string
 }
 
-function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClose: () => void }): JSX.Element {
+export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClose: () => void }): JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
@@ -87,7 +85,7 @@ function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClose: () =
   )
 }
 
-function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectRatio = '16:9', finalVideo, finalPreview, onSceneUpdate, onRegenerate, onRefreshFrame }: ScriptCardProps): JSX.Element {
+function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame }: ScriptCardProps): JSX.Element {
   const cssAspectRatio = toCssAspectRatio(aspectRatio)
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [editShotKey, setEditShotKey] = useState<{ sceneIdx: number; shotIdx: number } | null>(null)
@@ -145,50 +143,7 @@ function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectR
               cssAspectRatio={cssAspectRatio}
             />
           ))}
-          {(finalVideo || scenes.some(s => s.compositedVideo)) && (
-            <>
-              <div className="script-card-item-divider" />
-              <div className="creative-video-section">
-                <div className="storyboard-section-title">创意视频</div>
-                {finalVideo ? (
-                  <div className="creative-video-single">
-                    <FrameCard
-                      label=""
-                      src={finalVideo}
-                      previewSrc={finalPreview}
-                      frameKey="final-video"
-                      hoveredKey={hoveredKey}
-                      onHover={setHoveredKey}
-                      isVideo
-                      frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
-                      onClick={() => setMediaPreview({ src: finalVideo, isVideo: true, label: '创意视频' })}
-                    />
-                  </div>
-                ) : (
-                  <div className="creative-video-grid">
-                    {scenes.map((scene, idx) => scene.compositedVideo ? (
-                      <div key={`cv-${idx}`} className="creative-video-card-wrapper">
-                        <div className="shot-pill" style={{ position: 'absolute', top: -1, left: -1, zIndex: 1 }}>
-                          <span className="shot-pill-num">{scene.title || `场景${idx + 1}`}</span>
-                        </div>
-                        <FrameCard
-                          label=""
-                          src={scene.compositedVideo}
-                          previewSrc={scene.compositedPreview}
-                          frameKey={`cv-${idx}`}
-                          hoveredKey={hoveredKey}
-                          onHover={setHoveredKey}
-                          isVideo
-                          frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-                          onClick={() => setMediaPreview({ src: scene.compositedVideo!, isVideo: true, label: scene.title || `场景${idx + 1}` })}
-                        />
-                      </div>
-                    ) : null)}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+          
         </div>
       )}
 
@@ -436,11 +391,11 @@ interface FrameCardProps {
   status?: ImageState
 }
 
-function isDataUri(url: string): boolean {
+export function isDataUri(url: string): boolean {
   return !url || url.startsWith('data:')
 }
 
-function FrameCard({ label, src, frameKey, hoveredKey, onHover, isVideo, previewSrc, className, hideWhenPlaceholder, frameStyle, onRefresh, onClick, status }: FrameCardProps): JSX.Element {
+export function FrameCard({ label, src, frameKey, hoveredKey, onHover, isVideo, previewSrc, className, hideWhenPlaceholder, frameStyle, onRefresh, onClick, status }: FrameCardProps): JSX.Element {
   const isHovered = hoveredKey === frameKey
   const isPlaceholder = isDataUri(src)
   const hideLast = hideWhenPlaceholder && !isVideo && isPlaceholder && label === '尾帧'
