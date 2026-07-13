@@ -40,6 +40,7 @@ export interface ProjectFull extends Project {
   scenes: any[]
   final_video: string
   final_preview: string
+  step_statuses: Record<string, number>
   story_fresh: number
   characters_fresh: number
   script_fresh: number

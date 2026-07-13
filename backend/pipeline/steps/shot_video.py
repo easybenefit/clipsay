@@ -128,7 +128,7 @@ async def generate_shot_video(
     await Video.generate(
         config.model, payload, config.api_key, config.base_url,
         project_id=project_id,
-        task_id=f"shot-{shot_idx}-video",
+        task_id=f"scene-{scene_idx}-shot-{shot_idx}-video",
         rpm=config.rate_limit_min,
         rpd=config.rate_limit_day,
     )

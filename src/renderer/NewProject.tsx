@@ -461,6 +461,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       setImageModel(p.image_model || '')
       setVideoModel(p.video_model || '')
       if (p.story) setOutput(p.story)
+      if (p.step_statuses) setStepStatuses(p.step_statuses)
       if (p.characters?.length) {
         setCharacters(p.characters.map((c: any) => ({
           name: c.name || c.identifier || '',
