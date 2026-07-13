@@ -287,7 +287,10 @@ function App(): JSX.Element {
               {i > 0 && <div className="nav-separator" />}
               <button
                 className={`nav-item${item.isPage && page === item.key ? ' active' : ''}`}
-                onClick={() => { if (item.isPage) { setEditProjectId(undefined); setPage(item.key as Page) } else showToast('正在开发...') }}
+                onClick={() => { if (item.isPage) { 
+                  if (item.key === 'home') refreshProjects()
+                  setEditProjectId(undefined); setPage(item.key as Page) 
+                } else showToast('正在开发...') }}
                 title={item.label}
               >
                 <span className="nav-icon" style={item.key === 'new' ? { fontSize: '1.15rem' } : undefined}>{item.icon}</span>
