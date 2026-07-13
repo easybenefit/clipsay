@@ -235,6 +235,12 @@
   overflow: hidden;
   background: var(--bg);
   border: 1px solid var(--border-subtle);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.character-card-photo:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 
 .character-card-photo img {

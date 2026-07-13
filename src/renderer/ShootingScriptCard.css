@@ -119,10 +119,6 @@
   padding-top: 42px;
 }
 
-.card-hovered {
-  border-color: var(--accent) !important;
-}
-
 .scene-pill-header {
   position: absolute;
   top: -1px;
@@ -261,7 +257,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.shot-card:hover {
+  background: var(--card-hover);
+  border-color: var(--border);
 }
 
 .shot-pill-header {
@@ -363,14 +364,19 @@
   padding: 4px;
   border: 1px solid transparent;
   border-radius: 8px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
   position: relative;
 }
 
 .shot-card-frame.card-hovered {
-  border-color: var(--accent);
+  transform: scale(1.02);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  border-color: var(--border);
+  z-index: 2;
 }
+
+
 
 
 .shot-card-image-label {
@@ -379,6 +385,10 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.shot-card-frame.card-hovered .shot-card-image-label {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .shot-card-img {
@@ -406,11 +416,15 @@
 }
 
 .scene-composited-video {
-  width: 33.33%;
+  width: 50%;
 }
 
 .creative-video-section {
   margin-top: 4px;
+}
+
+.creative-video-single {
+  width: 50%;
 }
 
 .creative-video-grid {
@@ -430,9 +444,7 @@
   transition: border-color 0.2s;
 }
 
-.creative-video-card-wrapper:hover {
-  border-color: var(--accent);
-}
+
 
 .shot-card-play-icon {
   width: 40px;

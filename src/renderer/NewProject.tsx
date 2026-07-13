@@ -1383,9 +1383,13 @@ function NewProject(props: NewProjectProps): JSX.Element {
             </div>
           </div>
 
-          {props.editProjectId && !creating && !pipelineStartedRef.current && pipeline.status?.pipeline_status !== 'running' && (characters.length > 0 || scenes.length > 0) ? (
+          {props.editProjectId && !creating && !pipelineStartedRef.current && pipeline.status?.pipeline_status !== 'running' && pipeline.status?.pipeline_status !== 'paused' && pipeline.status?.pipeline_status !== 'completed' && (characters.length > 0 || scenes.length > 0) ? (
             <button className="np-generate-btn" onClick={handleSave} disabled={saving}>
               {saving ? '保存中...' : '💾 保存'}
+            </button>
+          ) : pipeline.status?.pipeline_status === 'completed' ? (
+            <button className="np-generate-btn" disabled>
+              已完成
             </button>
           ) : (
             (() => {
@@ -1401,9 +1405,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
               } else if (isRunning) {
                 text = '正在创作'; onClick = () => {}; btnDisabled = true
               } else if (isPaused) {
-                text = '继续创作'; onClick = () => pipeline.resume(); btnDisabled = false
+                text = '继续'; onClick = () => pipeline.resume(); btnDisabled = false
               } else if (allDone) {
-                text = '重新创作'; onClick = () => { pipelineStartedRef.current = true; pipeline.start(); }; btnDisabled = false
+                text = '已完成'; onClick = () => {}; btnDisabled = true
               } else {
                 text = '立即创作'; onClick = handleCreate; btnDisabled = !canGenerate
               }

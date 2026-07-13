@@ -245,36 +245,36 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
 
       <div className="script-card-item-divider" />
 
-      <div className="storyboard-section-title">场景预览</div>
-      <div className="scene-composited-video">
-        {scene.compositedPreview ? (
-          <ImageWithPlaceholder
-            src={scene.compositedPreview}
-            alt="场景预览"
-            status="generated"
-            style={{ aspectRatio: cssAspectRatio, width: '100%', borderRadius: '6px', objectFit: 'cover', cursor: 'pointer' }}
-            onClick={() => onPreview?.(scene.compositedVideo || scene.compositedPreview!, true, '场景预览')}
-          />
-        ) : scene.compositedVideo ? (
-          <FrameCard
-            label=""
-            src={scene.compositedVideo}
-            previewSrc={scene.compositedPreview}
-            frameKey={`${sceneKey}-composited`}
-            hoveredKey={hoveredKey}
-            onHover={onHover}
-            isVideo
-            frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-            onClick={() => onPreview?.(scene.compositedVideo!, true, '场景预览')}
-          />
-        ) : (
-          <ImageWithPlaceholder
-            src=""
-            alt="场景预览"
-            status="waiting"
-            style={{ aspectRatio: cssAspectRatio, width: '100%', borderRadius: '6px', objectFit: 'cover' }}
-          />
-        )}
+      <div className="shot-card" style={{ marginTop: '6px', cursor: 'default' }}>
+        <div className="shot-pill-header" style={{ pointerEvents: 'none' }}>
+          <div className="shot-pill">
+            <span className="shot-pill-num">场景预览</span>
+          </div>
+        </div>
+        <div className="shot-card-body">
+          <div className="scene-composited-video">
+            {scene.compositedVideo ? (
+              <FrameCard
+                label=""
+                src={scene.compositedVideo}
+                previewSrc={scene.compositedPreview}
+                frameKey={`${sceneKey}-composited`}
+                hoveredKey={hoveredKey}
+                onHover={onHover}
+                isVideo
+                frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
+                onClick={() => onPreview?.(scene.compositedVideo!, true, '场景预览')}
+              />
+            ) : (
+              <ImageWithPlaceholder
+                src=""
+                alt="场景预览"
+                status="waiting"
+                style={{ aspectRatio: cssAspectRatio, width: '100%', borderRadius: '6px', objectFit: 'cover' }}
+              />
+            )}
+          </div>
+        </div>
       </div>
         </>
       )}
