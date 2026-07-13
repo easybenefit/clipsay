@@ -264,7 +264,7 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
     return await read_full_project(db, new_id)
 
 
-async def update_story(project_id: int, content: str, **kwargs) -> None:
+async def update_story_content(project_id: int, content: str, **kwargs) -> None:
     async with _get_connection() as db:
         await db.execute(
             "UPDATE projects SET story_content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",

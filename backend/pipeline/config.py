@@ -15,15 +15,26 @@ from backend.core.types import (
 )
 
 
-def duration_requirement(duration: int) -> str:
-    """根据视频时长（秒）返回对应的场次/镜头数约束描述，供 LLM prompt 使用。"""
+def scene_requirement(duration: int) -> str:
+    """返回场次数约束（供 story / scene_scripts 步骤使用）。"""
     mapping = {
-        5: "场次总数不超过1场，每场镜头数不超过2个。",
-        10: "场次总数不超过2场，每场镜头数不超过3个。",
-        12: "场次总数不超过2场，每场镜头数不超过4个。",
-        15: "场次总数不超过3场，每场镜头数不超过5个。",
+        5: "场次总数不超过1场",
+        10: "场次总数不超过2场",
+        12: "场次总数不超过2场",
+        15: "场次总数不超过3场",
     }
     return mapping.get(duration, "")
 
 
-__all__ = ["SessionConfig", "STEP_NAMES", "Step", "PipelineStatus", "duration_requirement"]
+def shot_requirement(duration: int) -> str:
+    """返回镜头数约束（供 storyboard 步骤使用）。"""
+    mapping = {
+        5: "每场镜头数不超过2个",
+        10: "每场镜头数不超过3个",
+        12: "每场镜头数不超过4个",
+        15: "每场镜头数不超过5个",
+    }
+    return mapping.get(duration, "")
+
+
+__all__ = ["SessionConfig", "STEP_NAMES", "Step", "PipelineStatus", "scene_requirement", "shot_requirement"]

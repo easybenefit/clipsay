@@ -5,13 +5,10 @@ from typing import Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from backend.clients.llm import LLM
-from backend.utils.logging import setup_logger
-
-logger = setup_logger("story_writer")
 
 
 SYSTEM_PROMPT_STORY_DEVELOP = \
-"""
+    """
 [角色设定]
 你是一位资深的影视故事开发专家与剧本策划。你具备以下核心专业技能：
 - 核心概念孵化与故事延展：具备敏锐的网感与创意嗅觉，能将模糊的灵感、一句话故事或核心概念，扩写为逻辑严密、世界观扎实的完整故事大纲。
@@ -74,8 +71,6 @@ class StoryWriter:
         self._base_url = base_url
 
     async def write_story(self, idea: str, user_requirement: Optional[str] = None) -> str:
-        logger.info("[story_writer] write_story start: idea_len=%d, requirement_len=%d",
-                    len(idea), len(user_requirement or ""))
         messages = [
             SystemMessage(content=SYSTEM_PROMPT_STORY_DEVELOP),
             HumanMessage(content=HUMAN_PROMPT_STORY_DEVELOP.format(
@@ -83,8 +78,6 @@ class StoryWriter:
                 user_requirement=user_requirement or "",
             )),
         ]
-        
-        logger.info("[story_writer] calling LLM.chat model=%s, msg=%s", self._model, messages)
+
         result = await LLM.chat(self._model, messages, self._api_key, self._base_url)
-        logger.info("[story_writer] write_story done: result=%s", result)
         return result

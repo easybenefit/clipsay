@@ -241,6 +241,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
     const p = await getProject(pid)
     if (p.story && p.story !== output) setOutput(p.story)
     if (p.characters?.length) {
+      setPortraitsReady(true)
       setCharacters(prev => {
         const prevMap = new Map(prev.map(c => [c.name, c]))
         return p.characters.map((c: any) => {
@@ -615,7 +616,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
     if (!props.editProjectId) return
     setSaving(true)
     try {
-      await updateProject(props.editProjectId, {
+      const payload: any = {
         idea,
         style,
         size,
@@ -628,7 +629,11 @@ function NewProject(props: NewProjectProps): JSX.Element {
         video_model: videoModel,
         stage,
         story: output,
-        characters: characters.map(c => ({
+        finalVideo,
+        finalPreview,
+      }
+      if (characters.length > 0) {
+        payload.characters = characters.map(c => ({
           name: c.name,
           staticFeatures: c.staticFeatures,
           dynamicFeatures: c.dynamicFeatures,
@@ -636,8 +641,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
           portraits: c.portraits || {},
           sourceUrl: c.sourceUrl || '',
           portraitDescriptions: c.portraitDescriptions || makePortraitDescriptions(c.name),
-        })),
-        scenes: scenes.map(s => ({
+        }))
+      }
+      if (scenes.length > 0) {
+        payload.scenes = scenes.map(s => ({
           title: s.title,
           content: s.content,
           slugline: '',
@@ -656,10 +663,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
             video: sh.video,
             videoPreview: sh.videoPreview || '',
           })),
-        })),
-        finalVideo,
-        finalPreview,
-      })
+        }))
+      }
+      await updateProject(props.editProjectId, payload)
     } catch (e: any) {
       console.error('保存失败:', e)
     } finally {
@@ -1227,6 +1233,19 @@ function NewProject(props: NewProjectProps): JSX.Element {
     await updateProject(pid, { characters: allChars }).catch(e => console.error('保存肖像数据失败:', e))
   }
 
+  const stepHasData = (sk: string): boolean => {
+    switch (sk) {
+      case 'story':           return !!output
+      case 'characters':      return characters.length > 0
+      case 'portraits':       return portraitsReady || (characters.length > 0 && characters.every(c => c.portraits?.front && c.portraits?.side && c.portraits?.back))
+      case 'scene_scripts':   return scenes.some(s => s.content)
+      case 'storyboard':      return scenes.some(s => s.shots.length > 0)
+      case 'shot_frames':     return scenes.length > 0 && scenes.every(s => s.shots.length > 0 && s.shots.every(sh => sh.firstFrame || sh.lastFrame || sh.video))
+      case 'composite_video': return !!finalVideo || scenes.some(s => s.compositedVideo)
+      default:                return false
+    }
+  }
+
   return (
     <div className="new-project-page">
       <div className="new-project-layout">
@@ -1365,7 +1384,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             </div>
           </div>
 
-          {props.editProjectId && !creating && !pipelineStartedRef.current && pipeline.status?.pipeline_status !== 'running' ? (
+          {props.editProjectId && !creating && !pipelineStartedRef.current && pipeline.status?.pipeline_status !== 'running' && (characters.length > 0 || scenes.length > 0) ? (
             <button className="np-generate-btn" onClick={handleSave} disabled={saving}>
               {saving ? '保存中...' : '💾 保存'}
             </button>
@@ -1408,7 +1427,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
           <div className="npm-steps">
             {STEPS.map(step => {
               const stepState = pipeline.status?.steps?.[step.stepKey]
-              const rawStatus = stepState?.status || 'pending'
+              const rawStatus = stepState?.status || (stepHasData(step.stepKey) ? 'completed' : 'pending')
               const statusClass = rawStatus === 'completed' ? 'npm-step-completed'
                 : rawStatus === 'running' ? 'npm-step-running'
                 : rawStatus === 'failed' ? 'npm-step-failed'
@@ -1440,7 +1459,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <StoryCard
               content={output || ''}
               loading={(creating || (pipelineStartedRef.current && !output)) || pipeline.status?.steps?.story?.status === 'running'}
-              disabled={pipelineRunning}
               onRegenerate={handleCreate}
               onSave={(text) => setOutput(text)}
             />
@@ -1449,14 +1467,13 @@ function NewProject(props: NewProjectProps): JSX.Element {
             {(creatingCharacter || characters.length > 0 || 
               pipeline.status?.steps?.characters?.status === 'running' || 
               pipeline.status?.steps?.portraits?.status === 'running' ||
-              (output && characters.length === 0 && pipelineRunning)) && (
+              (output && characters.length === 0)) && (
             <div className="npm-card-enter">
               <CharacterCard
                 characters={characters}
                 aspectRatio={size}
                 loading={creatingCharacter || (pipelineStartedRef.current && characters.length === 0)}
                 statusMessage={characters.length === 0 ? '正在提取角色...' : undefined}
-                disabled={pipelineRunning}
                 onRegenerate={handleRegenerateCharacters}
                 onCharacterUpdate={handleCharacterUpdate}
                 onRefreshImage={handleRefreshImage}
@@ -1476,7 +1493,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
               <ShootingScriptCard
                 scenes={scenes}
                 loading={pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running' || creatingStoryboard || regenerating}
-                disabled={pipelineRunning}
                 onSceneUpdate={handleSceneUpdate}
                 onRegenerate={handleRegenerateStoryboard}
                 onRefreshFrame={handleRefreshFrame}

@@ -5,7 +5,7 @@ from backend.services.script_writer import ScriptWriter
 from backend.utils.logging import setup_logger
 from backend.db.scene_scripts import load_scene_script_data, save_scene_scripts
 from backend.schemas import CharacterRead
-from backend.pipeline.config import SessionConfig, duration_requirement
+from backend.pipeline.config import SessionConfig, scene_requirement
 
 _logger = setup_logger("pipeline.scene_scripts")
 
@@ -40,7 +40,7 @@ async def write_scene_scripts(config: SessionConfig, emit: EventEmitter) -> None
     result = await writer.write_script(
         story=story,
         characters_text=characters_text,
-        user_requirement=duration_requirement(config.duration),
+        user_requirement=scene_requirement(config.duration),
     )
     scenes = result or []
     _logger.info(

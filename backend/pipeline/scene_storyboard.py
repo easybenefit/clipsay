@@ -11,7 +11,7 @@ from backend.db.storyboards import (
     update_storyboard_shots,
     update_storyboard_cameras,
 )
-from backend.pipeline.config import SessionConfig, Step, duration_requirement
+from backend.pipeline.config import SessionConfig, Step, shot_requirement
 from backend.pipeline.events import EventEmitter
 from backend.schemas.camera import CameraNode
 from backend.schemas.character import CharacterRead
@@ -187,7 +187,7 @@ async def _run_scene_once(
 def _build_requirement(config: SessionConfig) -> str | None:
     """Combine duration and style constraints into a single requirement string."""
     parts: list[str] = []
-    req = duration_requirement(config.duration)
+    req = shot_requirement(config.duration)
     if req:
         parts.append(req)
     if config.style:
