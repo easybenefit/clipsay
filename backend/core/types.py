@@ -31,6 +31,21 @@ STEP_NAMES = [
 ]
 
 
+# ── Portrait view constants ─────────────────────────────────────────
+
+VIEW_FRONT = "front"
+VIEW_SIDE = "side"
+VIEW_BACK = "back"
+PARALLEL_VIEWS = (VIEW_SIDE, VIEW_BACK)
+
+
+# ── Portrait status constants (bit-field values for attributes.portrait_status) ──
+
+PORTRAIT_STATUS_GENERATING = 1
+PORTRAIT_STATUS_GENERATED = 2
+PORTRAIT_STATUS_ERROR = 3
+
+
 class Step(str, Enum):
     """Pipeline step name constants."""
     STORY = "story"

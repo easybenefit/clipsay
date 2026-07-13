@@ -1457,7 +1457,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <div className="npm-card-enter">
             <StoryCard
               content={output || ''}
-              loading={stepStatuses?.story === 1 || stepStatuses?.story === 4}
+              loading={stepStatuses?.story != null && stepStatuses.story !== 2 && stepStatuses.story !== 3}
               regenerating={stepStatuses?.story === 4}
               onRegenerate={async () => {
                 setOutput(null)

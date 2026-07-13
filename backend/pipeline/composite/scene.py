@@ -52,6 +52,6 @@ async def composite_scene_video(config: SessionConfig, scene: dict, scene_idx: i
 
     scene_video_url = scene_scope.url(SCENCE_VIDEO_NAME)
     scene_preview_url = scene_scope.url(SCENCE_PREVIEW_NAME)
-    await emit.project_updated()
+    await emit.project_data_changed()
 
     await emit.emit_progress("scene_compositor", 1, message=f"场景 {scene_idx} 视频合成完成")

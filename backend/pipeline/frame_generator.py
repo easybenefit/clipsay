@@ -84,7 +84,7 @@ class FrameGenerator:
             scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.COMPLETE, url=url,
         )
         if self._emit:
-            await self._emit.project_updated()
+            await self._emit.project_data_changed()
         return True
 
     async def _build_ref_image(
@@ -173,7 +173,7 @@ class FrameGenerator:
         await update_shot(project_id, scene_idx, shot_idx, start_frame_status=StageStatus.CREATING)
         await conductor.change_stage(project_id, scene_idx, shot_idx, START_FRAME, StageStatus.CREATING)
         if self._emit:
-            await self._emit.project_updated()
+            await self._emit.project_data_changed()
 
         # ── build parent composition reference ──
         parent_ref = None
@@ -256,7 +256,7 @@ class FrameGenerator:
 
         await conductor.change_stage(project_id, scene_idx, shot_idx, START_FRAME, StageStatus.COMPLETE, url=ref.url)
         if self._emit:
-            await self._emit.project_updated()
+            await self._emit.project_data_changed()
 
     async def generate_start_frame(
         self,
@@ -367,7 +367,7 @@ class FrameGenerator:
         await update_shot(scene.project_id, scene.scene_idx, shot_idx, **{f"{status_attr}": StageStatus.CREATING})
         await conductor.change_stage(scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.CREATING)
         if self._emit:
-            await self._emit.project_updated()
+            await self._emit.project_data_changed()
 
         logger.info("[cam=%d shot=%d] building reference image for %s",
                     camera.idx, shot_idx, resource)
@@ -412,4 +412,4 @@ class FrameGenerator:
                     camera.idx, shot_idx, resource)
         await conductor.change_stage(scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.COMPLETE, url=ref.url)
         if self._emit:
-            await self._emit.project_updated()
+            await self._emit.project_data_changed()

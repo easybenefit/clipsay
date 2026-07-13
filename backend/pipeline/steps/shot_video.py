@@ -63,7 +63,7 @@ async def _persist_and_complete(
     logger.info("[video] shot=%d persisted, preview=%s",
                 shot_idx, bool(video_preview_url))
     if emit:
-        await emit.project_updated()
+        await emit.project_data_changed()
     return video_preview_url
 
 
@@ -101,7 +101,7 @@ async def generate_shot_video(
         return str(video_path)
 
     if emit:
-        await emit.project_updated()
+        await emit.project_data_changed()
 
     await _wait_frames(conductor, project_id, scene_idx, shot_idx)
 

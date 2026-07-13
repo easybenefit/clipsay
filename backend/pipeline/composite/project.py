@@ -62,5 +62,5 @@ async def composite_video(config: SessionConfig, emit: EventEmitter) -> None:
     )
 
     # 7. Emit complete notification
-    await emit.project_updated()
+    await emit.project_data_changed()
     _logger.info("[composite_video] final video saved: %s", final_video_url)
