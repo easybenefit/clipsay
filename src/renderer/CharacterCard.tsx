@@ -154,9 +154,10 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
                   {views.map(({ key }, vi) => (
                     <div key={key} className="character-card-photo" style={{ width: PHOTO_WIDTH, height: photoHeight }}>
                       <ImageWithPlaceholder
+                        key={char.portraits[key]}
                         src={char.portraits[key]}
                         alt={`${char.name} ${key}`}
-                        status={char.portraitStatus?.[key] || (char.portraits?.[key] ? 'generated' : 'waiting')}
+                        status={char.portraitStatus?.[key] ?? (char.portraits?.[key] ? 'generated' : 'waiting')}
                         width={PHOTO_WIDTH}
                         height={photoHeight}
                         onClick={char.portraits[key] ? () => setLightbox({ charIdx: idx, viewIdx: vi }) : undefined}
@@ -303,6 +304,7 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
                   <div key={view} className="character-editor-photo-col">
                     <div className="character-editor-photo" style={{ aspectRatio: toCssAspectRatio(aspectRatio) }}>
                       <ImageWithPlaceholder
+                        key={character.portraits[view]}
                         src={character.portraits[view]}
                         alt={VIEW_LABELS[view]}
                         status={character.portraitStatus?.[view] || (character.portraits?.[view] ? 'generated' : 'waiting')}
