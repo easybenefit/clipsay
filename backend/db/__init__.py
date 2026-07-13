@@ -30,11 +30,13 @@ from backend.db.projects import (
     read_characters,
     read_full_project,
     read_scenes,
+    read_step_statuses,
     read_story,
     save_characters,
     save_full_project,
     update_character_portrait_url,
     update_character_portrait_status,
+    update_step_db_status,
     update_story_content,
 )
 from backend.db._config import DB_PATH

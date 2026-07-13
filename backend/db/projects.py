@@ -25,6 +25,45 @@ def _ps_update(current: int, view: str, status: int) -> int:
     return (current & ~(_PS_MASK << shift)) | (status << shift)
 
 
+# ── per-step status constants ─────────────────────────────────────────
+STEP_STATUS_COLUMNS: dict[str, str] = {
+    "story": "story_status",
+    "characters": "characters_status",
+    "portraits": "portraits_status",
+    "scene_scripts": "scene_scripts_status",
+    "storyboard": "storyboard_status",
+    "shot_frames": "shot_frames_status",
+    "composite_video": "composite_video_status",
+}
+
+_STEP_STATUS_COL_NAMES = list(STEP_STATUS_COLUMNS.values())
+
+
+async def read_step_statuses(project_id: int) -> dict[str, int]:
+    cols = ", ".join(_STEP_STATUS_COL_NAMES)
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute(
+            f"SELECT {cols} FROM projects WHERE id = ?", (project_id,))).fetchone()
+        if not row:
+            return {}
+        step_map = {}
+        for step, col in STEP_STATUS_COLUMNS.items():
+            step_map[step] = row[col] or 0
+        return step_map
+
+
+async def update_step_db_status(project_id: int, step_name: str, status: int) -> None:
+    col = STEP_STATUS_COLUMNS.get(step_name)
+    if not col:
+        return
+    async with _get_connection() as db:
+        await db.execute(
+            f"UPDATE projects SET {col} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (status, project_id))
+        await db.commit()
+
+
 def _get_connection():
     from backend.db._config import DB_PATH
     return aiosqlite.connect(DB_PATH)
@@ -58,6 +97,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
         return None
     project = dict(row)
     project["story"] = row["story_content"] or None
+    project["step_statuses"] = {step: row[col] or 0 for step, col in STEP_STATUS_COLUMNS.items()}
 
     # ── characters from attributes table ──
     char_rows = await (await db.execute(

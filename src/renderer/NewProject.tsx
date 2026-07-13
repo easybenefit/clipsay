@@ -121,7 +121,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const canGenerate = idea.trim().length >= 10
   const [creating, setCreating] = useState(false)
   const [output, setOutput] = useState<string | null>(null)
-  const [storyRegenerating, setStoryRegenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dotCount, setDotCount] = useState(0)
   const [stage, setStage] = useState<CreationStage>('new')
@@ -131,6 +130,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const [creatingStoryboard, setCreatingStoryboard] = useState(false)
   const [portraitsReady, setPortraitsReady] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
+  const [stepStatuses, setStepStatuses] = useState<Record<string, number> | null>(null)
   const [scenes, setScenes] = useState<SceneData[]>([])
   const [finalVideo, setFinalVideo] = useState('')
   const [finalPreview, setFinalPreview] = useState('')
@@ -240,6 +240,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
 
   const refreshProjectData = useCallback(async (pid: number) => {
     const p = await getProject(pid)
+    if (p.step_statuses) setStepStatuses(p.step_statuses)
     if (p.story && p.story !== output) setOutput(p.story)
     if (p.characters?.length) {
       setPortraitsReady(true)
@@ -383,6 +384,14 @@ function NewProject(props: NewProjectProps): JSX.Element {
     1: 'generating',
     2: 'generated',
     3: 'error',
+  }
+
+  const STEP_STATUS_MAP: Record<number, string> = {
+    0: 'pending',
+    1: 'generating',
+    2: 'completed',
+    3: 'failed',
+    4: 'regenerating',
   }
 
   // Set API keys for pipeline use
@@ -560,7 +569,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
     if (!creating) setDotCount(0)
   }, [creating])
 
-  const showPlaceholder = !pipelineStartedRef.current && stage === 'new' && !output && !error
+  const showPlaceholder = !pipelineStartedRef.current && stage === 'new' && !output && !error && !(stepStatuses?.story && stepStatuses.story >= 1)
 
   const handleCreate = async () => {
     if (!canGenerate) return
@@ -1234,19 +1243,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
     await updateProject(pid, { characters: allChars }).catch(e => console.error('保存肖像数据失败:', e))
   }
 
-  const stepHasData = (sk: string): boolean => {
-    switch (sk) {
-      case 'story':           return !!output
-      case 'characters':      return characters.length > 0
-      case 'portraits':       return portraitsReady || (characters.length > 0 && characters.every(c => c.portraits?.front && c.portraits?.side && c.portraits?.back))
-      case 'scene_scripts':   return scenes.some(s => s.content)
-      case 'storyboard':      return scenes.some(s => s.shots.length > 0)
-      case 'shot_frames':     return scenes.length > 0 && scenes.every(s => s.shots.length > 0 && s.shots.every(sh => sh.firstFrame || sh.lastFrame || sh.video))
-      case 'composite_video': return !!finalVideo || scenes.some(s => s.compositedVideo)
-      default:                return false
-    }
-  }
-
   return (
     <div className="new-project-page">
       <div className="new-project-layout">
@@ -1428,16 +1424,18 @@ function NewProject(props: NewProjectProps): JSX.Element {
           <div className="npm-steps">
             {STEPS.map(step => {
               const stepState = pipeline.status?.steps?.[step.stepKey]
-              const rawStatus = stepState?.status || (stepHasData(step.stepKey) ? 'completed' : 'pending')
+              const dbStatus = STEP_STATUS_MAP[stepStatuses?.[step.stepKey] ?? 0]
+              const rawStatus = stepState?.status || dbStatus
+              const isRunning = rawStatus === 'running' || rawStatus === 'generating' || rawStatus === 'regenerating'
               const statusClass = rawStatus === 'completed' ? 'npm-step-completed'
-                : rawStatus === 'running' ? 'npm-step-running'
+                : isRunning ? 'npm-step-running'
                 : rawStatus === 'failed' ? 'npm-step-failed'
                 : 'npm-step-pending'
               return (
                 <div key={step.num} className={`npm-step ${statusClass}`}>
                   <span className="npm-step-icon">{step.icon}</span>
                   <div className="npm-step-title-sm">
-                    {rawStatus === 'running' && <span className="npm-step-dot" />}
+                    {isRunning && <span className="npm-step-dot" />}
                     {step.title}
                   </div>
                   <div className="npm-step-desc-sm">{step.desc}</div>
@@ -1459,23 +1457,23 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <div className="npm-card-enter">
             <StoryCard
               content={output || ''}
-              loading={creating || storyRegenerating || pipeline.status?.steps?.story?.status === 'running'}
-              regenerating={storyRegenerating}
+              loading={stepStatuses?.story === 1 || stepStatuses?.story === 4}
+              regenerating={stepStatuses?.story === 4}
               onRegenerate={async () => {
                 setOutput(null)
-                setStoryRegenerating(true)
+                setStepStatuses(prev => ({ ...prev, story: 4 }))
                 const pid = getEffectiveProjectId()
-                if (!pid) { setStoryRegenerating(false); return }
+                if (!pid) return
                 try {
                   const res = await fetch(`${BASE}/api/projects/${pid}/regenerate-story`, { method: 'POST' })
                   if (!res.ok) throw new Error(await res.text())
                   const data = await res.json()
                   setOutput(data.result)
+                  refreshProjectData(pid)
                 } catch (e: any) {
                   console.error('regenerate story failed', e)
                   setError(`重新生成故事失败: ${e?.message || String(e)}`)
-                } finally {
-                  setStoryRegenerating(false)
+                  setStepStatuses(prev => ({ ...prev, story: 3 }))
                 }
               }}
               onSave={async (text) => {

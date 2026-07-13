@@ -61,6 +61,7 @@ class StageStatus(IntEnum):
     CREATING = 1
     COMPLETE = 2
     STALE = 3
+    REGENERATING = 4
 
 
 # ── Error types ──────────────────────────────────────────────────────

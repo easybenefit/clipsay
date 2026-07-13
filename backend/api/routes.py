@@ -27,9 +27,10 @@ from backend.pipeline.config import scene_requirement
 from backend.db import (
     DB_PATH, create_project_row, list_project_rows,
     read_full_project, save_full_project, duplicate_project_full,
-    update_story_content,
+    update_step_db_status, update_story_content,
 )
 from backend.db.projects import load_session_config
+from backend.pipeline.conductor._types import StageStatus
 
 logger = logging.getLogger("api.routes")
 
@@ -96,15 +97,18 @@ async def generate_story(body: StoryRequest):
 @router.post("/api/projects/{project_id}/regenerate-story")
 async def regenerate_project_story(project_id: int):
     """只重新生成故事内容，不重置下游流水线步骤。"""
+    await update_step_db_status(project_id, "story", StageStatus.REGENERATING)
     try:
         cfg = await load_session_config(project_id)
         writer = StoryWriter(cfg.chat.model, cfg.chat.api_key, cfg.chat.base_url)
         requirement = scene_requirement(cfg.duration)
         result = await writer.write_story(cfg.idea, requirement)
         await update_story_content(project_id, result)
+        await update_step_db_status(project_id, "story", StageStatus.COMPLETE)
         return {"result": result}
     except Exception as e:
         logger.error("Regenerate story failed: %s", e, exc_info=True)
+        await update_step_db_status(project_id, "story", StageStatus.STALE)
         return JSONResponse(
             status_code=500,
             content={"error": str(e)},

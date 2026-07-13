@@ -29,6 +29,13 @@ TABLES = [
         pipeline_step TEXT DEFAULT '',
         pipeline_error TEXT DEFAULT '',
         story_content TEXT DEFAULT '',
+        story_status INTEGER DEFAULT 0,
+        characters_status INTEGER DEFAULT 0,
+        portraits_status INTEGER DEFAULT 0,
+        scene_scripts_status INTEGER DEFAULT 0,
+        storyboard_status INTEGER DEFAULT 0,
+        shot_frames_status INTEGER DEFAULT 0,
+        composite_video_status INTEGER DEFAULT 0,
         script_title TEXT DEFAULT '',
         script_text TEXT DEFAULT '',
         final_video TEXT DEFAULT '',
@@ -140,6 +147,13 @@ MIGRATIONS = [
     "ALTER TABLE projects ADD COLUMN video_base_url TEXT DEFAULT ''",
     "ALTER TABLE shots ADD COLUMN sf_vis_char_idxs TEXT DEFAULT '[]'",
     "ALTER TABLE shots ADD COLUMN ef_vis_char_idxs TEXT DEFAULT '[]'",
+    "ALTER TABLE projects ADD COLUMN story_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN characters_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN portraits_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN scene_scripts_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN storyboard_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN shot_frames_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN composite_video_status INTEGER DEFAULT 0",
 ]
 
 INDEXES = [

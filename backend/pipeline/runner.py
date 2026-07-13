@@ -8,8 +8,10 @@ import traceback
 from backend.db import (
     get_pipeline_status, update_pipeline_status, update_step_status,
     init_pipeline_steps, reset_downstream_steps,
+    update_step_db_status,
 )
 from backend.db.projects import load_session_config
+from backend.pipeline.conductor._types import StageStatus
 from backend.clients.errors import NonRetryableError
 from backend.pipeline.events import EventBus, EventEmitter, event_bus
 from backend.pipeline.config import STEP_NAMES, SessionConfig
@@ -148,6 +150,7 @@ class PipelineRunner:
             )
             await update_pipeline_status(self.project_id, "running", step=step_name)
             await update_step_status(self.project_id, step_name, "running")
+            await update_step_db_status(self.project_id, step_name, StageStatus.CREATING)
 
             emit = self._emitter(step_name)
             pause_check = self._make_pause_check()
@@ -176,6 +179,8 @@ class PipelineRunner:
 
                     await update_step_status(
                         self.project_id, step_name, "completed")
+                    await update_step_db_status(
+                        self.project_id, step_name, StageStatus.COMPLETE)
                     await self._emitter().step_complete(step_name, result)
                     await self._emitter().project_updated()
                     last_exception = None
@@ -210,6 +215,8 @@ class PipelineRunner:
                 await update_step_status(
                     self.project_id, step_name, "failed",
                     error=str(last_exception))
+                await update_step_db_status(
+                    self.project_id, step_name, StageStatus.STALE)
                 await update_pipeline_status(
                     self.project_id, "paused", step=step_name,
                     error=str(last_exception))
