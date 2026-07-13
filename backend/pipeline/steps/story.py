@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from backend.services.story_writer import StoryWriter
 from backend.utils.logging import setup_logger
 from backend.db import update_story_content
@@ -9,8 +11,8 @@ from backend.pipeline.events import EventEmitter
 logger = setup_logger("pipeline.story")
 
 
-async def generate_story(config: SessionConfig, emit: EventEmitter) -> None:
-    """Generate the high-level story outline for ``config.project_id``."""
+async def write_and_save_story(config: SessionConfig) -> str:
+    """Core logic: call StoryWriter and persist result."""
     writer = StoryWriter(
         config.chat.model, config.chat.api_key, config.chat.base_url)
     requirement = scene_requirement(config.duration)
@@ -26,3 +28,9 @@ async def generate_story(config: SessionConfig, emit: EventEmitter) -> None:
         idea=config.idea, style=config.style, language=config.language,
         duration=config.duration, user_requirement=requirement, model=config.chat.model,
     )
+    return story
+
+
+async def generate_story(config: SessionConfig, emit: EventEmitter) -> None:
+    """Generate the high-level story outline for ``config.project_id``."""
+    await write_and_save_story(config)

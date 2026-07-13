@@ -100,10 +100,8 @@ async def regenerate_project_story(project_id: int):
     await update_step_db_status(project_id, "story", StageStatus.REGENERATING)
     try:
         cfg = await load_session_config(project_id)
-        writer = StoryWriter(cfg.chat.model, cfg.chat.api_key, cfg.chat.base_url)
-        requirement = scene_requirement(cfg.duration)
-        result = await writer.write_story(cfg.idea, requirement)
-        await update_story_content(project_id, result)
+        from backend.pipeline.steps.story import write_and_save_story
+        result = await write_and_save_story(cfg)
         await update_step_db_status(project_id, "story", StageStatus.COMPLETE)
         return {"result": result}
     except Exception as e:
