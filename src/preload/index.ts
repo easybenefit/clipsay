@@ -15,7 +15,10 @@ const api = {
   getSettings: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('get-settings'),
   saveSettings: (data: Record<string, unknown>): Promise<boolean> => ipcRenderer.invoke('save-settings', data),
   getStorageQuota: (): Promise<StorageQuota> => ipcRenderer.invoke('storage:quota'),
-  revealInFolder: (fullPath: string): Promise<boolean> => ipcRenderer.invoke('storage:reveal', fullPath)
+  revealInFolder: (fullPath: string): Promise<boolean> => ipcRenderer.invoke('storage:reveal', fullPath),
+  onWindowState: (callback: (state: { isMaximized: boolean }) => void) => {
+    ipcRenderer.on('window-state-changed', (_event, state) => callback(state))
+  }
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

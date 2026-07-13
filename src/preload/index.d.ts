@@ -29,6 +29,7 @@ interface ElectronAPI {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
   getSettings: () => Promise<AppSettings>
   saveSettings: (data: AppSettings) => Promise<boolean>
+  onWindowState: (callback: (state: { isMaximized: boolean }) => void) => void
 }
 
 interface Window {

@@ -193,6 +193,12 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, MIN_SPLASH_MS - elapsed))
     }
     createMainWindow()
+    if (mainWindow) {
+      mainWindow.on('maximize', () => mainWindow?.webContents.send('window-state-changed', { isMaximized: true }))
+      mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window-state-changed', { isMaximized: false }))
+      mainWindow.on('enter-full-screen', () => mainWindow?.webContents.send('window-state-changed', { isMaximized: true }))
+      mainWindow.on('leave-full-screen', () => mainWindow?.webContents.send('window-state-changed', { isMaximized: false }))
+    }
   } catch (err) {
     log.error('[Main] Failed to start backend:', err)
     setTimeout(() => {

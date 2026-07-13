@@ -151,6 +151,14 @@ function App(): JSX.Element {
     }
   }, [])
 
+  // ── listen for window maximize → collapse sidebar ──
+  useEffect(() => {
+    window.electronAPI?.onWindowState?.(({ isMaximized }) => {
+      if (isMaximized) setExpanded(false)
+      document.body.classList.toggle('window-maximized', isMaximized)
+    })
+  }, [])
+
   // ── persist page state to localStorage (sync — survives renderer reload after wake) ──
   useEffect(() => {
     if (!pageRestored) return
