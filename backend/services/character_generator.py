@@ -7,10 +7,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
 from backend.clients.llm import LLM
-from backend.utils.logging import setup_logger
-from backend.schemas.character import CharactersResponse, SceneCharacter
-
-logger = setup_logger("character_generator")
+from backend.schemas.character import CharacterList, SceneCharacter
 
 
 SYSTEM_PROMPT_GENERATE_CHARACTERS = """\
@@ -66,9 +63,7 @@ class CharacterGenerator:
         self._base_url = base_url
 
     async def generate(self, script: str) -> List[SceneCharacter]:
-        logger.info(
-            "[character_generator] generate start: script_len=%d", len(script))
-        parser = PydanticOutputParser(pydantic_object=CharactersResponse)
+        parser = PydanticOutputParser(pydantic_object=CharacterList)
 
         messages = [
             SystemMessage(content=SYSTEM_PROMPT_GENERATE_CHARACTERS.format(
@@ -78,11 +73,6 @@ class CharacterGenerator:
                 content=HUMAN_PROMPT_GENERATE_CHARACTERS.format(script=script)),
         ]
 
-        logger.info(
-            "[character_generator] calling LLM.chat model=%s", self._model)
         content = await LLM.chat(self._model, messages, self._api_key, self._base_url)
-        logger.info("[character_generator] LLM response len=%d", len(content))
-        response: CharactersResponse = parser.parse(content)
-        logger.info("[character_generator] generate done: characters=%d", len(
-            response.characters))
+        response: CharacterList = parser.parse(content)
         return response.characters

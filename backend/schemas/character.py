@@ -13,7 +13,7 @@ class SceneCharacter(BaseModel):
     attire: str = Field(description="动态特征：服装、配饰、关键道具等易变的造型描述")
 
 
-class CharactersResponse(BaseModel):
+class CharacterList(BaseModel):
     characters: List[SceneCharacter] = Field(description="从剧本中提取的角色列表")
 
 
