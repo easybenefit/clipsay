@@ -23,10 +23,13 @@ from backend.services.portrait_generator import PortraitGenerator
 from backend.services.video_compositor import VideoCompositor
 from backend.utils.paths import PathResolver, DATA_ROOT, normalize_local_url
 from backend.pipeline.runner import PipelineRunner
+from backend.pipeline.config import scene_requirement
 from backend.db import (
     DB_PATH, create_project_row, list_project_rows,
     read_full_project, save_full_project, duplicate_project_full,
+    update_story_content,
 )
+from backend.db.projects import load_session_config
 
 logger = logging.getLogger("api.routes")
 
@@ -84,6 +87,24 @@ async def generate_story(body: StoryRequest):
         return {"result": result}
     except Exception as e:
         logger.error("Generate story failed: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)},
+        )
+
+
+@router.post("/api/projects/{project_id}/regenerate-story")
+async def regenerate_project_story(project_id: int):
+    """只重新生成故事内容，不重置下游流水线步骤。"""
+    try:
+        cfg = await load_session_config(project_id)
+        writer = StoryWriter(cfg.chat.model, cfg.chat.api_key, cfg.chat.base_url)
+        requirement = scene_requirement(cfg.duration)
+        result = await writer.write_story(cfg.idea, requirement)
+        await update_story_content(project_id, result)
+        return {"result": result}
+    except Exception as e:
+        logger.error("Regenerate story failed: %s", e, exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": str(e)},

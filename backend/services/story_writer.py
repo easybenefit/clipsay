@@ -80,4 +80,4 @@ class StoryWriter:
         ]
 
         result = await LLM.chat(self._model, messages, self._api_key, self._base_url)
-        return result
+        return result.strip()

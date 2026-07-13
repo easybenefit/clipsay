@@ -5,12 +5,13 @@ import './StoryCard.css'
 interface StoryCardProps {
   content: string
   loading?: boolean
+  regenerating?: boolean
   disabled?: boolean
   onRegenerate: () => void
   onSave?: (content: string) => void
 }
 
-function StoryCard({ content, loading = false, disabled = false, onRegenerate, onSave }: StoryCardProps): JSX.Element {
+function StoryCard({ content, loading = false, regenerating = false, disabled = false, onRegenerate, onSave }: StoryCardProps): JSX.Element {
   const [showEditor, setShowEditor] = useState(false)
 
   const handleSave = (text: string) => {
@@ -45,7 +46,7 @@ function StoryCard({ content, loading = false, disabled = false, onRegenerate, o
       {loading ? (
         <div className="story-card-loading">
           <div className="story-card-loading-icon">✦</div>
-          <div className="story-card-loading-text">正在创作</div>
+          <div className="story-card-loading-text">{regenerating ? '正在重新创作' : '正在创作'}</div>
         </div>
       ) : (
         <div className="story-card-body">

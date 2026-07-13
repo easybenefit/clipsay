@@ -121,6 +121,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const canGenerate = idea.trim().length >= 10
   const [creating, setCreating] = useState(false)
   const [output, setOutput] = useState<string | null>(null)
+  const [storyRegenerating, setStoryRegenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dotCount, setDotCount] = useState(0)
   const [stage, setStage] = useState<CreationStage>('new')
@@ -1458,9 +1459,30 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <div className="npm-card-enter">
             <StoryCard
               content={output || ''}
-              loading={(creating || (pipelineStartedRef.current && !output)) || pipeline.status?.steps?.story?.status === 'running'}
-              onRegenerate={handleCreate}
-              onSave={(text) => setOutput(text)}
+              loading={creating || storyRegenerating || pipeline.status?.steps?.story?.status === 'running'}
+              regenerating={storyRegenerating}
+              onRegenerate={async () => {
+                setOutput(null)
+                setStoryRegenerating(true)
+                const pid = getEffectiveProjectId()
+                if (!pid) { setStoryRegenerating(false); return }
+                try {
+                  const res = await fetch(`${BASE}/api/projects/${pid}/regenerate-story`, { method: 'POST' })
+                  if (!res.ok) throw new Error(await res.text())
+                  const data = await res.json()
+                  setOutput(data.result)
+                } catch (e: any) {
+                  console.error('regenerate story failed', e)
+                  setError(`重新生成故事失败: ${e?.message || String(e)}`)
+                } finally {
+                  setStoryRegenerating(false)
+                }
+              }}
+              onSave={async (text) => {
+                setOutput(text)
+                const pid = getEffectiveProjectId()
+                if (pid) await updateProject(pid, { story: text })
+              }}
             />
             </div>
           )}

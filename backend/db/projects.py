@@ -274,10 +274,7 @@ async def update_story_content(project_id: int, content: str, **kwargs) -> None:
 
 async def get_story(project_id: int) -> str | None:
     async with _get_connection() as db:
-        db.row_factory = aiosqlite.Row
-        row = await (await db.execute(
-            "SELECT story_content FROM projects WHERE id = ?", (project_id,))).fetchone()
-        return row["story_content"] if row and row["story_content"] else None
+        return await read_story(db, project_id)
 
 
 async def read_story(db, project_id: int) -> str | None:
