@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Markdown from './Markdown'
 import './SceneScriptsCard.css'
 
@@ -9,13 +10,80 @@ export interface SceneScriptScene {
 interface SceneScriptsCardProps {
   scenes: SceneScriptScene[]
   loading?: boolean
+  onRefresh?: () => void
+  onSceneEdit?: (idx: number, data: { title: string; content: string }) => void
 }
 
-function SceneScriptsCard({ scenes, loading = false }: SceneScriptsCardProps): JSX.Element {
+function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: SceneScriptScene; onSave: (idx: number, data: { title: string; content: string }) => void; onClose: () => void }): JSX.Element {
+  const [title, setTitle] = useState(scene.title)
+  const [content, setContent] = useState(scene.content)
+
+  const handleSave = () => {
+    onSave(idx, { title, content })
+    onClose()
+  }
+
+  return (
+    <div className="story-editor-backdrop" onClick={onClose}>
+      <div className="scene-editor-dialog" onClick={e => e.stopPropagation()}>
+        <div className="story-editor-header">
+          <div className="story-editor-title">编辑 — {scene.title || `场景${idx + 1}`}</div>
+          <div className="story-editor-actions">
+            <button className="story-editor-btn" onClick={handleSave} title="保存">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+            </button>
+            <button className="story-editor-btn" onClick={onClose} title="关闭">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="story-editor-divider" />
+        <div className="scene-editor-body">
+          <div className="scene-editor-row">
+            <div className="scene-editor-row-label">标题</div>
+            <input className="scene-editor-input" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div className="scene-editor-row">
+            <div className="scene-editor-row-label">内容</div>
+            <textarea className="scene-editor-textarea" value={content} onChange={e => setContent(e.target.value)} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: SceneScriptsCardProps): JSX.Element {
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+
+  const handleSave = (idx: number, data: { title: string; content: string }) => {
+    if (onSceneEdit) {
+      onSceneEdit(idx, data)
+    }
+  }
+
   return (
     <div className="scene-scripts-card">
       <div className="scene-scripts-card-header">
         <div className="scene-scripts-card-title">分场剧本</div>
+        {!loading && scenes.length > 0 && onRefresh && (
+          <div className="scene-scripts-card-actions">
+            <button className="story-link" title="刷新" onClick={onRefresh}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
       <div className="scene-scripts-card-divider" />
       <div className="scene-scripts-card-body-area">
@@ -32,6 +100,14 @@ function SceneScriptsCard({ scenes, loading = false }: SceneScriptsCardProps): J
                       <span className="scene-scripts-card-item-index-num">{String(idx + 1).padStart(2, '0')}</span>
                       <span className="scene-scripts-card-item-index-title">{cleanTitle}</span>
                     </div>
+                    {onSceneEdit && (
+                      <button className="scene-scripts-card-edit-btn" onClick={() => setEditIdx(idx)} title="编辑">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                    )}
                     <div className="scene-scripts-card-item-content"><Markdown content={scene.content.replace(/\\n/g, '\n')} /></div>
                   </li>
                 )
@@ -44,6 +120,14 @@ function SceneScriptsCard({ scenes, loading = false }: SceneScriptsCardProps): J
           <div className="scene-scripts-card-loading-text">正在创作</div>
         </div>
       </div>
+      {editIdx !== null && scenes[editIdx] && (
+        <SceneEditor
+          idx={editIdx}
+          scene={scenes[editIdx]}
+          onSave={handleSave}
+          onClose={() => setEditIdx(null)}
+        />
+      )}
     </div>
   )
 }

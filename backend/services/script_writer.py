@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
 
 from backend.clients.llm import LLM
-from backend.utils.logging import setup_logger
-
-logger = setup_logger("script_writer")
+from backend.schemas.script import ScriptSceneList
 
 
 SYSTEM_PROMPT_WRITE_SCRIPT = \
@@ -63,19 +60,6 @@ HUMAN_PROMPT_WRITE_SCRIPT = """\
 """
 
 
-class Scene(BaseModel):
-    scene_id: int = Field(..., description="场次编号")
-    heading: str = Field(..., description="场景标题（如：内. 地点 - 白天）")
-    action: str = Field(..., description="该场景的动作/描述")
-
-
-class ScriptResponse(BaseModel):
-    script: List[Scene] = Field(
-        ...,
-        description="根据故事生成的剧本。每个元素为一个场景，包含场次编号、场景标题及动作/描述。",
-    )
-
-
 class ScriptWriter:
     def __init__(self, model: str, api_key: str, base_url: str):
         self._model = model
@@ -88,7 +72,7 @@ class ScriptWriter:
         characters_text: Optional[str] = None,
         user_requirement: Optional[str] = None,
     ) -> list[dict]:
-        parser = PydanticOutputParser(pydantic_object=ScriptResponse)
+        parser = PydanticOutputParser(pydantic_object=ScriptSceneList)
 
         messages = [
             SystemMessage(content=SYSTEM_PROMPT_WRITE_SCRIPT.format(

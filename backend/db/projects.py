@@ -218,6 +218,7 @@ async def save_full_project(db, project_id: int, data) -> None:
                  front_url, side_url, back_url, portrait_status))
 
     if data.scenes is not None:
+        db.row_factory = aiosqlite.Row
         existing_frames = {
             (r["scene_idx"], r["shot_idx"]): r for r in await (await db.execute(
                 "SELECT s.idx AS scene_idx, sh.idx AS shot_idx, "
@@ -360,6 +361,29 @@ async def read_characters(db, project_id: int) -> list:
 async def get_characters(project_id: int) -> list:
     async with _get_connection() as db:
         return await read_characters(db, project_id)
+
+
+async def read_character(project_id: int, identifier: str) -> "CharacterRead | None":
+    """Read a single character row by project_id and identifier."""
+    from backend.schemas import CharacterRead
+    async with _get_connection() as db:
+        db.row_factory = __import__("aiosqlite").Row
+        row = await (await db.execute(
+            "SELECT identifier, appearance, attire, idx, front_url, side_url, back_url, portrait_status FROM attributes "
+            "WHERE project_id = ? AND identifier = ?",
+            (project_id, identifier))).fetchone()
+        if not row:
+            return None
+        return CharacterRead(
+            identifier=row["identifier"],
+            appearance=row["appearance"] or "",
+            attire=row["attire"] or "",
+            char_idx=row["idx"] or 0,
+            front_url=row["front_url"] or "",
+            side_url=row["side_url"] or "",
+            back_url=row["back_url"] or "",
+            portrait_status=_ps_decode(row["portrait_status"] or 0),
+        )
 
 
 async def save_characters(project_id: int, characters: list) -> None:

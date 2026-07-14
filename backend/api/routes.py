@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import aiosqlite
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -134,12 +134,12 @@ async def extract_characters(body: CharacterRequest):
 async def generate_script(body: ScriptRequest):
     try:
         writer = ScriptWriter(body.model, body.api_key, body.base_url)
-        result = await writer.write_script(
+        scenes = await writer.write_script(
             story=body.story,
             characters_text=body.characters_text or None,
             user_requirement=body.user_requirement or None,
         )
-        return {"text": result["text"], "scenes": result["scenes"]}
+        return {"text": "", "scenes": scenes}
     except Exception as e:
         logger.error("Generate script failed: %s", e)
         return JSONResponse(
@@ -161,7 +161,7 @@ async def generate_portraits(body: PortraitRequest):
                 body.view, body.characters[0].identifier)
 
     try:
-        return await service.generate(body.characters[0], body.view, body.style, body.size)
+        return await service.generate(body.characters[0].identifier, body.view, body.style, body.size)
     except PortraitFrontGeneratingError as e:
         return JSONResponse(status_code=409, content={"error": str(e)})
     except Exception as e:
@@ -186,6 +186,19 @@ async def get_project(project_id: int):
         if project is None:
             raise ProjectNotFoundError(project_id)
         return project
+
+
+@router.put("/api/projects/{project_id}/scenes")
+async def update_project_scenes(project_id: int, request: Request):
+    from backend.db.scene_scripts import update_scenes
+    try:
+        body = await request.json()
+        scenes = body.get("scenes", [])
+        await update_scenes(project_id, scenes)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error("Update scenes failed: %s", e)
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.put("/api/projects/{project_id}")

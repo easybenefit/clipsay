@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 
 class FrameRecord(TypedDict):
@@ -207,11 +207,11 @@ class PortraitsUpdate(BaseModel):
 
 
 class SceneScriptsUpdate(BaseModel):
-    scenes: List[dict]
+    scenes: List[Dict[str, Any]]
 
 
 class StoryboardUpdate(BaseModel):
-    scenes: List[dict]
+    scenes: List[Dict[str, Any]]
 
 
 class ShotFramesUpdate(BaseModel):

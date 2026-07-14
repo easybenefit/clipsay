@@ -9,12 +9,12 @@ from backend.core.types import (
     PORTRAIT_STATUS_ERROR,
 )
 from backend.db.projects import (
+    read_character,
     read_character_portrait_status,
     read_character_portrait_urls,
     update_character_portrait_url,
     update_character_portrait_status,
 )
-from backend.schemas.character import PortraitCharacter
 from backend.services.portrait_generator import PortraitGenerator
 from backend.utils.logging import setup_logger
 
@@ -28,17 +28,17 @@ class PortraitFrontGeneratingError(Exception):
 class PortraitService:
     def __init__(self, model: str, api_key: str, base_url: str, project_id: int):
         self._project_id = project_id
-        self._generator = PortraitGenerator(model, api_key, base_url, project_id)
+        self._generator = PortraitGenerator(
+            model, api_key, base_url, project_id)
 
     async def generate(
         self,
-        character: PortraitCharacter,
+        identifier: str,
         view: str,
         style: str,
         size: Optional[str] = None,
     ) -> dict:
         """为一角色生成指定角度的肖像，落库后返回 {url, source_url}。"""
-        identifier = character.identifier
 
         # 侧面/背面：检查正面是否仍在生成
         if view in ("side", "back"):
@@ -48,9 +48,22 @@ class PortraitService:
         await update_character_portrait_status(
             self._project_id, identifier, view, PORTRAIT_STATUS_GENERATING)
 
+        # 从 DB 读取角色特征
+        char = await read_character(self._project_id, identifier)
+        if not char:
+            raise ValueError(f"角色 {identifier} 不存在")
+
         # 分发生成
         try:
-            ref = await self._do_generate(character, view, style, size)
+            ref = await self._do_generate(
+                identifier=identifier,
+                view=view,
+                style=style,
+                size=size,
+                appearance=char.appearance,
+                attire=char.attire,
+                front_image=char.front_url,
+            )
         except Exception:
             await self._persist_error(identifier, view)
             raise
@@ -60,7 +73,7 @@ class PortraitService:
             raise RuntimeError(
                 f"{view} portrait for {identifier}: generation returned empty result")
 
-        url = ref.local_url or ref.url
+        url = ref.url
         await self._persist_success(identifier, view, url)
         logger.info("[portraits] %s %s done: %s", identifier, view,
                     url[:60] + "..." if len(url) > 60 else url)
@@ -76,30 +89,32 @@ class PortraitService:
 
     async def _do_generate(
         self,
-        character: PortraitCharacter,
+        identifier: str,
         view: str,
         style: str,
+        appearance: str,
+        attire: str,
+        front_image: str = "",
         size: Optional[str] = None,
     ) -> ImageRef:
         if view == "front":
             return await self._generator.generate_front(
-                identifier=character.identifier,
-                appearance=character.appearance,
-                attire=character.attire,
+                identifier=identifier,
+                appearance=appearance,
+                attire=attire,
                 style=style,
                 size=size,
             )
 
-        front_image = character.front_image
         if not front_image:
             urls = await read_character_portrait_urls(
-                self._project_id, character.identifier)
+                self._project_id, identifier)
             front_image = urls.get("front_url", "")
         if not front_image:
             raise ValueError(f"生成{view}肖像需要正面肖像图")
         method = getattr(self._generator, f"generate_{view}")
         return await method(
-            identifier=character.identifier,
+            identifier=identifier,
             ref=ImageRef(url=front_image),
             style=style,
             size=size,
