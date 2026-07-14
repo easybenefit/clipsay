@@ -27,6 +27,7 @@ from backend.db.projects import (
     get_scene_count,
     get_story,
     list_project_rows,
+    read_character,
     read_characters,
     read_full_project,
     read_scenes,

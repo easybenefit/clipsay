@@ -128,6 +128,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const [creatingCharacter, setCreatingCharacter] = useState(false)
   const [characters, setCharacters] = useState<CharacterData[]>([])
   const [creatingScript, setCreatingScript] = useState(false)
+  const [refreshingSceneScripts, setRefreshingSceneScripts] = useState(false)
   const [creatingStoryboard, setCreatingStoryboard] = useState(false)
   const [portraitsReady, setPortraitsReady] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
@@ -867,6 +868,118 @@ function NewProject(props: NewProjectProps): JSX.Element {
     setScenes(prev => prev.map((s, i) => i === idx ? data : s))
   }
 
+  const handleSceneScriptEdit = (idx: number, data: { title: string; content: string }) => {
+    setScenes(prev => {
+      const updated = prev.map((s, i) => i === idx ? { ...s, ...data } : s)
+      const pid = getEffectiveProjectId()
+      if (pid) {
+        const scenesPayload = updated.map(s => ({
+          title: s.title,
+          content: s.content,
+          slugline: '',
+          environmentDesc: '',
+          script: '',
+          compositedVideo: s.compositedVideo || '',
+          compositedPreview: s.compositedPreview || '',
+          shots: s.shots.map(sh => ({
+            title: sh.title,
+            visualDescription: sh.visualDescription,
+            voiceDescription: sh.voiceDescription,
+            motionDescription: sh.motionDescription || '',
+            variationType: sh.variationType || 'small',
+            firstFrame: sh.firstFrame,
+            lastFrame: sh.lastFrame,
+            video: sh.video,
+            videoPreview: sh.videoPreview || '',
+          })),
+        }))
+        fetch(`${BASE}/api/projects/${pid}/scenes`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenes: scenesPayload }),
+        }).then(async r => {
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({ error: r.statusText }))
+            console.error('保存分场剧本失败:', err.error || r.statusText)
+          }
+        }).catch(e => console.error('保存分场剧本失败:', e))
+      }
+      return updated
+    })
+  }
+
+  const handleRefreshSceneScripts = async () => {
+    setRefreshingSceneScripts(true)
+    try {
+      const charText = characters.map(c => {
+        let text = `角色: ${c.name}`
+        if (c.staticFeatures) text += `,  静态特征: ${c.staticFeatures}`
+        if (c.dynamicFeatures) text += `,  动态特征: ${c.dynamicFeatures}`
+        return text
+      }).join('\n')
+
+      const res = await generateScript({
+        story: idea,
+        characters_text: charText || undefined,
+        model: chatModel,
+        api_key: props.chatApiKey,
+        base_url: props.chatBaseUrl,
+        user_requirement: DURATION_REQUIREMENTS[duration] || '',
+      })
+
+      if (res.scenes?.length) {
+        const pid = getEffectiveProjectId()
+        setScenes(prev => {
+          const updated = res.scenes.map((s, i) => {
+            const existing = prev[i]
+            return {
+              ...(existing || { shots: [], compositedVideo: '', compositedPreview: '' }),
+              title: s.title,
+              content: s.content,
+            }
+          })
+          if (pid) {
+            const scenesPayload = updated.map(s => ({
+              title: s.title,
+              content: s.content,
+              slugline: '',
+              environmentDesc: '',
+              script: '',
+              compositedVideo: s.compositedVideo || '',
+              compositedPreview: s.compositedPreview || '',
+              shots: s.shots.map(sh => ({
+                title: sh.title,
+                visualDescription: sh.visualDescription,
+                voiceDescription: sh.voiceDescription,
+                motionDescription: sh.motionDescription || '',
+                variationType: sh.variationType || 'small',
+                firstFrame: sh.firstFrame,
+                lastFrame: sh.lastFrame,
+                video: sh.video,
+                videoPreview: sh.videoPreview || '',
+              })),
+            }))
+            fetch(`${BASE}/api/projects/${pid}/scenes`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ scenes: scenesPayload }),
+            }).then(async r => {
+              if (!r.ok) {
+                const err = await r.json().catch(() => ({ error: r.statusText }))
+                console.error('保存分场剧本失败:', err.error || r.statusText)
+              }
+            }).catch(e => console.error('保存分场剧本失败:', e))
+          }
+          return updated
+        })
+      }
+    } catch (e: any) {
+      console.error('重新生成分场剧本失败:', e)
+    } finally {
+      setRefreshingSceneScripts(false)
+    }
+  }
+
   const handleRefreshFrame = async (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => {
     const resolutionStr = getSizeString(size, props.sizeMap)
     try {
@@ -1223,7 +1336,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <div className="npm-card-enter">
               <SceneScriptsCard
                 scenes={scenes}
-                loading={pipeline.status?.steps?.scene_scripts?.status === 'running' || scenes.length === 0}
+                loading={refreshingSceneScripts || pipeline.status?.steps?.scene_scripts?.status === 'running' || scenes.length === 0}
+                onRefresh={handleRefreshSceneScripts}
+                onSceneEdit={handleSceneScriptEdit}
               />
             </div>
           )}

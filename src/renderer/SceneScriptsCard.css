@@ -158,6 +158,40 @@
   max-width: 220px;
 }
 
+.scene-scripts-card-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.scene-scripts-card-edit-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  z-index: 2;
+}
+
+.scene-scripts-card-item:hover .scene-scripts-card-edit-btn {
+  opacity: 1;
+}
+
+.scene-scripts-card-edit-btn:hover {
+  color: #fff;
+  background: rgba(0,0,0,0.55);
+}
+
 .scene-scripts-card-item-content {
   font-size: 0.85rem;
   line-height: 1.65;
