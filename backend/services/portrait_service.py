@@ -10,6 +10,7 @@ from backend.core.types import (
 )
 from backend.db.projects import (
     read_character_portrait_status,
+    read_character_portrait_urls,
     update_character_portrait_url,
     update_character_portrait_status,
 )
@@ -89,12 +90,17 @@ class PortraitService:
                 size=size,
             )
 
-        if not character.front_image:
+        front_image = character.front_image
+        if not front_image:
+            urls = await read_character_portrait_urls(
+                self._project_id, character.identifier)
+            front_image = urls.get("front_url", "")
+        if not front_image:
             raise ValueError(f"生成{view}肖像需要正面肖像图")
         method = getattr(self._generator, f"generate_{view}")
         return await method(
             identifier=character.identifier,
-            ref=ImageRef(url=character.front_image),
+            ref=ImageRef(url=front_image),
             style=style,
             size=size,
         )

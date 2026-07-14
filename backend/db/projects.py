@@ -484,6 +484,22 @@ async def read_character_portrait_status(project_id: int, identifier: str) -> di
         return _ps_decode(row["portrait_status"] or 0)
 
 
+async def read_character_portrait_urls(project_id: int, identifier: str) -> dict[str, str]:
+    """Read a character's portrait URLs (front_url, side_url, back_url) from the DB."""
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute(
+            "SELECT front_url, side_url, back_url FROM attributes WHERE project_id = ? AND identifier = ?",
+            (project_id, identifier))).fetchone()
+        if not row:
+            return {"front_url": "", "side_url": "", "back_url": ""}
+        return {
+            "front_url": row["front_url"] or "",
+            "side_url": row["side_url"] or "",
+            "back_url": row["back_url"] or "",
+        }
+
+
 async def update_character_features(project_id: int, identifier: str, appearance: str, attire: str) -> None:
     """Update a character's appearance and attire in the attributes table."""
     async with _get_connection() as db:

@@ -36,6 +36,7 @@ from backend.db.projects import (
     save_full_project,
     update_character_features,
     read_character_portrait_status,
+    read_character_portrait_urls,
     update_character_portrait_url,
     update_character_portrait_status,
     update_step_db_status,
