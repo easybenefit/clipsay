@@ -189,6 +189,7 @@ async def save_full_project(db, project_id: int, data) -> None:
                          (sent["story"] or "", project_id))
 
     if data.characters is not None:
+        db.row_factory = __import__("aiosqlite").Row
         existing_chars = {
             r["identifier"]: r for r in await (await db.execute(
                 "SELECT identifier, front_url, side_url, back_url, portrait_status FROM attributes "
@@ -468,4 +469,26 @@ async def update_character_portrait_status(project_id: int, identifier: str, vie
     value = status << shift
     async with _get_connection() as db:
         await db.execute(sql, (mask, value, project_id, identifier))
+        await db.commit()
+
+
+async def read_character_portrait_status(project_id: int, identifier: str) -> dict[str, int]:
+    """Read a character's portrait_status bit-field, decoded per view."""
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute(
+            "SELECT portrait_status FROM attributes WHERE project_id = ? AND identifier = ?",
+            (project_id, identifier))).fetchone()
+        if not row:
+            return {"front": 0, "side": 0, "back": 0}
+        return _ps_decode(row["portrait_status"] or 0)
+
+
+async def update_character_features(project_id: int, identifier: str, appearance: str, attire: str) -> None:
+    """Update a character's appearance and attire in the attributes table."""
+    async with _get_connection() as db:
+        await db.execute(
+            "UPDATE attributes SET appearance = ?, attire = ? WHERE project_id = ? AND identifier = ?",
+            (appearance, attire, project_id, identifier),
+        )
         await db.commit()

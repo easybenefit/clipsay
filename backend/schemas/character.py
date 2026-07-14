@@ -43,7 +43,7 @@ class CharacterRead(BaseModel):
 
 
 class PortraitCharacter(BaseModel):
-    identifier: str
+    identifier: str = Field(alias="role_name")
     appearance: str = ""
     attire: str = ""
     front_image: Optional[str] = None

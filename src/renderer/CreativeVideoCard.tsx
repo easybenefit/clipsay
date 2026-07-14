@@ -20,7 +20,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
   return (
     <div className="script-card">
       <div className="script-card-header">
-        <div className="script-card-title">创意视频</div>
+        <div className="script-card-title">成片</div>
       </div>
       <div className="script-card-divider" />
       {!hasVideo ? (
@@ -41,7 +41,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
                   onHover={setHoveredKey}
                   isVideo
                   frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
-                  onClick={() => setMediaPreview({ src: finalVideo, isVideo: true, label: '创意视频' })}
+                  onClick={() => setMediaPreview({ src: finalVideo, isVideo: true, label: '成片' })}
                 />
               </div>
             ) : (

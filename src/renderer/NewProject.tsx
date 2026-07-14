@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, generateFrame, generateShotFrames, getProject, updateProject } from './api'
+import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures } from './api'
 import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
@@ -689,52 +689,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
   // 故事大纲就绪后，通过 pipeline SSE 事件自动刷新 UI 卡片
   // 该逻辑已由 pipeline.status 的 useEffect 处理
 
-  const handleRegenerateCharacters = async () => {
-    setCreatingCharacter(true)
-    try {
-      const script = output || idea
-      const res = await extractCharacters({
-        script,
-        model: chatModel,
-        api_key: props.chatApiKey,
-        base_url: props.chatBaseUrl,
-      })
-      const waitingStatus: PortraitStatus = { front: 'waiting', side: 'waiting', back: 'waiting' }
-      const chars: CharacterData[] = (res.characters || []).map((c: any, i: number) => ({
-        name: c.role_name || `角色${i + 1}`,
-        staticFeatures: c.appearance || '',
-        dynamicFeatures: c.attire || '',
-        portraits: {
-          front: '',
-          side: '',
-          back: '',
-        },
-        portraitStatus: { ...waitingStatus },
-      }))
-      setCharacters(chars)
-      setStage('characters')
-      await saveProjectData({
-        characters: chars.map(c => ({
-          name: c.name,
-          staticFeatures: c.staticFeatures,
-          dynamicFeatures: c.dynamicFeatures,
-          source: 'script',
-          portraits: c.portraits || {},
-          sourceUrl: c.sourceUrl || '',
-          portraitDescriptions: makePortraitDescriptions(c.name),
-        })),
-        stage: 'characters',
-      })
-      setCreatingCharacter(false)
-      if (chars.length > 0) {
-        generatePortraitsForCharacters(chars)
-      }
-    } catch (e: any) {
-      console.error('重新提取角色失败:', e)
-      setCreatingCharacter(false)
-    }
-  }
-
   const handleRegenerateStoryboard = async () => {
     setRegenerating(true)
     try {
@@ -897,194 +851,16 @@ function NewProject(props: NewProjectProps): JSX.Element {
     }
   }
 
-  const generatePortraitsForCharacters = async (chars: CharacterData[]): Promise<void> => {
-    try {
-      const pid = getEffectiveProjectId()!
-
-      setCharacters(prev => prev.map(c => ({
-        ...c,
-        portraitStatus: { front: 'generating' as const, side: 'waiting' as const, back: 'waiting' as const },
-      })))
-
-      const style_ = style
-      const imageModel_ = imageModel
-      const imageApiKey_ = props.imageApiKey
-      const imageBaseUrl_ = props.imageBaseUrl
-
-      // Process each character independently in parallel with retry
-      // For each character: front → (immediately update UI) → side+back
-      const updatedCharsMap = new Map<string, CharacterData>()
-      const MAX_RETRIES = 5
-      await Promise.all(chars.map(async (char) => {
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-          try {
-            // Step 1: Generate front portrait
-            console.log(`[portraits] === ${char.name} attempt=${attempt} step=front ===`)
-            const frontRes = await generatePortraits({
-              characters: [{
-                role_name: char.name,
-                appearance: char.staticFeatures,
-                attire: char.dynamicFeatures,
-              }],
-              view: 'front',
-              style: style_,
-              model: imageModel_,
-              api_key: imageApiKey_,
-              base_url: imageBaseUrl_,
-              project_id: pid,
-            })
-
-            const frontData = frontRes.portraits[char.name]
-            console.log(`[portraits] ${char.name} front response:`, frontData)
-            if (!frontData?.front) {
-              throw new Error('正面肖像返回为空')
-            }
-            const frontUrl = `${BASE}${frontData.front}`
-            const sourceUrl = frontData.source_url || ''
-            console.log(`[portraits] ${char.name} front success: localUrl=${frontData.front} sourceUrl=${sourceUrl}`)
-            // Show front immediately, trigger side+back generation concurrently
-            setCharacters(prev => prev.map(c =>
-              c.name === char.name ? {
-                ...c,
-                portraits: { ...c.portraits, front: frontUrl },
-                sourceUrl,
-                portraitStatus: { front: 'generated' as const, side: 'generating' as const, back: 'generating' as const },
-              } : c
-            ))
-
-            // Step 2: Generate side and back portraits concurrently
-            console.log(`[portraits] ${char.name} starting side+back (parallel) with sourceUrl length=${sourceUrl.length}`)
-            const [sideRes, backRes] = await Promise.all([
-              generatePortraits({
-                characters: [{ role_name: char.name, front_image: sourceUrl }],
-                view: 'side',
-                style: style_,
-                model: imageModel_,
-                api_key: imageApiKey_,
-                base_url: imageBaseUrl_,
-                project_id: pid,
-              }),
-              generatePortraits({
-                characters: [{ role_name: char.name, front_image: sourceUrl }],
-                view: 'back',
-                style: style_,
-                model: imageModel_,
-                api_key: imageApiKey_,
-                base_url: imageBaseUrl_,
-                project_id: pid,
-              }),
-            ])
-
-            const sideData = sideRes.portraits[char.name]
-            const backData = backRes.portraits[char.name]
-            console.log(`[portraits] ${char.name} side response:`, sideData)
-            console.log(`[portraits] ${char.name} back response:`, backData)
-            if (!sideData?.side) {
-              console.error(`[portraits] ${char.name} side data missing:`, sideData)
-              throw new Error('侧面肖像返回为空')
-            }
-            if (!backData?.back) {
-              console.error(`[portraits] ${char.name} back data missing:`, backData)
-              throw new Error('背面肖像返回为空')
-            }
-            const sideUrl = `${BASE}${sideData.side}`
-            const backUrl = `${BASE}${backData.back}`
-            console.log(`[portraits] ${char.name} side+back success: side=${sideData.side} back=${backData.back}`)
-
-            setCharacters(prev => prev.map(c =>
-              c.name === char.name ? {
-                ...c,
-                portraits: { ...c.portraits, front: frontUrl, side: sideUrl, back: backUrl },
-                portraitStatus: { front: 'generated' as const, side: 'generated' as const, back: 'generated' as const },
-              } : c
-            ))
-            updatedCharsMap.set(char.name, {
-              ...char,
-              portraits: { front: frontUrl, side: sideUrl, back: backUrl },
-              portraitStatus: { front: 'generated', side: 'generated', back: 'generated' },
-            })
-            break // success, exit retry loop
-          } catch (e) {
-            console.warn(`[portraits] ${char.name} attempt ${attempt}/${MAX_RETRIES} failed:`, e)
-            if (attempt < MAX_RETRIES) {
-              console.log(`[portraits] ${char.name} 肖像第 ${attempt} 次生成失败，等待后重试:`, e)
-              await new Promise(r => setTimeout(r, 2000))
-            } else {
-              console.error(`[portraits] ${char.name} 肖像生成失败（已重试 ${MAX_RETRIES} 次）:`, e)
-              setCharacters(prev => prev.map(c =>
-                c.name === char.name ? {
-                  ...c,
-                  portraitStatus: { front: 'error' as const, side: 'error' as const, back: 'error' as const },
-                } : c
-              ))
-              updatedCharsMap.set(char.name, {
-                ...char,
-                portraitStatus: { front: 'error', side: 'error', back: 'error' },
-              })
-            }
-          }
-        }
-      }))
-
-      // If any character still has error status after retries, abort
-      for (const ch of chars) {
-        const updated = updatedCharsMap.get(ch.name)
-        if (!updated || updated.portraitStatus?.front !== 'generated') {
-          throw new Error(`角色 ${ch.name} 肖像生成失败`)
-        }
-      }
-
-      // 保存肖像数据到后端
-      const pid2 = getEffectiveProjectId()
-      if (pid2 && updatedCharsMap.size > 0) {
-        const savedChars = chars.map(c => {
-          const updated = updatedCharsMap.get(c.name)
-          return {
-            name: c.name,
-            staticFeatures: c.staticFeatures,
-            dynamicFeatures: c.dynamicFeatures,
-            source: 'script' as const,
-            portraits: {
-              front: updated?.portraits?.front || '',
-              side: updated?.portraits?.side || '',
-              back: updated?.portraits?.back || '',
-            },
-            sourceUrl: updated?.sourceUrl || c.sourceUrl || '',
-            portraitDescriptions: makePortraitDescriptions(c.name),
-          }
-        })
-        await saveProjectData({
-          characters: savedChars,
-        }).catch(e => console.error('保存肖像数据失败:', e))
-      }
-
-      // Build portrait registry for ShotFrameOrchestrator
-      const registry: Record<string, any> = {}
-      updatedCharsMap.forEach((ch, name) => {
-        const entry: Record<string, any> = {}
-        for (const view of ['front', 'side', 'back'] as const) {
-          const url = ch.portraits[view]
-          if (url) {
-            entry[view] = {
-              path: url.startsWith(BASE) ? url.slice(BASE.length) : url,
-              description: makePortraitDescriptions(name)[view],
-            }
-          }
-        }
-        if (Object.keys(entry).length > 0) registry[name] = entry
-      })
-      portraitRegistryRef.current = registry
-    } catch (e: any) {
-      console.error('生成角色肖像失败:', e)
-      setCharacters(prev => prev.map(c => ({
-        ...c,
-        portraitStatus: { front: 'error' as const, side: 'error' as const, back: 'error' as const },
-      })))
-    }
-  }
-
   const handleCharacterUpdate = (idx: number, data: CharacterData) => {
-    setCharacters(prev => prev.map((c, i) => i === idx ? data : c))
+    setCharacters(prev => {
+      const next = prev.map((c, i) => i === idx ? data : c)
+      const pid = getEffectiveProjectId()
+      if (pid) {
+        updateCharacterFeatures(pid, data.name, data.staticFeatures, data.dynamicFeatures)
+          .catch(e => console.error('保存角色数据失败:', e))
+      }
+      return next
+    })
   }
 
   const handleSceneUpdate = (idx: number, data: SceneData) => {
@@ -1135,73 +911,36 @@ function NewProject(props: NewProjectProps): JSX.Element {
         i === characterIdx ? { ...c, portraitStatus: { ...(c.portraitStatus || defaultStatus), [view]: 'generating' as const } } : c
       ))
 
-      if (view === 'front') {
-        const res = await generatePortraits({
-          characters: [{
-            role_name: char.name,
-            appearance: char.staticFeatures,
-            attire: char.dynamicFeatures,
-          }],
-          view: 'front',
-          style,
-          model: imageModel,
-          api_key: props.imageApiKey,
-          base_url: props.imageBaseUrl,
-          project_id: pid,
-        })
-        const p = res.portraits[char.name]
-        console.log(`[portraits] handleRefreshImage front response:`, p)
-        if (p?.front) {
-          const frontUrl = `${BASE}${p.front}`
-          console.log(`[portraits] handleRefreshImage front success: ${p.front}`)
-          setCharacters(prev => prev.map((c, i) =>
-            i === characterIdx ? {
-              ...c,
-              portraits: { ...c.portraits, front: frontUrl },
-              sourceUrl: p.source_url || undefined,
-              portraitStatus: { ...c.portraitStatus, front: 'generated' as const },
-            } : c
-          ))
-          await saveCharacterPortrait(pid, characterIdx, char.name, char.staticFeatures, char.dynamicFeatures,
-            frontUrl, char.portraits?.side || '', char.portraits?.back || '', p.source_url || '')
-        } else {
-          console.error(`[portraits] handleRefreshImage front: no url in response`, p)
-        }
+      const req: GeneratePortraitsRequest = {
+        characters: [{
+          role_name: char.name,
+          ...(view === 'front'
+            ? { appearance: char.staticFeatures, attire: char.dynamicFeatures }
+            : { front_image: char.sourceUrl || '' }),
+        }],
+        view,
+        style,
+        model: imageModel,
+        api_key: props.imageApiKey,
+        base_url: props.imageBaseUrl,
+        project_id: pid,
+      }
+
+      const res = await generatePortraits(req)
+      console.log(`[portraits] handleRefreshImage ${view} response:`, res)
+
+      if (res.url) {
+        const url = `${BASE}${res.url}`
+        setCharacters(prev => prev.map((c, i) =>
+          i === characterIdx ? {
+            ...c,
+            portraits: { ...c.portraits, [view]: url },
+            sourceUrl: view === 'front' ? (res.source_url || undefined) : c.sourceUrl,
+            portraitStatus: { ...c.portraitStatus, [view]: 'generated' as const },
+          } : c
+        ))
       } else {
-        const sourceUrl = char.sourceUrl || ''
-        console.log(`[portraits] handleRefreshImage ${view} sourceUrl length=${sourceUrl.length}`)
-        const res = await generatePortraits({
-          characters: [{
-            role_name: char.name,
-            front_image: sourceUrl,
-          }],
-          view: view,
-          style,
-          model: imageModel,
-          api_key: props.imageApiKey,
-          base_url: props.imageBaseUrl,
-          project_id: pid,
-        })
-        const p = res.portraits[char.name]
-        console.log(`[portraits] handleRefreshImage ${view} response:`, p)
-        if (p?.[view]) {
-          const url = `${BASE}${p[view]}`
-          console.log(`[portraits] handleRefreshImage ${view} success: ${p[view]}`)
-          setCharacters(prev => prev.map((c, i) =>
-            i === characterIdx ? {
-              ...c,
-              portraits: { ...c.portraits, [view]: url },
-              portraitStatus: { ...c.portraitStatus, [view]: 'generated' as const },
-            } : c
-          ))
-          await saveCharacterPortrait(pid, characterIdx, char.name, char.staticFeatures, char.dynamicFeatures,
-            char.portraits?.front || '',
-            view === 'side' ? url : char.portraits?.side || '',
-            view === 'back' ? url : char.portraits?.back || '',
-            sourceUrl)
-        } else {
-          console.error(`[portraits] handleRefreshImage ${view}: no url in response`, p)
-        }
+        console.error(`[portraits] handleRefreshImage ${view}: no url in response`, res)
       }
     } catch (e: any) {
       console.error(`刷新${view}肖像失败:`, e)
@@ -1219,32 +958,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
     side: `${name}的侧面特写`,
     back: `${name}的背面特写`,
   })
-
-  const saveCharacterPortrait = async (pid: number, idx: number, name: string, staticFeatures: string, dynamicFeatures: string, front: string, side: string, back: string, sourceUrl: string) => {
-    const allChars = characters.map((c, i) => {
-      if (i === idx) {
-        return {
-          name,
-          staticFeatures,
-          dynamicFeatures,
-          source: 'script' as const,
-          portraits: { front, side, back },
-          sourceUrl,
-          portraitDescriptions: makePortraitDescriptions(name),
-        }
-      }
-      return {
-        name: c.name,
-        staticFeatures: c.staticFeatures,
-        dynamicFeatures: c.dynamicFeatures,
-        source: 'script' as const,
-        portraits: { ...c.portraits },
-        sourceUrl: c.sourceUrl || '',
-        portraitDescriptions: c.portraitDescriptions || makePortraitDescriptions(c.name),
-      }
-    })
-    await updateProject(pid, { characters: allChars }).catch(e => console.error('保存肖像数据失败:', e))
-  }
 
   return (
     <div className="new-project-page">
@@ -1501,7 +1214,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
                 aspectRatio={size}
                 loading={creatingCharacter || (pipelineStartedRef.current && characters.length === 0)}
                 statusMessage={characters.length === 0 ? '正在提取角色...' : undefined}
-                onRegenerate={handleRegenerateCharacters}
                 onCharacterUpdate={handleCharacterUpdate}
                 onRefreshImage={handleRefreshImage}
               />

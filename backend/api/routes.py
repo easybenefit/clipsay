@@ -19,7 +19,6 @@ from backend.clients.llm import LLM
 from backend.services.story_writer import StoryWriter
 from backend.services.character_generator import CharacterGenerator
 from backend.services.script_writer import ScriptWriter
-from backend.services.portrait_generator import PortraitGenerator
 from backend.services.video_compositor import VideoCompositor
 from backend.utils.paths import PathResolver, DATA_ROOT, normalize_local_url
 from backend.pipeline.runner import PipelineRunner
@@ -151,114 +150,23 @@ async def generate_script(body: ScriptRequest):
 
 @router.post("/api/generate-portraits")
 async def generate_portraits(body: PortraitRequest):
+    if not body.characters or len(body.characters) != 1:
+        return JSONResponse(status_code=400, content={"error": "仅支持单张图片生成，characters 数量必须为 1"})
+    if body.view not in ("front", "side", "back"):
+        return JSONResponse(status_code=400, content={"error": f"不支持的角度: {body.view}"})
+
+    from backend.services.portrait_service import PortraitService, PortraitFrontGeneratingError
+    service = PortraitService(body.model, body.api_key, body.base_url, body.project_id)
+    logger.info("[portraits] === POST /api/generate-portraits view=%s identifier=%s ===",
+                body.view, body.characters[0].identifier)
+
     try:
-        logger.info("[portraits] === POST /api/generate-portraits view=%s char_count=%d size=%s ===",
-                    body.view, len(body.characters), body.size)
-        for c in body.characters:
-            logger.info("[portraits]   char: identifier=%s front_image=%s appearance_len=%d attire_len=%d",
-                        c.identifier,
-                        c.front_image[:40] + "..." if c.front_image and len(c.front_image) > 40 else c.front_image or "NONE",
-                        len(c.appearance or ""), len(c.attire or ""))
-
-        generator = PortraitGenerator(
-            body.model, body.api_key, body.base_url, body.project_id)
-
-        async def _delayed_task(delay: int, fn, **kwargs):
-            if delay > 0:
-                logger.debug("[portraits] delay %ds before %s %s", delay, fn.__name__, kwargs.get("identifier", ""))
-                await asyncio.sleep(delay)
-            return await fn(**kwargs)
-
-        if body.view == "side_back":
-            tasks = [
-                _delayed_task(
-                    i,
-                    generator.generate_side_back,
-                    identifier=c.identifier,
-                    front_url=c.front_image or "",
-                    size=body.size,
-                )
-                for i, c in enumerate(body.characters)
-            ]
-            results = await asyncio.gather(*tasks)
-            portraits = {
-                body.characters[i].identifier: {
-                    "side": results[i]['side'].local_url or results[i]['side'].url,
-                    "back": results[i]['back'].local_url or results[i]['back'].url,
-                }
-                for i in range(len(body.characters))
-            }
-        elif body.view == "side":
-            tasks = [
-                _delayed_task(
-                    i,
-                    generator.generate_side,
-                    identifier=c.identifier,
-                    front_url=c.front_image or "",
-                    size=body.size,
-                )
-                for i, c in enumerate(body.characters)
-            ]
-            results = await asyncio.gather(*tasks)
-            portraits = {
-                body.characters[i].identifier: {
-                    "side": results[i].local_url or results[i].url,
-                }
-                for i in range(len(body.characters))
-            }
-        elif body.view == "back":
-            tasks = [
-                _delayed_task(
-                    i,
-                    generator.generate_back,
-                    identifier=c.identifier,
-                    front_url=c.front_image or "",
-                    size=body.size,
-                )
-                for i, c in enumerate(body.characters)
-            ]
-            results = await asyncio.gather(*tasks)
-            portraits = {
-                body.characters[i].identifier: {
-                    "back": results[i].local_url or results[i].url,
-                }
-                for i in range(len(body.characters))
-            }
-        else:
-            tasks = [
-                _delayed_task(
-                    i,
-                    generator.generate_front,
-                    identifier=c.identifier,
-                    appearance=c.appearance,
-                    attire=c.attire,
-                    style=body.style,
-                    size=body.size,
-                )
-                for i, c in enumerate(body.characters)
-            ]
-            results = await asyncio.gather(*tasks)
-            portraits = {
-                body.characters[i].identifier: {
-                    "front": results[i].local_url or results[i].url,
-                    "source_url": results[i].url,
-                }
-                for i in range(len(body.characters))
-            }
-
-        # Log result summary
-        for ident, urls in portraits.items():
-            for view_key, url in urls.items():
-                logger.info("[portraits] result %s %s: %s", ident, view_key,
-                           url[:60] + "..." if url and len(url) > 60 else url or "EMPTY")
-
-        return {"portraits": portraits}
+        return await service.generate(body.characters[0], body.view, body.style, body.size)
+    except PortraitFrontGeneratingError as e:
+        return JSONResponse(status_code=409, content={"error": str(e)})
     except Exception as e:
-        logger.error("[portraits] Generate portraits FAILED: %s", e, exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)},
-        )
+        logger.error("[portraits] generate FAILED: %s", e, exc_info=True)
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.post("/api/projects")
@@ -289,6 +197,18 @@ async def update_project(project_id: int, body: ProjectUpdate):
         await save_full_project(db, project_id, body)
         project = await read_full_project(db, project_id)
         return project
+
+
+@router.put("/api/projects/{project_id}/characters/{identifier}")
+async def update_project_character(project_id: int, identifier: str, body: dict):
+    """Update a single character's appearance and attire."""
+    from backend.db.projects import update_character_features
+    await update_character_features(
+        project_id, identifier,
+        body.get("appearance", ""),
+        body.get("attire", ""),
+    )
+    return {"status": "ok"}
 
 
 @router.post("/api/projects/{project_id}/duplicate")

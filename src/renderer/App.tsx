@@ -341,7 +341,7 @@ function App(): JSX.Element {
               </div>
 
               <div className="section-divider" />
-              <h2 className="section-title">创意视频</h2>
+              <h2 className="section-title">成片</h2>
               {projects.length === 0 ? (
                 <div className="waterfall-empty">暂无创作，点击"开启创作"开始</div>
               ) : (

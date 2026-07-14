@@ -14,11 +14,8 @@ from backend.db import (
     update_character_portrait_status,
 )
 from backend.pipeline.events import EventEmitter
-from backend.utils.paths import PathResolver
 
 _logger = setup_logger("pipeline.portraits")
-
-# TODO ImageRef这里似乎是不需要，因为可以通过project id使用path_resolver拿到path
 
 
 async def generate_portraits(config: "SessionConfig", emit: EventEmitter) -> None:
@@ -60,11 +57,12 @@ async def _generate_character_portraits(
     left untouched so the UI keeps showing what worked.
     """
     identifier = character.identifier
-    _logger.info("[portraits] === character start: %s ===", identifier)
+    _logger.info("[portraits] character start: %s .", identifier)
 
     ps = character.portrait_status or {}
     if isinstance(ps, dict) and all(ps.get(v) == PORTRAIT_STATUS_GENERATED for v in (VIEW_FRONT, VIEW_SIDE, VIEW_BACK)):
-        _logger.info("[portraits] %s all views already generated, skipping", identifier)
+        _logger.info(
+            "[portraits] %s all views already generated, skipping", identifier)
         return
 
     ref = await _generate_view(

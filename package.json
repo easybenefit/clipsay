@@ -1,5 +1,6 @@
 {
   "name": "clipsay",
+  "productName": "Clipsay",
   "version": "1.0.0",
   "description": "Clipsay Desktop App",
   "main": "./out/main/index.js",

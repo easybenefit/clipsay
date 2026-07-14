@@ -5,6 +5,9 @@ import http from 'http'
 import dayjs from 'dayjs'
 import log from 'electron-log'
 
+// 设置应用程序名称（macOS 菜单栏、Dock 等）
+app.name = 'Clipsay'
+
 let splashWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
 let pythonProcess: ChildProcess | null = null

@@ -193,7 +193,7 @@ export interface GeneratePortraitsRequest {
     attire?: string
     front_image?: string
   }>
-  view?: 'front' | 'side_back' | 'side' | 'back'
+  view?: 'front' | 'side' | 'back'
   style: string
   model: string
   api_key: string
@@ -293,7 +293,7 @@ export async function generateShotFrames(req: GenerateShotFramesRequest): Promis
   })
 }
 
-export async function generatePortraits(req: GeneratePortraitsRequest): Promise<{ portraits: Record<string, any> }> {
+export async function generatePortraits(req: GeneratePortraitsRequest): Promise<{ url: string; source_url: string }> {
   return withRetry(async () => {
     const res = await fetch(`${BASE}/api/generate-portraits`, {
       method: 'POST',
@@ -323,6 +323,14 @@ export async function updateProject(id: number, data: ProjectUpdate): Promise<Pr
       body: JSON.stringify(data)
     })
     return res.json()
+  })
+}
+
+export async function updateCharacterFeatures(projectId: number, identifier: string, appearance: string, attire: string): Promise<void> {
+  await fetch(`${BASE}/api/projects/${projectId}/characters/${encodeURIComponent(identifier)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appearance, attire }),
   })
 }
 
