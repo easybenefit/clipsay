@@ -156,6 +156,7 @@ function App(): JSX.Element {
     window.electronAPI?.onWindowState?.(({ isMaximized }) => {
       if (isMaximized) setExpanded(false)
       document.body.classList.toggle('window-maximized', isMaximized)
+      if (!isMaximized) document.body.classList.remove('show-new-sidebar')
     })
   }, [])
 
@@ -280,7 +281,7 @@ function App(): JSX.Element {
     <div className="root">
       <div className="titlebar-drag" />
       <div className="app-layout">
-      <aside className={`sidebar${expanded ? ' expanded' : ''}`}>
+      <aside className={`sidebar${expanded ? ' expanded' : ''}`} onDoubleClick={() => document.body.classList.toggle('show-new-sidebar')}>
         <div className="sidebar-brand">
           <img className="brand-mark" src={logoSrc} alt="Clipsay" />
           <div className={`brand-info${expanded ? '' : ' collapsed'}`}>
@@ -319,6 +320,7 @@ function App(): JSX.Element {
             </svg>
           </button>
         </div>
+        <div className="sidebar-hint" title="双击展开创作面板">⠇</div>
       </aside>
 
       <main className="main-content">

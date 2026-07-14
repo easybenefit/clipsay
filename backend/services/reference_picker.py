@@ -253,6 +253,11 @@ class ReferencePicker:
         frame_description: str,
     ) -> dict:
         """Use the vision-capable LLM to pick the best reference(s)."""
+        candidates = [c for c in candidates if c.url]
+        if not candidates:
+            logger.warning("All candidates have empty URLs, skipping vision selection")
+            return {"references": [], "generation_prompt": frame_description}
+
         content: list = []
         for idx, ref in enumerate(candidates):
             content.append({

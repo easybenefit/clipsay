@@ -30,6 +30,18 @@ body.window-maximized .new-project-layout {
   gap: 0;
 }
 
+body.window-maximized.show-new-sidebar .new-project-sidebar {
+  max-width: 320px;
+  padding: 16px 16px 12px;
+  border-width: 1px;
+  border-radius: 14px;
+  opacity: 1;
+  filter: blur(0);
+  transform: translateX(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
 .new-project-sidebar {
   flex: 1;
   max-width: 320px;

@@ -13,6 +13,7 @@ from backend.clients.image import Image
 from backend.clients.llm import LLM
 from backend.clients.errors import ContentFilterError
 from backend.core.types import ImageRef
+from backend.db.storyboards import get_shot_by_project_scene
 from backend.schemas.models import ModelConfig
 from backend.services.reference_picker import ReferencePicker
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -50,6 +51,20 @@ class ImageGenerator:
             vision_config=vision_config or chat_config,
         )
 
+    @staticmethod
+    async def _get_existing_url(
+        scene: "SceneScope",
+        shot_idx: int,
+        frame_type: str,
+    ) -> str:
+        col = {"start_frame.png": "start_frame_url", "end_frame.png": "end_frame_url"}.get(
+            frame_type)
+        if not col:
+            return ""
+        shot = await get_shot_by_project_scene(
+            scene.project_id, scene.scene_idx, shot_idx)
+        return shot.get(col, "") if shot else ""
+
     async def generate(
         self,
         shot_idx: int,
@@ -65,6 +80,12 @@ class ImageGenerator:
         frame_path = scene.shot(shot_idx).path(frame_type)
         logger.info("[shot=%d] ImageGenerator.generate: frame_type=%s, path=%s",
                     shot_idx, frame_type, frame_path)
+
+        if os.path.exists(frame_path):
+            url = await self._get_existing_url(scene, shot_idx, frame_type)
+            logger.info("[shot=%d] %s already exists on disk, reusing (url=%s)",
+                        shot_idx, frame_type, url)
+            return ImageRef(url=url, prompt=frame_description)
 
         reference_candidates = collect_character_references(
             vis_char_idxs, characters)
@@ -104,9 +125,6 @@ class ImageGenerator:
     ) -> ImageRef:
         size = size or self._size
         logger.info("Generating image, save_path=%s, size=%s", save_path, size)
-        if os.path.exists(save_path):
-            logger.info("Image already exists, skipping: %s", save_path)
-            return ImageRef(url="", prompt=prompt)
 
         if not self._image_config.model:
             raise RuntimeError("Image generator is not configured")

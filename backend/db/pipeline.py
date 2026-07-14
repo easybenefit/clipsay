@@ -8,6 +8,11 @@ from backend.db._config import DB_PATH
 
 
 async def init_pipeline_steps(project_id: int):
+    from backend.db.projects import STEP_STATUS_COLUMNS, update_step_db_status
+
+    for step_name in STEP_STATUS_COLUMNS:
+        await update_step_db_status(project_id, step_name, 0)
+
     async with __import__("aiosqlite").connect(DB_PATH) as db:
         await db.execute(
             "UPDATE projects SET pipeline_status = 'idle', pipeline_step = '', "
@@ -46,6 +51,13 @@ async def update_step_status(project_id: int, step_name: str,
 
 
 async def reset_downstream_steps(project_id: int, from_step: str):
+    from backend.pipeline.config import STEP_NAMES
+    from backend.db.projects import update_step_db_status
+
+    start_idx = STEP_NAMES.index(from_step)
+    for step_name in STEP_NAMES[start_idx:]:
+        await update_step_db_status(project_id, step_name, 0)
+
     async with __import__("aiosqlite").connect(DB_PATH) as db:
         await db.execute(
             "UPDATE projects SET pipeline_status = 'running', pipeline_step = ?, "

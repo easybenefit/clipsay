@@ -285,6 +285,28 @@ body {
   transition: all 0.10.22s;
 }
 
+.sidebar-hint {
+  text-align: center;
+  padding: 2px 0 6px;
+  font-size: 0.5rem;
+  line-height: 1;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  user-select: none;
+}
+
+body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
+  opacity: 0.25;
+  pointer-events: auto;
+}
+
+.sidebar-hint:hover {
+  opacity: 0.5;
+}
+
 .sidebar-toggle:hover {
   color: var(--text-muted);
   background: var(--card-hover);

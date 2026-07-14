@@ -10,7 +10,7 @@ from backend.db import (
     init_pipeline_steps, reset_downstream_steps,
     update_step_db_status,
 )
-from backend.db.projects import load_session_config
+from backend.db.projects import load_session_config, read_step_statuses
 from backend.pipeline.conductor._types import StageStatus
 from backend.clients.errors import NonRetryableError
 from backend.pipeline.events import EventBus, EventEmitter, event_bus
@@ -126,6 +126,8 @@ class PipelineRunner:
         if start_step and start_step in STEP_NAMES:
             start_idx = STEP_NAMES.index(start_step)
 
+        step_statuses = await read_step_statuses(self.project_id)
+
         for idx, step_name in enumerate(STEP_NAMES):
             if idx < start_idx:
                 continue
@@ -138,9 +140,12 @@ class PipelineRunner:
             if self._cancel_flag:
                 return
 
-            # skip completed steps (only if restarting after pause)
-            s = await get_pipeline_status(self.project_id)
-            if s.get("pipeline_status") == "completed" and idx > start_idx:
+            # skip already completed steps when resuming mid-pipeline
+            if step_statuses.get(step_name, StageStatus.PENDING) == StageStatus.COMPLETE:
+                _runner_logger.info(
+                    "[runner] project_id=%d step=%s already completed, skipping",
+                    self.project_id, step_name,
+                )
                 continue
 
             await self._emitter().step_start(step_name)
