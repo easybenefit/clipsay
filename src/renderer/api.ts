@@ -30,6 +30,9 @@ export interface Project {
   image_model: string
   video_model: string
   stage: string
+  clicks: number
+  final_video: string
+  final_preview: string
   created_at: string
   updated_at: string
 }
@@ -89,6 +92,17 @@ export async function listProjects(): Promise<Project[]> {
     const res = await fetch(`${BASE}/api/projects`)
     return res.json()
   })
+}
+
+export async function listTopCompletedProjects(): Promise<Project[]> {
+  return withRetry(async () => {
+    const res = await fetch(`${BASE}/api/projects/top-completed`)
+    return res.json()
+  })
+}
+
+export async function incrementProjectClick(id: number): Promise<void> {
+  await fetch(`${BASE}/api/projects/${id}/click`, { method: 'POST' })
 }
 
 export async function createProject(name: string): Promise<Project> {

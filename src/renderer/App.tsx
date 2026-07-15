@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, Fragment } from 'react'
-import { getHealth, listProjects, createProject, duplicateProject, checkPipelineRunning, BASE, Project } from './api'
+import { getHealth, listProjects, createProject, duplicateProject, checkPipelineRunning, listTopCompletedProjects, incrementProjectClick, BASE, Project } from './api'
 import logoSrc from './logo.jpg'
-import Carousel from './Carousel'
+import Carousel, { CarouselSlide } from './Carousel'
 import ModelCard from './ModelCard'
 import { SIZE_OPTIONS, DEFAULT_SIZE_MAP } from './sizeConfig'
 
@@ -98,6 +98,7 @@ function App(): JSX.Element {
   const [health, setHealth] = useState('checking...')
   const [expanded, setExpanded] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
+  const [topProjects, setTopProjects] = useState<Project[]>([])
   const [settings, setSettings] = useState<AppSettings>({
     chat: { ...CHAT_PRESETS[0], rateLimitMin: CHAT_PRESETS[0].rateLimitMin, rateLimitDay: CHAT_PRESETS[0].rateLimitDay },
     image: { ...IMAGE_PRESETS[0], rateLimitMin: IMAGE_PRESETS[0].rateLimitMin, rateLimitDay: IMAGE_PRESETS[0].rateLimitDay },
@@ -127,6 +128,7 @@ function App(): JSX.Element {
   useEffect(() => {
     getHealth().then(r => setHealth(r.status)).catch(() => setHealth('offline'))
     listProjects().then(setProjects).catch(() => {})
+    listTopCompletedProjects().then(setTopProjects).catch(() => {})
     window.electronAPI.getSettings().then(s => {
       if (s && Object.keys(s).length) {
         const merged: AppSettings = { ...s }
@@ -264,7 +266,36 @@ function App(): JSX.Element {
     setSettings(prev => ({ ...prev, [section]: { ...prev[section], [field]: value } }))
   }
 
-  const refreshProjects = () => listProjects().then(setProjects).catch(() => {})
+  const refreshProjects = () => {
+    listProjects().then(setProjects).catch(() => {})
+    listTopCompletedProjects().then(setTopProjects).catch(() => {})
+  }
+
+  const buildCarouselSlides = (projects: Project[]): CarouselSlide[] => {
+    const DEFAULT_SLIDES: CarouselSlide[] = [
+      { type: 'default', title: 'Seedance 2.0', desc: 'AI 视频生成，前所未有的画质与一致性' },
+      { type: 'default', title: '创作者挑战赛', desc: '参与挑战，赢取大奖与曝光机会' },
+      { type: 'default', title: '智能剪辑', desc: 'AI 自动识别高光片段，一键成片' },
+      { type: 'default', title: '语音转字幕', desc: '精准语音识别，自动生成多语言字幕' },
+    ]
+    const projectSlides: CarouselSlide[] = projects.map(p => ({
+      type: 'project' as const,
+      projectId: p.id,
+      title: p.name,
+      desc: p.idea,
+      previewUrl: p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : undefined,
+      videoUrl: p.final_video ? (p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`) : undefined,
+    }))
+    if (projectSlides.length >= 4) return projectSlides.slice(0, 4)
+    return [...projectSlides, ...DEFAULT_SLIDES.slice(0, 4 - projectSlides.length)]
+  }
+
+  const handleCarouselSlideClick = async (projectId: number) => {
+    if (await requireNoRunningPipeline()) {
+      incrementProjectClick(projectId).catch(() => {})
+      setEditProjectId(projectId); setPage('new')
+    }
+  }
 
   const handleDuplicate = async (id: number) => {
     if (!await requireNoRunningPipeline()) return
@@ -327,7 +358,7 @@ function App(): JSX.Element {
         <div className="content">
           {page === 'home' && (
             <>
-              <Carousel />
+              <Carousel slides={buildCarouselSlides(topProjects)} onSlideClick={handleCarouselSlideClick} />
               <div className="hero">
                 <h1>欢迎使用 Clipsay</h1>
                 <p>用 AI 将你的创意转化为惊艳的视频。</p>
@@ -349,6 +380,7 @@ function App(): JSX.Element {
                   {projects.map(p => (
                     <div key={p.id} className="project-card" onClick={async () => {
                       if (await requireNoRunningPipeline()) {
+                        if (p.final_video) incrementProjectClick(p.id).catch(() => {})
                         setEditProjectId(p.id); setPage('new')
                       }
                     }}>

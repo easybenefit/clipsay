@@ -40,6 +40,7 @@ TABLES = [
         script_text TEXT DEFAULT '',
         final_video TEXT DEFAULT '',
         final_preview TEXT DEFAULT '',
+        clicks INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT ''
     )
@@ -153,6 +154,7 @@ MIGRATIONS = [
     "ALTER TABLE projects ADD COLUMN storyboard_status INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN shot_frames_status INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN composite_video_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN clicks INTEGER DEFAULT 0",
 ]
 
 INDEXES = [

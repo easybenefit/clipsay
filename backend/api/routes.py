@@ -28,7 +28,7 @@ from backend.db import (
     read_full_project, save_full_project, duplicate_project_full,
     update_step_db_status, update_story_content,
 )
-from backend.db.projects import load_session_config
+from backend.db.projects import load_session_config, increment_project_clicks, list_top_completed_projects
 from backend.pipeline.conductor._types import StageStatus
 
 logger = logging.getLogger("api.routes")
@@ -179,6 +179,11 @@ async def list_projects():
     return await list_project_rows()
 
 
+@router.get("/api/projects/top-completed")
+async def top_completed_projects():
+    return await list_top_completed_projects(4)
+
+
 @router.get("/api/projects/{project_id}")
 async def get_project(project_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -231,6 +236,12 @@ async def duplicate_project(project_id: int):
         if result is None:
             raise ProjectNotFoundError(project_id)
         return result
+
+
+@router.post("/api/projects/{project_id}/click")
+async def click_project(project_id: int):
+    await increment_project_clicks(project_id)
+    return {"ok": True}
 
 
 @router.get("/api/pipeline/running")

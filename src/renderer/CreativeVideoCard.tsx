@@ -41,7 +41,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
                   onHover={setHoveredKey}
                   isVideo
                   frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
-                  onClick={() => setMediaPreview({ src: finalVideo, isVideo: true, label: '成片' })}
+                  onClick={() => setMediaPreview({ items: [{ src: finalVideo, isVideo: true, label: '成片' }], currentIndex: 0 })}
                 />
               </div>
             ) : (
@@ -60,7 +60,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
                       onHover={setHoveredKey}
                       isVideo
                       frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-                      onClick={() => setMediaPreview({ src: scene.compositedVideo!, isVideo: true, label: scene.title || `场景${idx + 1}` })}
+                      onClick={() => setMediaPreview({ items: [{ src: scene.compositedVideo!, isVideo: true, label: scene.title || `场景${idx + 1}` }], currentIndex: 0 })}
                     />
                   </div>
                 ) : null)}

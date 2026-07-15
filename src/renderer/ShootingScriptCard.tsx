@@ -44,21 +44,58 @@ interface ScriptCardProps {
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
 }
 
-export interface MediaPreviewData {
+export interface MediaPreviewFrame {
   src: string
   isVideo: boolean
   label: string
 }
 
+export interface MediaPreviewData {
+  items: MediaPreviewFrame[]
+  currentIndex: number
+}
+
+function buildShotPreviewFrames(shot: ShotData): MediaPreviewFrame[] {
+  const items: MediaPreviewFrame[] = []
+  if (shot.firstFrame) items.push({ src: shot.firstFrame, isVideo: false, label: '起始帧' })
+  if (shot.lastFrame) items.push({ src: shot.lastFrame, isVideo: false, label: '结束帧' })
+  if (shot.video) items.push({ src: shot.video, isVideo: true, label: '动态分镜' })
+  return items
+}
+
 export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClose: () => void }): JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [index, setIndex] = useState(data.currentIndex)
+  const item = data.items[index]
+
   useEscClose(onClose)
 
+  const navigate = useCallback((dir: -1 | 1) => {
+    setIndex(prev => {
+      const next = prev + dir
+      if (next < 0 || next >= data.items.length) return prev
+      return next
+    })
+  }, [data.items.length])
+
   useEffect(() => {
-    if (data.isVideo && videoRef.current) {
+    if (item?.isVideo && videoRef.current) {
       videoRef.current.play().catch(() => {})
     }
-  }, [data])
+  }, [index, item])
+
+  useEffect(() => {
+    if (!data.items.length) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') navigate(-1)
+      else if (e.key === 'ArrowRight') navigate(1)
+      else if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate, onClose, data.items.length])
+
+  if (!item) return null
 
   return (
     <div className="media-preview-backdrop" onClick={onClose}>
@@ -69,19 +106,33 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
-        {data.isVideo ? (
+        {item.isVideo ? (
           <video
             ref={videoRef}
-            src={data.src}
+            src={item.src}
             controls
             autoPlay
             muted
             className="media-preview-video"
           />
         ) : (
-          <img src={data.src} alt={data.label} className="media-preview-image" />
+          <img src={item.src} alt={item.label} className="media-preview-image" />
         )}
-        <div className="media-preview-label">{data.label}</div>
+        {index > 0 && (
+          <button className="media-preview-nav media-preview-nav--left" onClick={() => navigate(-1)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        )}
+        {index < data.items.length - 1 && (
+          <button className="media-preview-nav media-preview-nav--right" onClick={() => navigate(1)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        )}
+        <div className="media-preview-label">{item.label} ({index + 1}/{data.items.length})</div>
       </div>
     </div>
   )
@@ -140,7 +191,7 @@ function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectR
               onEdit={() => setEditIdx(idx)}
               onEditShot={(shotIdx) => setEditShotKey({ sceneIdx: idx, shotIdx })}
               onRefreshFrame={(shotIdx, frameType, prompt) => onRefreshFrame?.(idx, shotIdx, frameType, prompt)}
-              onPreview={(src, isVideo, label) => setMediaPreview({ src, isVideo, label })}
+              onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
               loading={scene.shots.length === 0}
               cssAspectRatio={cssAspectRatio}
             />
@@ -168,7 +219,7 @@ function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectR
           shotIdx={editShotKey.shotIdx}
           onRefreshFrame={onRefreshFrame}
           onClose={() => setEditShotKey(null)}
-          onPreview={(src, isVideo, label) => setMediaPreview({ src, isVideo, label })}
+          onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
         />
       )}
 
@@ -188,7 +239,7 @@ interface SceneCardProps {
   onEdit: () => void
   onEditShot?: (shotIdx: number) => void
   onRefreshFrame?: (shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
-  onPreview?: (src: string, isVideo: boolean, label: string) => void
+  onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
   loading?: boolean
   cssAspectRatio?: string
 }
@@ -265,7 +316,7 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
                 onHover={onHover}
                 isVideo
                 frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-                onClick={() => onPreview?.(scene.compositedVideo!, true, '场景预览')}
+                onClick={() => onPreview?.([{ src: scene.compositedVideo!, isVideo: true, label: '场景预览' }], 0)}
               />
             ) : (
               <ImageWithPlaceholder
@@ -293,7 +344,7 @@ interface ShotCardProps {
   cssAspectRatio?: string
   onEdit?: () => void
   onRefreshFrame?: (frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
-  onPreview?: (src: string, isVideo: boolean, label: string) => void
+  onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
 }
 
 function stripShotPrefix(title?: string): string {
@@ -304,6 +355,11 @@ function stripShotPrefix(title?: string): string {
 function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio = '16 / 9', onEdit, onRefreshFrame, onPreview }: ShotCardProps): JSX.Element {
   const isHovered = hoveredKey === shotKey
   const cleanTitle = stripShotPrefix(shot.title) || `镜头${shotIdx + 1}`
+  const handleFramePreview = useCallback((clickedSrc: string) => {
+    const items = buildShotPreviewFrames(shot)
+    const idx = items.findIndex(i => i.src === clickedSrc)
+    if (idx >= 0) onPreview?.(items, idx)
+  }, [shot, onPreview])
   return (
     <div
       className={`shot-card${isHovered ? ' card-hovered' : ''}`}
@@ -342,7 +398,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             className="order-1"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
             onRefresh={shot.firstFramePrompt ? () => onRefreshFrame?.('firstFrame', shot.firstFramePrompt!) : undefined}
-            onClick={() => onPreview?.(shot.firstFrame, false, '起始帧')}
+            onClick={() => handleFramePreview(shot.firstFrame)}
             status={shot.firstFrameStatus}
           />
           <FrameCard
@@ -354,7 +410,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             className="order-2"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
             onRefresh={shot.lastFramePrompt ? () => onRefreshFrame?.('lastFrame', shot.lastFramePrompt!) : undefined}
-            onClick={() => onPreview?.(shot.lastFrame, false, '结束帧')}
+            onClick={() => handleFramePreview(shot.lastFrame)}
             status={shot.lastFrameStatus}
           />
           <FrameCard
@@ -367,7 +423,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             isVideo
             className="order-3"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-            onClick={() => onPreview?.(shot.video, true, '动态分镜')}
+            onClick={() => handleFramePreview(shot.video)}
             status={shot.videoStatus}
           />
         </div>
@@ -538,10 +594,15 @@ interface ShotEditorProps {
   shotIdx: number
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
   onClose: () => void
-  onPreview?: (src: string, isVideo: boolean, label: string) => void
+  onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
 }
 
 function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, onClose, onPreview }: ShotEditorProps): JSX.Element {
+  const handleFramePreview = useCallback((clickedSrc: string) => {
+    const items = buildShotPreviewFrames(shot)
+    const idx = items.findIndex(i => i.src === clickedSrc)
+    if (idx >= 0) onPreview?.(items, idx)
+  }, [shot, onPreview])
   const cleanTitle = stripShotPrefix(shot.title) || `镜头${shotIdx + 1}`
   useEscClose(onClose)
   return (
@@ -579,7 +640,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, o
               onHover={() => {}}
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
               onRefresh={shot.firstFramePrompt ? () => onRefreshFrame?.(sceneIdx, shotIdx, 'firstFrame', shot.firstFramePrompt!) : undefined}
-              onClick={() => onPreview?.(shot.firstFrame, false, '起始帧')}
+              onClick={() => handleFramePreview(shot.firstFrame)}
               status={shot.firstFrameStatus}
             />
             <FrameCard
@@ -590,7 +651,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, o
               onHover={() => {}}
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
               onRefresh={shot.lastFramePrompt ? () => onRefreshFrame?.(sceneIdx, shotIdx, 'lastFrame', shot.lastFramePrompt!) : undefined}
-              onClick={() => onPreview?.(shot.lastFrame, false, '结束帧')}
+              onClick={() => handleFramePreview(shot.lastFrame)}
               status={shot.lastFrameStatus}
             />
             <FrameCard
@@ -602,7 +663,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, o
               onHover={() => {}}
               isVideo
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-              onClick={() => onPreview?.(shot.video, true, '动态分镜')}
+              onClick={() => handleFramePreview(shot.video)}
               status={shot.videoStatus}
             />
           </div>

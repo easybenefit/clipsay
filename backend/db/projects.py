@@ -433,6 +433,23 @@ async def get_scene_count(project_id: int) -> int:
         return row[0] if row else 0
 
 
+async def increment_project_clicks(project_id: int) -> None:
+    async with _get_connection() as db:
+        await db.execute(
+            "UPDATE projects SET clicks = clicks + 1 WHERE id = ? AND final_video != ''",
+            (project_id,))
+        await db.commit()
+
+
+async def list_top_completed_projects(limit: int = 4) -> list[dict]:
+    async with _get_connection() as db:
+        db.row_factory = aiosqlite.Row
+        rows = await (await db.execute(
+            "SELECT * FROM projects WHERE final_video != '' ORDER BY clicks DESC LIMIT ?",
+            (limit,))).fetchall()
+        return [dict(r) for r in rows]
+
+
 async def load_session_config(project_id: int) -> "SessionConfig":
     """Load a SessionConfig from the projects table."""
     from backend.core.types import SessionConfig
