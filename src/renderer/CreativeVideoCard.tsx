@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { toCssAspectRatio } from './sizeConfig'
+import ImageWithPlaceholder from './ImageWithPlaceholder'
 import { FrameCard, MediaPreview, type MediaPreviewData, type SceneData } from './ShootingScriptCard'
 import './ShootingScriptCard.css'
 
@@ -8,9 +9,10 @@ interface CreativeVideoCardProps {
   aspectRatio?: string
   finalVideo?: string
   finalPreview?: string
+  finalVideoStatus?: number
 }
 
-function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPreview }: CreativeVideoCardProps): JSX.Element {
+function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPreview, finalVideoStatus = 0 }: CreativeVideoCardProps): JSX.Element {
   const cssAspectRatio = toCssAspectRatio(aspectRatio)
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [mediaPreview, setMediaPreview] = useState<MediaPreviewData | null>(null)
@@ -23,7 +25,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
         <div className="script-card-title">成片</div>
       </div>
       <div className="script-card-divider" />
-      {!hasVideo ? (
+      {!hasVideo && finalVideoStatus !== 1 ? (
         <div className="script-card-empty">
           <div className="script-card-empty-text">暂无可用的视频</div>
         </div>
@@ -42,6 +44,15 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
                   isVideo
                   frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
                   onClick={() => setMediaPreview({ items: [{ src: finalVideo, isVideo: true, label: '成片' }], currentIndex: 0 })}
+                />
+              </div>
+            ) : finalVideoStatus === 1 ? (
+              <div className="creative-video-single">
+                <ImageWithPlaceholder
+                  src=""
+                  alt="成片"
+                  status="generating"
+                  style={{ aspectRatio: cssAspectRatio, width: '100%', borderRadius: '6px' }}
                 />
               </div>
             ) : (

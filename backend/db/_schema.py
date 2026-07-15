@@ -155,6 +155,7 @@ MIGRATIONS = [
     "ALTER TABLE projects ADD COLUMN shot_frames_status INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN composite_video_status INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN clicks INTEGER DEFAULT 0",
+    "ALTER TABLE scenes ADD COLUMN composit_video_status INTEGER DEFAULT 0",
 ]
 
 INDEXES = [

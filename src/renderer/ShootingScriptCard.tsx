@@ -31,6 +31,7 @@ export interface SceneData {
   shots: ShotData[]
   compositedVideo: string
   compositedPreview?: string
+  compositVideoStatus?: number
 }
 
 interface ScriptCardProps {
@@ -322,7 +323,15 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
               <ImageWithPlaceholder
                 src=""
                 alt="场景预览"
-                status="waiting"
+                status={
+                  scene.compositVideoStatus === 1
+                    ? 'generating'
+                    : scene.compositVideoStatus === 2
+                      ? 'generated'
+                      : scene.compositVideoStatus === 3
+                        ? 'error'
+                        : 'waiting'
+                }
                 style={{ aspectRatio: cssAspectRatio, width: '100%', borderRadius: '6px', objectFit: 'cover' }}
               />
             )}

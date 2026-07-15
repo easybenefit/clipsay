@@ -100,9 +100,6 @@ async def generate_shot_video(
         await _persist_and_complete(conductor, project_id, scene_idx, shot_idx, scene, str(video_path), emit=emit)
         return str(video_path)
 
-    if emit:
-        await emit.project_data_changed()
-
     await _wait_frames(conductor, project_id, scene_idx, shot_idx)
 
     shot_db = await get_shot_by_project_scene(project_id, scene_idx, shot_idx)
@@ -115,6 +112,13 @@ async def generate_shot_video(
         raise RuntimeError(
             f"shot={shot_idx} missing frame(s) after _wait_frames: {', '.join(missing)}"
         )
+
+    # Mark generating only after frames are confirmed ready
+    await update_shot(project_id, scene_idx, shot_idx, video_status="generating")
+    await conductor.change_stage(project_id, scene_idx, shot_idx, SHOT_VIDEO, StageStatus.CREATING)
+    if emit:
+        await emit.project_data_changed()
+
     prompt = (shot_description.motion_desc or "") + \
         "\n" + (shot_description.audio_desc or "")
     logger.info("[video] shot=%d generating, prompt_len=%d, refs=%d",

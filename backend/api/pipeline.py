@@ -133,6 +133,12 @@ async def pipeline_status(project_id: int):
     runner = PipelineRunner.get_for_project(project_id)
     status = await runner.get_status()
     status["is_running"] = runner.is_running()
+    # Fix stale 'running' status: if DB says running but no actual runner task,
+    # the previous pipeline was interrupted (process crash/restart).
+    # Reset to 'paused' so the UI shows "继续" instead of stuck "正在创作".
+    if status.get("pipeline_status") == "running" and not status["is_running"]:
+        await update_pipeline_status(project_id, "paused")
+        status["pipeline_status"] = "paused"
     return status
 
 

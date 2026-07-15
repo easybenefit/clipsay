@@ -207,14 +207,33 @@ async def get_shot_by_project_scene(
         return dict(row) if row else None
 
 
-async def update_scene_composite(project_id: int | str, scene_idx: int,
-                                  video_filename: str, preview_filename: str):
-    """Save composite video filenames to the scenes table."""
+async def update_scene_composite_status(project_id: int | str, scene_idx: int,
+                                         status: int):
+    """Update only the composit_video_status for a scene."""
     project_id = _normalize_pid(project_id)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE scenes SET composited_video = ?, composited_preview = ? WHERE project_id = ? AND idx = ?",
-            (video_filename, preview_filename, project_id, scene_idx),
+            "UPDATE scenes SET composit_video_status = ? WHERE project_id = ? AND idx = ?",
+            (status, project_id, scene_idx),
+        )
+        await db.commit()
+
+
+async def update_scene_composite(project_id: int | str, scene_idx: int,
+                                  video_filename: str, preview_filename: str,
+                                  status: int | None = None):
+    """Save composite video filenames and optional status to the scenes table."""
+    project_id = _normalize_pid(project_id)
+    sets = ["composited_video = ?", "composited_preview = ?"]
+    vals = [video_filename, preview_filename]
+    if status is not None:
+        sets.append("composit_video_status = ?")
+        vals.append(status)
+    vals += [project_id, scene_idx]
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            f"UPDATE scenes SET {', '.join(sets)} WHERE project_id = ? AND idx = ?",
+            vals,
         )
         await db.commit()
 

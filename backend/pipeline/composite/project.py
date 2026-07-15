@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from moviepy import VideoFileClip
+
 from backend.utils.logging import setup_logger
 from backend.utils.paths import PathResolver, normalize_local_url
 from backend.core.types import SCENCE_VIDEO_NAME, SCENCE_PREVIEW_NAME, NEW_IDEA_PREVIEW_NAME, NEW_IDEA_VIDEO_NAME
@@ -52,13 +54,21 @@ async def composite_video(config: SessionConfig, emit: EventEmitter) -> None:
     except Exception as e:
         _logger.error("[composite_video] extract preview failed: %s", e)
 
-    # 6. Persist to DB
+    # 6. Read actual video duration and persist to DB
     final_video_url = project.url(NEW_IDEA_VIDEO_NAME)
     final_preview_url = project.url(NEW_IDEA_PREVIEW_NAME)
+    actual_duration = 0
+    try:
+        clip = VideoFileClip(final_video_path)
+        actual_duration = int(clip.duration)
+        clip.close()
+    except Exception as e:
+        _logger.warning("[composite_video] failed to read duration: %s", e)
     await update_project_final_video(
         config.project_id,
         normalize_local_url(final_video_url),
         normalize_local_url(final_preview_url),
+        actual_duration,
     )
 
     # 7. Emit complete notification

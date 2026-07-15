@@ -57,9 +57,14 @@ async def list_projects_with_final_video(db) -> list[tuple]:
     return [(r[0], r[1] or "", r[2] or "") for r in rows]
 
 
-async def update_project_final_video(project_id: int, video_url: str, preview_url: str):
+async def update_project_final_video(project_id: int, video_url: str, preview_url: str, duration: int = 0):
     async with __import__("aiosqlite").connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE projects SET final_video = ?, final_preview = ? WHERE id = ?",
-            (video_url, preview_url, project_id))
+        if duration:
+            await db.execute(
+                "UPDATE projects SET final_video = ?, final_preview = ?, duration = ? WHERE id = ?",
+                (video_url, preview_url, duration, project_id))
+        else:
+            await db.execute(
+                "UPDATE projects SET final_video = ?, final_preview = ? WHERE id = ?",
+                (video_url, preview_url, project_id))
         await db.commit()

@@ -98,6 +98,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
     project = dict(row)
     project["story"] = row["story_content"] or None
     project["step_statuses"] = {step: row[col] or 0 for step, col in STEP_STATUS_COLUMNS.items()}
+    project["finalVideoStatus"] = project["step_statuses"].get("composite_video", 0)
 
     # ── characters from attributes table ──
     char_rows = await (await db.execute(
@@ -131,6 +132,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
         scene_scope = PathResolver().project(project_id).scene(scene["idx"])
         scene["compositedVideo"] = scene.get("composited_video", "")
         scene["compositedPreview"] = scene.get("composited_preview", "")
+        scene["compositVideoStatus"] = scene.get("composit_video_status", 0)
         if scene["compositedVideo"] and not scene["compositedVideo"].startswith(("/", "http://", "https://")):
             scene["compositedVideo"] = scene_scope.url(
                 scene["compositedVideo"])

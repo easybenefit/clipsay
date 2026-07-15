@@ -62,8 +62,8 @@ class PipelineRunner:
         self._pause_event.set()
         await update_pipeline_status(self.project_id, "running")
         await self._emitter().pipeline_resumed()
-        # If task is done (completed/failed), start a new one
-        if self._task and self._task.done():
+        # If task is done or never started (e.g. after process restart), start a new one
+        if not self._task or self._task.done():
             cfg = await load_session_config(self.project_id)
             self._task = asyncio.create_task(self._run(cfg))
 

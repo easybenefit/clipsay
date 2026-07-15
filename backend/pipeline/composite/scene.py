@@ -6,10 +6,11 @@ import os
 from backend.utils.logging import setup_logger
 from backend.utils.paths import PathResolver
 from backend.core.types import SCENCE_PREVIEW_NAME, SCENCE_VIDEO_NAME, SHOT_VIDEO_NAME
-from backend.db.storyboards import get_shot_idxs_by_project_scene, update_scene_composite
+from backend.db.storyboards import get_shot_idxs_by_project_scene, update_scene_composite, update_scene_composite_status
 from backend.pipeline.config import SessionConfig
 from backend.pipeline.events import EventEmitter
 from backend.services.video_compositor import VideoCompositor
+from backend.pipeline.conductor._types import StageStatus
 
 _logger = setup_logger("pipeline.scene_composite")
 
@@ -37,6 +38,8 @@ async def composite_scene_video(config: SessionConfig, scene: dict, scene_idx: i
             return
         video_paths.append(str(p))
 
+    await update_scene_composite_status(config.project_id, scene_idx, StageStatus.CREATING)
+    await emit.project_data_changed()
     await emit.emit_progress("scene_compositor", 0, message=f"正在合成场景 {scene_idx} 视频...")
 
     scene_video_path = scene_scope.path(SCENCE_VIDEO_NAME)
@@ -48,7 +51,7 @@ async def composite_scene_video(config: SessionConfig, scene: dict, scene_idx: i
     except Exception as e:
         _logger.error(
             "[scene_compositor] scene=%d extract preview failed: %s", scene_idx, e)
-    await update_scene_composite(config.project_id, scene_idx, SCENCE_VIDEO_NAME, SCENCE_PREVIEW_NAME)
+    await update_scene_composite(config.project_id, scene_idx, SCENCE_VIDEO_NAME, SCENCE_PREVIEW_NAME, status=StageStatus.COMPLETE)
 
     scene_video_url = scene_scope.url(SCENCE_VIDEO_NAME)
     scene_preview_url = scene_scope.url(SCENCE_PREVIEW_NAME)

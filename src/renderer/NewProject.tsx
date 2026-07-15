@@ -136,6 +136,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const [scenes, setScenes] = useState<SceneData[]>([])
   const [finalVideo, setFinalVideo] = useState('')
   const [finalPreview, setFinalPreview] = useState('')
+  const [finalVideoStatus, setFinalVideoStatus] = useState(0)
   const portraitRegistryRef = useRef<Record<string, any>>({})
   const [saving, setSaving] = useState(false)
   const [loadingEdit, setLoadingEdit] = useState(false)
@@ -294,6 +295,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       })
     }
     if (p.scenes?.length) {
+      const shotFramesStep = p.step_statuses?.shot_frames ?? 0
       setScenes(prev => {
         const hydratedScenes = p.scenes.map((s: any, si: number) => ({
           title: s.title || '',
@@ -312,6 +314,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
             ) ? shot.lastFrame : `${BASE}${shot.lastFrame}` : ''
             const vid = shot.video ? (shot.video.startsWith(BASE) ? shot.video : `${BASE}${shot.video}`) : ''
             const preview = shot.videoPreview ? (shot.videoPreview.startsWith(BASE) ? shot.videoPreview : `${BASE}${shot.videoPreview}`) : ''
+            const sfStatus = shot.startFrameStatus !== undefined ? shot.startFrameStatus : 0
+            const efStatus = shot.endFrameStatus !== undefined ? shot.endFrameStatus : 0
+            const vStatus = shot.videoStatus || 'pending'
             return {
               title: shot.title || '',
               visualDescription: shot.visualDescription || '',
@@ -322,25 +327,38 @@ function NewProject(props: NewProjectProps): JSX.Element {
               lastFrame: lf || prevShot?.lastFrame || '',
               video: vid || prevShot?.video || '',
               videoPreview: preview || prevShot?.videoPreview || '',
-              firstFrameStatus: ff
-                ? 'generated' as const
-                : (prevShot?.firstFrameStatus === 'generated' || prevShot?.firstFrameStatus === 'generating'
-                  ? prevShot.firstFrameStatus as ImageState
-                  : 'waiting' as const),
-              lastFrameStatus: lf
-                ? 'generated' as const
-                : (prevShot?.lastFrameStatus === 'generated' || prevShot?.lastFrameStatus === 'generating'
-                  ? prevShot.lastFrameStatus as ImageState
-                  : 'waiting' as const),
-              videoStatus: vid
-                ? 'generated' as const
-                : (prevShot?.videoStatus === 'generated' || prevShot?.videoStatus === 'generating'
-                  ? prevShot.videoStatus as ImageState
-                  : 'waiting' as const),
+              firstFrameStatus: sfStatus !== 0
+                ? (SHOT_STATUS_MAP[sfStatus] || 'waiting')
+                : shotFramesStep === 1
+                  ? 'generating' as const
+                  : ff
+                    ? 'generated' as const
+                    : (prevShot?.firstFrameStatus === 'generated' || prevShot?.firstFrameStatus === 'generating'
+                      ? prevShot.firstFrameStatus as ImageState
+                      : 'waiting' as const),
+              lastFrameStatus: efStatus !== 0
+                ? (SHOT_STATUS_MAP[efStatus] || 'waiting')
+                : shotFramesStep === 1
+                  ? 'generating' as const
+                  : lf
+                    ? 'generated' as const
+                    : (prevShot?.lastFrameStatus === 'generated' || prevShot?.lastFrameStatus === 'generating'
+                      ? prevShot.lastFrameStatus as ImageState
+                      : 'waiting' as const),
+              videoStatus: vStatus !== 'pending'
+                ? (VIDEO_STATUS_MAP[vStatus] || 'waiting')
+                : shotFramesStep === 1
+                  ? 'generating' as const
+                  : vid
+                    ? 'generated' as const
+                    : (prevShot?.videoStatus === 'generated' || prevShot?.videoStatus === 'generating'
+                      ? prevShot.videoStatus as ImageState
+                      : 'waiting' as const),
             }
           }),
           compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
           compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
+          compositVideoStatus: s.compositVideoStatus !== undefined ? s.compositVideoStatus : 0,
         }))
         return hydratedScenes
       })
@@ -348,6 +366,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       const finalPreviewUrl = p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : ''
       if (finalVideoUrl) setFinalVideo(finalVideoUrl)
       if (finalPreviewUrl) setFinalPreview(finalPreviewUrl)
+      setFinalVideoStatus(p.finalVideoStatus ?? 0)
       scrubMissingMedia({
         scenes: p.scenes.map((s: any) => ({
           title: s.title || '',
@@ -386,6 +405,21 @@ function NewProject(props: NewProjectProps): JSX.Element {
     1: 'generating',
     2: 'generated',
     3: 'error',
+  }
+
+  const SHOT_STATUS_MAP: Record<number, ImageState> = {
+    0: 'waiting',
+    1: 'generating',
+    2: 'generated',
+    3: 'error',
+    4: 'generating',
+  }
+
+  const VIDEO_STATUS_MAP: Record<string, ImageState> = {
+    'pending': 'waiting',
+    'generating': 'generating',
+    'completed': 'generated',
+    'failed': 'error',
   }
 
   const STEP_STATUS_MAP: Record<number, string> = {
@@ -428,6 +462,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       lastShotFramesStatusRef.current = 'running'
       setScenes(prev => prev.map(scene => ({
         ...scene,
+        compositVideoStatus: scene.compositVideoStatus || 0,
         shots: scene.shots.map(shot => ({
           ...shot,
           firstFrameStatus: shot.firstFrameStatus || (shot.firstFrame ? 'generated' as const : 'generating' as const),
@@ -439,6 +474,19 @@ function NewProject(props: NewProjectProps): JSX.Element {
       lastShotFramesStatusRef.current = status
     }
   }, [pipeline.status?.steps?.shot_frames?.status])
+
+  // Sync finalVideoStatus from composite_video step status (SSE updates)
+  useEffect(() => {
+    const cvStep = pipeline.status?.steps?.composite_video
+    if (!cvStep) return
+    if (cvStep.status === 'running') {
+      setFinalVideoStatus(1)
+    } else if (cvStep.status === 'completed') {
+      setFinalVideoStatus(2)
+    } else if (cvStep.status === 'failed') {
+      setFinalVideoStatus(3)
+    }
+  }, [pipeline.status?.steps?.composite_video?.status])
 
   const saveProjectData = async (extra: Record<string, any>) => {
     const pid = getEffectiveProjectId()
@@ -831,6 +879,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             script: '',
             compositedVideo: s.compositedVideo ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`) : '',
             compositedPreview: s.compositedPreview ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`) : '',
+            compositVideoStatus: s.compositVideoStatus !== undefined ? s.compositVideoStatus : 0,
             shots: (sceneShotResults[i] || []).map(sh => ({
               title: sh.title,
               visualDescription: sh.visualDescription,
@@ -1354,13 +1403,14 @@ function NewProject(props: NewProjectProps): JSX.Element {
               />
             </div>
           )}
-          {(finalVideo || scenes.some(s => s.compositedVideo)) && (
+          {(finalVideo || scenes.some(s => s.compositedVideo) || finalVideoStatus === 1) && (
             <div className="npm-card-enter">
               <CreativeVideoCard
                 scenes={scenes}
                 aspectRatio={size}
                 finalVideo={finalVideo}
                 finalPreview={finalPreview}
+                finalVideoStatus={finalVideoStatus}
               />
             </div>
           )}

@@ -192,6 +192,7 @@ async def generate_scene_frames_and_videos(
                 project_id=project_id,
                 shot_specs=shot_specs,
                 scene=scene_scope,
+                emit=emit,
             )
         )
 

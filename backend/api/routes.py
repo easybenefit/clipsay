@@ -418,13 +418,21 @@ async def composite_project_video(project_id: int):
             None, project_compositor.extract_first_frame, output_path, "final_preview.jpg"
         )
         final_preview_url = f"/local/proj_{project_id}/final_preview.jpg"
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "UPDATE projects SET final_video = ?, final_preview = ? WHERE id = ?",
-                (normalize_local_url(final_video_url), normalize_local_url(final_preview_url), project_id),
-            )
-            await db.commit()
     except Exception as e:
         logger.error("Extract final preview frame failed: %s", e)
+
+    actual_duration = 0
+    try:
+        from moviepy import VideoFileClip
+        actual_duration = int(VideoFileClip(output_path).duration)
+    except Exception as e:
+        logger.error("Read final video duration failed: %s", e)
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE projects SET final_video = ?, final_preview = ?, duration = ? WHERE id = ?",
+            (normalize_local_url(final_video_url), normalize_local_url(final_preview_url), actual_duration, project_id),
+        )
+        await db.commit()
 
     return {"final_video": final_video_url, "final_preview": final_preview_url, "project_id": project_id}
