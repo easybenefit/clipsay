@@ -498,10 +498,6 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
   height: 28px;
 }
 
-.project-card:hover .project-thumb-play svg {
-  color: #fff;
-}
-
 .project-card-body {
   padding: 5px;
   padding-top: 12px;
@@ -681,6 +677,10 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
 .project-card:hover .project-thumb svg {
   opacity: 0.8;
   color: var(--accent);
+}
+
+.project-card:hover .project-thumb-play svg {
+  color: #fff;
 }
 
 .project-meta {
