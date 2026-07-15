@@ -159,12 +159,12 @@ function App(): JSX.Element {
     }
     setPageRestored(true)
   }, [])
-  // ── debug: log if page resets to home (possible refresh/crash) ──
+  // ── debug: log if page resets to home on mount (after state restoration) ──
   useEffect(() => {
-    if (page === 'home') {
-      console.log('[nav] mounted/reset to home', new Error().stack?.split('\n').slice(2, 5).join(' | '))
+    if (page === 'home' && !initState?.page) {
+      console.log('[nav] mounted to home (no saved state)', new Error().stack?.split('\n').slice(2, 5).join(' | '))
     }
-  }, [])
+  }, [page, initState])
 
   // ── listen for window maximize → collapse sidebar ──
   useEffect(() => {
@@ -392,7 +392,7 @@ function App(): JSX.Element {
                 <div className="project-grid">
                   {projects.map(p => (
                     <div key={p.id} className="project-card" onClick={() => {
-                      if (p.final_video) {
+                      if (p.final_video && p.final_video.length > 0) {
                         incrementProjectClick(p.id).catch(() => {})
                         const url = p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`
                         setPlayVideoUrl(url)
@@ -401,10 +401,15 @@ function App(): JSX.Element {
                       <div className="project-thumb">
                         {(p as any).final_preview ? (
                           <img className="project-thumb-img" src={(p as any).final_preview.startsWith(BASE) ? (p as any).final_preview : `${BASE}${(p as any).final_preview}`} alt="" />
-                        ) : (
+                        ) : p.final_video && p.final_video.length > 0 ? (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="project-thumb-icon">
                             <polygon points="5 3 19 12 5 21 5 3" />
                           </svg>
+                        ) : null}
+                        {p.final_video && p.final_video.length > 0 && (
+                          <div className="project-thumb-play">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                          </div>
                         )}
                       </div>
                       <div className="project-card-body">
