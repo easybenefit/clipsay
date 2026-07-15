@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import ImageWithPlaceholder, { type ImageState } from './ImageWithPlaceholder'
 import { toCssAspectRatio } from './sizeConfig'
+import { useEscClose } from './useEscClose'
 import './ShootingScriptCard.css'
 
 export interface ShotData {
@@ -51,6 +52,7 @@ export interface MediaPreviewData {
 
 export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClose: () => void }): JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null)
+  useEscClose(onClose)
 
   useEffect(() => {
     if (data.isVideo && videoRef.current) {
@@ -469,6 +471,7 @@ function SceneEditor({ scene, onSave, onClose }: SceneEditorProps): JSX.Element 
   const savedRef = useRef({ title: scene.title, content: scene.content })
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+  useEscClose(onClose)
 
   const dirty = title !== savedRef.current.title || content !== savedRef.current.content
 
@@ -540,6 +543,7 @@ interface ShotEditorProps {
 
 function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, onClose, onPreview }: ShotEditorProps): JSX.Element {
   const cleanTitle = stripShotPrefix(shot.title) || `镜头${shotIdx + 1}`
+  useEscClose(onClose)
   return (
     <div className="story-editor-backdrop" onClick={onClose}>
       <div className="shot-editor-dialog" onClick={e => e.stopPropagation()}>

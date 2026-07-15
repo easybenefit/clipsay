@@ -532,7 +532,7 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
 }
 
 @keyframes placeholder-blink {
-  0%, 100% { opacity: 0.3; color: var(--border); }
+  0%, 100% { opacity: 0.7; color: var(--border); }
   50% { opacity: 1; color: var(--accent); }
 }
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ImageWithPlaceholder from './ImageWithPlaceholder'
+import { useEscClose } from './useEscClose'
 import './CharacterCard.css'
 
 export interface CharacterPortraits {
@@ -228,6 +229,7 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
   const savedRef = useRef({ staticFeatures: character.staticFeatures, dynamicFeatures: character.dynamicFeatures })
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+  useEscClose(onClose)
 
   const dirty = staticFeatures !== savedRef.current.staticFeatures || dynamicFeatures !== savedRef.current.dynamicFeatures
 

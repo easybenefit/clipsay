@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import Markdown from './Markdown'
+import { useEscClose } from './useEscClose'
 import './StoryCard.css'
 
 interface StoryCardProps {
@@ -78,6 +79,7 @@ function StoryEditor({ initialContent, onSave, onClose }: StoryEditorProps): JSX
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
   const dirty = text !== savedRef.current
+  useEscClose(onClose)
 
   const showToast = (msg: string) => {
     setToast(msg)

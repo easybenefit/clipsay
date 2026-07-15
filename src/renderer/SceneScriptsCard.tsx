@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Markdown from './Markdown'
+import { useEscClose } from './useEscClose'
 import './SceneScriptsCard.css'
 
 export interface SceneScriptScene {
@@ -17,6 +18,7 @@ interface SceneScriptsCardProps {
 function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: SceneScriptScene; onSave: (idx: number, data: { title: string; content: string }) => void; onClose: () => void }): JSX.Element {
   const [title, setTitle] = useState(scene.title)
   const [content, setContent] = useState(scene.content)
+  useEscClose(onClose)
 
   const handleSave = () => {
     onSave(idx, { title, content })
