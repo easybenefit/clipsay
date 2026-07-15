@@ -113,7 +113,6 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
             src={item.src}
             controls
             autoPlay
-            muted
             className="media-preview-video"
           />
         ) : (

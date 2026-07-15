@@ -92,7 +92,7 @@ function Carousel({ slides, onSlideClick }: CarouselProps) {
           {duplicated.map((item, i) => {
             const offset = i - centerIdx
             const pos = offset === 0 ? 'center' : offset === -1 ? 'prev' : offset === 1 ? 'next' : 'hidden'
-            const clickHandler = offset === -1 ? prevSlide : offset === 1 ? nextSlide : () => {
+            const clickHandler = () => {
               const videoUrl = item.type === 'default' ? splashMp4 : item.videoUrl
               if (videoUrl) {
                 setModalVideo(videoUrl)
