@@ -1,0 +1,717 @@
+.canvas-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-flow-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
+.canvas-flow-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Toolbar ── */
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 44px;
+  background: #141416;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.canvas-toolbar-left,
+.canvas-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.canvas-tb-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+}
+
+.canvas-tb-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
+}
+
+.canvas-tb-btn:active {
+  background: rgba(255,255,255,0.1);
+}
+
+.canvas-tb-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.08);
+  margin: 0 6px;
+}
+
+.canvas-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.45);
+}
+
+.canvas-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.canvas-status-dot.connected {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34,197,94,0.4);
+}
+
+.canvas-status-dot.disconnected {
+  background: #ef4444;
+}
+
+/* ── React Flow overrides ── */
+.react-flow {
+  background: #0d0d0f !important;
+}
+
+.react-flow__background {
+  opacity: 0.4;
+}
+
+/* ── Custom Nodes ── */
+.canvas-node {
+  min-width: 200px;
+  max-width: 260px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  border-radius: 8px;
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.canvas-node.selected {
+  border-color: rgba(79,195,247,0.5);
+  box-shadow: 0 0 0 1px rgba(79,195,247,0.2), 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.canvas-node:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  border-radius: 8px 0 0 8px;
+}
+
+.story-node:before       { background: #a78bfa; }
+.characters-node:before  { background: #f472b6; }
+.scene-scripts-node:before { background: #fbbf24; }
+.storyboard-node:before  { background: #60a5fa; }
+.composite-node:before   { background: #34d399; }
+
+.canvas-node-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.02em;
+}
+
+.canvas-node-icon {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.canvas-node-body {
+  padding: 0 12px 10px 16px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  line-height: 1.5;
+}
+
+.canvas-node-empty {
+  color: rgba(255,255,255,0.2);
+  font-style: normal;
+  display: block;
+  padding: 2px 0;
+}
+
+.canvas-node-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.canvas-node-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.canvas-node-status-dot.pending   { background: rgba(255,255,255,0.15); }
+.canvas-node-status-dot.running   { background: #60a5fa; animation: canvas-pulse 1.5s ease-in-out infinite; }
+.canvas-node-status-dot.completed { background: #22c55e; }
+.canvas-node-status-dot.failed    { background: #ef4444; }
+
+@keyframes canvas-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(96,165,250,0.5); }
+  50% { opacity: 0.7; box-shadow: 0 0 6px 2px rgba(96,165,250,0.25); }
+}
+
+/* ── Story ── */
+.story-node .canvas-node-body {
+  max-height: 52px;
+  overflow: hidden;
+}
+
+/* ── Characters ── */
+.canvas-char-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.canvas-char-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 0;
+}
+
+.canvas-char-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.canvas-char-avatar-placeholder {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.canvas-char-item span {
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-char-more {
+  color: rgba(255,255,255,0.25);
+  font-size: 10px;
+  padding-left: 27px;
+}
+
+/* ── Scene Scripts ── */
+.canvas-scene-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.canvas-scene-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.canvas-scene-idx {
+  color: rgba(255,255,255,0.25);
+  font-size: 10px;
+  min-width: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.canvas-scene-item span:last-child {
+  color: rgba(255,255,255,0.55);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-scene-more {
+  color: rgba(255,255,255,0.25);
+  font-size: 10px;
+  padding-left: 22px;
+}
+
+/* ── Storyboard ── */
+.canvas-shot-counts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.canvas-shot-counts span {
+  padding: 2px 7px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Composite ── */
+.canvas-video-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.canvas-video-thumb {
+  width: 100%;
+  max-height: 72px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.03);
+}
+
+.canvas-video-ready {
+  font-size: 10px;
+  color: rgba(34,197,94,0.7);
+  font-weight: 500;
+}
+
+/* ── React Flow handles ── */
+.canvas-node .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: #141416;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.canvas-node .react-flow__handle:hover {
+  border-color: rgba(79,195,247,0.6);
+  background: rgba(79,195,247,0.15);
+}
+
+.canvas-node .react-flow__handle-left {
+  left: -4px;
+}
+
+.canvas-node .react-flow__handle-right {
+  right: -4px;
+}
+
+/* ── Inspector Panel ── */
+.canvas-inspector {
+  width: 220px;
+  background: #141416;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  padding: 16px 14px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.canvas-inspector::-webkit-scrollbar {
+  width: 4px;
+}
+
+.canvas-inspector::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+}
+
+.canvas-inspector::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-inspector-section {
+  margin-bottom: 20px;
+}
+
+.canvas-inspector-section:last-child {
+  margin-bottom: 0;
+}
+
+.canvas-inspector-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.canvas-inspector-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inspector-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.inspector-step:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.inspector-step-icon {
+  font-size: 12px;
+  width: 18px;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.inspector-step-label {
+  flex: 1;
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+}
+
+.inspector-step-status {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.inspector-step-pending .inspector-step-status {
+  color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.04);
+}
+
+.inspector-step-running .inspector-step-status {
+  color: #60a5fa;
+  background: rgba(96,165,250,0.1);
+}
+
+.inspector-step-done .inspector-step-status {
+  color: #22c55e;
+  background: rgba(34,197,94,0.1);
+}
+
+.inspector-step-failed .inspector-step-status {
+  color: #ef4444;
+  background: rgba(239,68,68,0.1);
+}
+
+.canvas-inspector-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inspector-stat {
+  flex: 1;
+  min-width: 52px;
+  background: rgba(255,255,255,0.03);
+  padding: 8px 6px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.inspector-stat-label {
+  display: block;
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.inspector-stat-value {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Empty state ── */
+.canvas-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  background: #0d0d0f;
+}
+
+.canvas-empty-icon {
+  font-size: 40px;
+  opacity: 0.15;
+}
+
+.canvas-empty-text {
+  font-size: 15px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 500;
+}
+
+.canvas-empty-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.15);
+}
+
+/* ── Editor Panel (right panel) ── */
+.canvas-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.canvas-editor-back {
+  display: block;
+  margin-bottom: 12px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: inherit;
+}
+.canvas-editor-back:hover {
+  color: rgba(255,255,255,0.8);
+}
+
+.canvas-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.canvas-editor-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  margin: 0;
+}
+
+.canvas-editor-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.4);
+}
+
+.canvas-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 220px);
+}
+
+.canvas-editor-body::-webkit-scrollbar {
+  width: 4px;
+}
+.canvas-editor-body::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+}
+.canvas-editor-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-editor-empty {
+  font-size: 11px;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  padding: 24px 0;
+}
+
+.canvas-editor-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+  padding: 8px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+  min-height: 60px;
+}
+.canvas-editor-textarea:focus {
+  outline: none;
+  border-color: rgba(79,195,247,0.4);
+}
+
+.canvas-editor-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+  padding: 6px 8px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.canvas-editor-input:focus {
+  outline: none;
+  border-color: rgba(79,195,247,0.4);
+}
+
+.canvas-editor-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+.canvas-editor-label:first-child {
+  margin-top: 0;
+}
+
+.canvas-editor-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.canvas-editor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.canvas-editor-card-header:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.canvas-editor-card-name {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+}
+
+.canvas-editor-card-toggle {
+  font-size: 10px;
+  color: rgba(255,255,255,0.2);
+}
+
+.canvas-editor-card-body {
+  padding: 0 10px 10px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.canvas-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.canvas-editor-meta {
+  font-size: 10px;
+  color: rgba(255,255,255,0.2);
+}
+
+.canvas-editor-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.canvas-editor-btn-primary {
+  background: rgba(79,195,247,0.15);
+  color: rgba(79,195,247,0.85);
+}
+.canvas-editor-btn-primary:hover {
+  background: rgba(79,195,247,0.25);
+}
+.canvas-editor-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.canvas-editor-preview-section {
+  margin-bottom: 12px;
+}
+
+.canvas-editor-subtitle {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  margin: 0 0 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.canvas-editor-preview-img {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.canvas-editor-preview-video {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+}

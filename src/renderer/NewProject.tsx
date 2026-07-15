@@ -11,6 +11,7 @@ import type { CharacterData, PortraitStatus, PortraitView, PortraitViewStatus } 
 import type { SceneData, ShotData } from './ShootingScriptCard'
 import { SIZE_OPTIONS, getSizeString } from './sizeConfig'
 import type { CreationStage } from './creationStore'
+import { useSettingsStore } from './stores/settingsStore'
 
 import './NewProject.css'
 
@@ -21,18 +22,6 @@ interface NewProjectProps {
   chatOptions: string[]
   imageOptions: string[]
   videoOptions: string[]
-  chatApiKey: string
-  chatBaseUrl: string
-  imageApiKey: string
-  imageBaseUrl: string
-  videoApiKey: string
-  videoBaseUrl: string
-  chatRateLimitMin: string
-  chatRateLimitDay: string
-  imageRateLimitMin: string
-  imageRateLimitDay: string
-  videoRateLimitMin: string
-  videoRateLimitDay: string
   sizeMap: Record<string, string>
   defaultSize: string
   editProjectId?: number
@@ -396,25 +385,27 @@ function NewProject(props: NewProjectProps): JSX.Element {
     4: 'regenerating',
   }
 
+  const settingsChat = useSettingsStore(s => s.chat)
+  const settingsImage = useSettingsStore(s => s.image)
+  const settingsVideo = useSettingsStore(s => s.video)
+
   // Set API keys for pipeline use
   useEffect(() => {
     window.__pipelineApiKeys = {
-      chatApiKey: props.chatApiKey,
-      chatBaseUrl: props.chatBaseUrl,
-      imageApiKey: props.imageApiKey,
-      imageBaseUrl: props.imageBaseUrl,
-      videoApiKey: props.videoApiKey,
-      videoBaseUrl: props.videoBaseUrl,
-      chatRateLimitMin: props.chatRateLimitMin,
-      chatRateLimitDay: props.chatRateLimitDay,
-      imageRateLimitMin: props.imageRateLimitMin,
-      imageRateLimitDay: props.imageRateLimitDay,
-      videoRateLimitMin: props.videoRateLimitMin,
-      videoRateLimitDay: props.videoRateLimitDay,
+      chatApiKey: settingsChat.apiKey,
+      chatBaseUrl: settingsChat.baseUrl,
+      imageApiKey: settingsImage.apiKey,
+      imageBaseUrl: settingsImage.baseUrl,
+      videoApiKey: settingsVideo.apiKey,
+      videoBaseUrl: settingsVideo.baseUrl,
+      chatRateLimitMin: settingsChat.rateLimitMin,
+      chatRateLimitDay: settingsChat.rateLimitDay,
+      imageRateLimitMin: settingsImage.rateLimitMin,
+      imageRateLimitDay: settingsImage.rateLimitDay,
+      videoRateLimitMin: settingsVideo.rateLimitMin,
+      videoRateLimitDay: settingsVideo.rateLimitDay,
     }
-  }, [props.chatApiKey, props.chatBaseUrl, props.imageApiKey, props.imageBaseUrl, props.videoApiKey, props.videoBaseUrl,
-      props.chatRateLimitMin, props.chatRateLimitDay, props.imageRateLimitMin, props.imageRateLimitDay,
-      props.videoRateLimitMin, props.videoRateLimitDay])
+  }, [settingsChat, settingsImage, settingsVideo])
 
 
 
@@ -713,8 +704,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
               characters: charDicts,
               user_requirement: shotLimitReq,
               model: chatModel,
-              api_key: props.chatApiKey,
-              base_url: props.chatBaseUrl,
+              api_key: settingsChat.apiKey,
+              base_url: settingsChat.baseUrl,
               style,
             })
 
@@ -774,8 +765,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
                   character_portraits_registry: registry,
                   model: imageModel,
                   chat_model: chatModel,
-                  api_key: props.imageApiKey,
-                  base_url: props.imageBaseUrl,
+                  api_key: settingsImage.apiKey,
+                  base_url: settingsImage.baseUrl,
                   project_id: pid || 0,
                   size: resolutionStr,
                   scene_idx: i,
@@ -922,8 +913,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
         story: idea,
         characters_text: charText || undefined,
         model: chatModel,
-        api_key: props.chatApiKey,
-        base_url: props.chatBaseUrl,
+        api_key: settingsChat.apiKey,
+        base_url: settingsChat.baseUrl,
         user_requirement: DURATION_REQUIREMENTS[duration] || '',
       })
 
@@ -987,8 +978,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
         prompt,
         size: resolutionStr,
         model: imageModel,
-        api_key: props.imageApiKey,
-        base_url: props.imageBaseUrl,
+        api_key: settingsImage.apiKey,
+        base_url: settingsImage.baseUrl,
       })
       const url = res.url.startsWith(BASE) ? res.url : `${BASE}${res.url}`
       setScenes(prev => {
@@ -1034,8 +1025,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
         view,
         style,
         model: imageModel,
-        api_key: props.imageApiKey,
-        base_url: props.imageBaseUrl,
+        api_key: settingsImage.apiKey,
+        base_url: settingsImage.baseUrl,
         project_id: pid,
       }
 

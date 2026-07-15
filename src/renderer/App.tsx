@@ -6,8 +6,10 @@ import ModelCard from './ModelCard'
 import { SIZE_OPTIONS, DEFAULT_SIZE_MAP } from './sizeConfig'
 
 import NewProject from './NewProject'
+import CanvasPage from './pages/CanvasPage'
+import type { ModelPreset } from './stores/settingsStore'
 
-type Page = 'home' | 'new' | 'settings'
+type Page = 'home' | 'new' | 'canvas' | 'settings'
 
 interface NavItem {
   key: string
@@ -19,18 +21,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', icon: '⏺', label: '首页', isPage: true },
   { key: 'new', icon: '+', label: '创作', isPage: true },
-  { key: 'canvas', icon: '▣', label: '画布' },
+  { key: 'canvas', icon: '▣', label: '画布', isPage: true },
   { key: 'asset', icon: '⊞', label: '资产' },
   { key: 'settings', icon: '⚙', label: '设置', isPage: true },
 ]
-
-interface ModelPreset {
-  model: string
-  apiKey: string
-  baseUrl: string
-  rateLimitMin: string
-  rateLimitDay: string
-}
 
 const CHAT_PRESETS: ModelPreset[] = [
   { model: 'agnes-2.0-flash', apiKey: 'sk-Bz6paVfMyDYHfWGoEVPBMXz2zMy6RWbMBRSxFsjr9J6Ollud', baseUrl: 'https://apihub.agnes-ai.com/v1', rateLimitMin: '50', rateLimitDay: '2000' },
@@ -296,10 +290,16 @@ function App(): JSX.Element {
               {i > 0 && <div className="nav-separator" />}
               <button
                 className={`nav-item${item.isPage && page === item.key ? ' active' : ''}`}
-                onClick={() => { if (item.isPage) { 
-                  if (item.key === 'home') refreshProjects()
-                  setEditProjectId(undefined); setPage(item.key as Page) 
-                } else showToast('正在开发...') }}
+                onClick={() => {
+                  if (item.key === 'home') { refreshProjects(); setEditProjectId(undefined); setPage('home') }
+                  else if (item.key === 'new') {
+                    if (page === 'canvas' && editProjectId) { setPage('new') }
+                    else { setEditProjectId(undefined); setPage('new') }
+                  }
+                  else if (item.key === 'canvas') { if (editProjectId) setPage('canvas'); else showToast('请先创建项目') }
+                  else if (item.key === 'settings') { setPage('settings') }
+                  else showToast('正在开发...')
+                }}
                 title={item.label}
               >
                 <span className="nav-icon" style={item.key === 'new' ? { fontSize: '1.15rem' } : undefined}>{item.icon}</span>
@@ -382,28 +382,21 @@ function App(): JSX.Element {
 
           {page === 'new' && (
             <NewProject
+              key={editProjectId || 'new'}
               onCreated={() => { setEditProjectId(undefined); refreshProjects(); setPage('home') }}
               onCancel={() => { setEditProjectId(undefined); setPage('home') }}
               onProjectSelected={(id) => { setEditProjectId(id) }}
               chatOptions={CHAT_OPTIONS}
               imageOptions={IMAGE_OPTIONS}
               videoOptions={VIDEO_OPTIONS}
-              chatApiKey={settings.chat.apiKey}
-              chatBaseUrl={settings.chat.baseUrl}
-              imageApiKey={settings.image.apiKey}
-              imageBaseUrl={settings.image.baseUrl}
-              videoApiKey={settings.video.apiKey}
-              videoBaseUrl={settings.video.baseUrl}
-              chatRateLimitMin={settings.chat.rateLimitMin}
-              chatRateLimitDay={settings.chat.rateLimitDay}
-              imageRateLimitMin={settings.image.rateLimitMin}
-              imageRateLimitDay={settings.image.rateLimitDay}
-              videoRateLimitMin={settings.video.rateLimitMin}
-              videoRateLimitDay={settings.video.rateLimitDay}
-               sizeMap={settings.sizeMap}
-               defaultSize={settings.imageSize}
+              sizeMap={settings.sizeMap}
+              defaultSize={settings.imageSize}
               editProjectId={editProjectId}
             />
+          )}
+
+          {page === 'canvas' && (
+            <CanvasPage editProjectId={editProjectId} />
           )}
 
           {page === 'settings' && (

@@ -119,6 +119,14 @@ TABLES = [
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS canvas_layouts (
+        project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+        layout_json TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[],"viewport":null}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT ''
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS prompt_rewrites (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

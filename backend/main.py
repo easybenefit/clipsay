@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from backend.utils.logging import setup_logger
 from backend.db import lifespan
-from backend.api import router, pipeline_router
+from backend.api import router, pipeline_router, canvas_layout_router
 
 logger = setup_logger("main")
 
@@ -42,6 +42,7 @@ app.mount("/local", StaticFiles(directory=str(local_root)), name="local")
 
 app.include_router(router)
 app.include_router(pipeline_router)
+app.include_router(canvas_layout_router)
 
 
 @app.exception_handler(RequestValidationError)
