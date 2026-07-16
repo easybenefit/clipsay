@@ -37,6 +37,7 @@ export interface SceneData {
 interface ScriptCardProps {
   scenes: SceneData[]
   loading?: boolean
+  creating?: boolean
   disabled?: boolean
   aspectRatio?: string
 
@@ -138,7 +139,7 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
   )
 }
 
-function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame }: ScriptCardProps): JSX.Element {
+function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame }: ScriptCardProps): JSX.Element {
   const cssAspectRatio = toCssAspectRatio(aspectRatio)
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [editShotKey, setEditShotKey] = useState<{ sceneIdx: number; shotIdx: number } | null>(null)
@@ -192,6 +193,7 @@ function ShootingScriptCard({ scenes, loading = false, disabled = false, aspectR
               onEditShot={(shotIdx) => setEditShotKey({ sceneIdx: idx, shotIdx })}
               onRefreshFrame={(shotIdx, frameType, prompt) => onRefreshFrame?.(idx, shotIdx, frameType, prompt)}
               onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
+              creating={creating}
               loading={scene.shots.length === 0}
               cssAspectRatio={cssAspectRatio}
             />
@@ -241,6 +243,7 @@ interface SceneCardProps {
   onRefreshFrame?: (shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
   onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
   loading?: boolean
+  creating?: boolean
   cssAspectRatio?: string
 }
 
@@ -248,7 +251,7 @@ function stripScenePrefix(title: string): string {
   return title.replace(/^\s*场景\s*\d+\s*[:：、\-]?\s*/, '').trim()
 }
 
-function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onEditShot, onRefreshFrame, onPreview, loading = false, cssAspectRatio = '16 / 9' }: SceneCardProps): JSX.Element {
+function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onEditShot, onRefreshFrame, onPreview, loading = false, creating = false, cssAspectRatio = '16 / 9' }: SceneCardProps): JSX.Element {
   const isHovered = hoveredKey === sceneKey
   const cleanTitle = stripScenePrefix(scene.title) || `场景${sceneIdx + 1}`
 
@@ -272,10 +275,14 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
       </div>
       <div className="script-card-item-divider" />
 
-      {loading ? (
+      {loading && creating ? (
         <div className="scene-loading">
           <div className="scene-loading-icon">✦</div>
           <div className="scene-loading-text">正在创作</div>
+        </div>
+      ) : loading ? (
+        <div className="scene-loading">
+          <div className="scene-loading-text">暂无可用的描述</div>
         </div>
       ) : (
         <>

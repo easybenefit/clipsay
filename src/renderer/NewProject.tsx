@@ -1396,6 +1396,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
               <ShootingScriptCard
                 scenes={scenes}
                 loading={pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running' || creatingStoryboard || regenerating}
+                creating={creatingStoryboard || regenerating || pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running'}
                 onSceneUpdate={handleSceneUpdate}
                 onRegenerate={handleRegenerateStoryboard}
                 onRefreshFrame={handleRefreshFrame}
