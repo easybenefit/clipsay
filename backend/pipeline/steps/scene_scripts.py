@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from backend.pipeline.events import EventEmitter
-from backend.services.scene_script_service import generate_scene_scripts
+from backend.services.script_writer import generate_scene_scripts
 from backend.utils.logging import setup_logger
 from backend.db.scene_scripts import save_scene_scripts
 from backend.pipeline.config import SessionConfig

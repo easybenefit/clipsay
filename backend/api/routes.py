@@ -13,16 +13,14 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from backend.schemas import (
     CreateProject, GenerateRequest, StoryRequest, CharacterRequest,
-    ScriptRequest, SceneStoryboardRequest, PortraitRequest, ProjectUpdate, RateLimitUpdate, RateLimitDefaults,
+    SceneStoryboardRequest, PortraitRequest, ProjectUpdate, RateLimitUpdate, RateLimitDefaults,
 )
 from backend.clients.llm import LLM
 from backend.services.story_writer import StoryWriter
 from backend.services.character_generator import CharacterGenerator
-from backend.services.script_writer import ScriptWriter
 from backend.services.video_compositor import VideoCompositor
 from backend.utils.paths import PathResolver, DATA_ROOT, normalize_local_url
 from backend.pipeline.runner import PipelineRunner
-from backend.pipeline.config import scene_requirement
 from backend.db import (
     DB_PATH, create_project_row, list_project_rows,
     read_full_project, read_step_data, save_full_project, duplicate_project_full,
@@ -131,24 +129,6 @@ async def extract_characters(body: CharacterRequest):
         )
 
 
-@router.post("/api/scene-scripts")
-async def generate_script(body: ScriptRequest):
-    try:
-        writer = ScriptWriter(body.model, body.api_key, body.base_url)
-        scenes = await writer.write_script(
-            story=body.story,
-            characters_text=body.characters_text or None,
-            user_requirement=body.user_requirement or None,
-        )
-        return {"text": "", "scenes": scenes}
-    except Exception as e:
-        logger.error("Generate script failed: %s", e)
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)},
-        )
-
-
 @router.post("/api/generate-portraits")
 async def generate_portraits(body: PortraitRequest):
     if not body.characters or len(body.characters) != 1:
@@ -207,7 +187,7 @@ async def get_step_data(project_id: int, step: str):
 
 @router.post("/api/projects/{project_id}/scene-scripts/generate")
 async def regenerate_scene_scripts(project_id: int):
-    from backend.services.scene_script_service import generate_scene_scripts
+    from backend.services.script_writer import generate_scene_scripts
     from backend.db.scene_scripts import save_scene_scripts
     from backend.pipeline.events import event_bus, EventEmitter
 
