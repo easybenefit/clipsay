@@ -34,6 +34,7 @@ export type PipelineEvent =
   | { type: 'step_failed'; step: string; error: string }
   | { type: 'emit_progress'; step: string; progress: number; message?: string }
   | { type: 'step_skipped'; step: string }
+  | { type: 'step_data_ready'; step: string }
   | { type: typeof EVENT_PROJECT_UPDATED }
   | { type: 'task_status'; task_id: string; status: string; message: string; model: string; attempt?: number; max_retries?: number; result?: any }
 
@@ -198,6 +199,7 @@ export function usePipelineSSE(
       case 'pipeline_completed':
         setStatus(prev => prev ? { ...prev, pipeline_status: 'completed', pipeline_progress: 1 } : prev)
         break
+      case 'step_data_ready':
       case EVENT_PROJECT_UPDATED:
       case 'task_status':
         onEvent?.(event)

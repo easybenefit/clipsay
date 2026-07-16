@@ -18,6 +18,7 @@ class EventType:
     STEP_RETRY = "step_retry"
     EMIT_PROGRESS = "emit_progress"
     PROJECT_UPDATED = "project_data_changed"
+    STEP_DATA_READY = "step_data_ready"
     TASK_STATUS = "task_status"
 
 
@@ -112,6 +113,9 @@ class EventEmitter:
 
     async def project_data_changed(self) -> None:
         await self._publish({"type": EventType.PROJECT_UPDATED})
+
+    async def step_data_ready(self, step: str) -> None:
+        await self._publish({"type": EventType.STEP_DATA_READY, "step": step})
 
 
 class EventBus:

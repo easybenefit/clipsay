@@ -187,6 +187,7 @@ class PipelineRunner:
                     await update_step_db_status(
                         self.project_id, step_name, StageStatus.COMPLETE)
                     await self._emitter().step_complete(step_name, result)
+                    await self._emitter().step_data_ready(step_name)
                     await self._emitter().project_data_changed()
                     last_exception = None
                     break

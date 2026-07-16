@@ -31,6 +31,7 @@ from backend.db.projects import (
     read_characters,
     read_full_project,
     read_scenes,
+    read_step_data,
     read_step_statuses,
     read_story,
     save_characters,

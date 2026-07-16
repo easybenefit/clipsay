@@ -322,6 +322,22 @@ export async function generatePortraits(req: GeneratePortraitsRequest): Promise<
   })
 }
 
+export interface StepData {
+  step: string
+  step_statuses: Record<string, number>
+  story?: string | null
+  characters?: any[]
+  scenes?: any[]
+  final_video?: string
+  final_preview?: string
+}
+
+export async function fetchStepData(projectId: number, step: string): Promise<StepData> {
+  const res = await fetch(`${BASE}/api/projects/${projectId}/step-data?step=${step}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 export async function getProject(id: number): Promise<ProjectFull> {
   return withRetry(async () => {
     const res = await fetch(`${BASE}/api/projects/${id}`)

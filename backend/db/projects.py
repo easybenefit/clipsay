@@ -543,6 +543,46 @@ async def read_character_portrait_urls(project_id: int, identifier: str) -> dict
         }
 
 
+async def read_step_data(project_id: int, step: str) -> dict | None:
+    """Read only the data relevant to a specific pipeline step.
+
+    Uses read_full_project internally (fast for local SQLite), then returns
+    a filtered payload with a ``step`` marker so the frontend knows which
+    state slice to replace.
+    """
+    from backend.db._config import DB_PATH
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        project = await read_full_project(db, project_id)
+    if not project:
+        return None
+
+    result: dict = {
+        "step": step,
+        "step_statuses": project.get("step_statuses", {}),
+    }
+
+    if step == "story":
+        result["story"] = project.get("story")
+
+    elif step in ("characters", "portraits"):
+        result["characters"] = project.get("characters", [])
+
+    elif step in (
+        "scene_scripts",
+        "storyboard",
+        "shot_frames",
+    ):
+        result["scenes"] = project.get("scenes", [])
+
+    elif step == "composite_video":
+        result["scenes"] = project.get("scenes", [])
+        result["final_video"] = project.get("final_video", "")
+        result["final_preview"] = project.get("final_preview", "")
+
+    return result
+
+
 async def update_character_features(project_id: int, identifier: str, appearance: str, attire: str) -> None:
     """Update a character's appearance and attire in the attributes table."""
     async with _get_connection() as db:

@@ -25,7 +25,7 @@ from backend.pipeline.runner import PipelineRunner
 from backend.pipeline.config import scene_requirement
 from backend.db import (
     DB_PATH, create_project_row, list_project_rows,
-    read_full_project, save_full_project, duplicate_project_full,
+    read_full_project, read_step_data, save_full_project, duplicate_project_full,
     update_step_db_status, update_story_content,
 )
 from backend.db.projects import load_session_config, increment_project_clicks, list_top_completed_projects
@@ -191,6 +191,14 @@ async def get_project(project_id: int):
         if project is None:
             raise ProjectNotFoundError(project_id)
         return project
+
+
+@router.get("/api/projects/{project_id}/step-data")
+async def get_step_data(project_id: int, step: str):
+    data = await read_step_data(project_id, step)
+    if data is None:
+        raise ProjectNotFoundError(project_id)
+    return data
 
 
 @router.put("/api/projects/{project_id}/scenes")

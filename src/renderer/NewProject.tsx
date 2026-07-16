@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures } from './api'
+import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData } from './api'
 import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
@@ -386,16 +386,148 @@ function NewProject(props: NewProjectProps): JSX.Element {
     }
   }, [output])
 
+  const refreshStepData = useCallback(async (pid: number, step: string) => {
+    try {
+      const data = await fetchStepData(pid, step)
+      if (!data) return
+
+      if (data.step_statuses) setStepStatuses(data.step_statuses)
+
+      switch (step) {
+        case 'story':
+          if (data.story !== undefined) setOutput(data.story)
+          break
+
+        case 'characters':
+        case 'portraits':
+          if (data.characters?.length) {
+            setPortraitsReady(true)
+            setCharacters(data.characters.map((c: any) => {
+              const name = c.name || c.identifier || ''
+              const portraitUrl = (url: unknown) => {
+                if (!url || typeof url !== 'string') return ''
+                return url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
+                  ? url
+                  : `${BASE}${url}`
+              }
+              const backPortraits = {
+                front: portraitUrl(c.front_url),
+                side: portraitUrl(c.side_url),
+                back: portraitUrl(c.back_url),
+              }
+              const apiStatus = c.portrait_status as Record<string, number> | undefined
+              const status: PortraitStatus = apiStatus
+                ? {
+                    front: PORTRAIT_STATUS_MAP[apiStatus.front] || 'waiting' as const,
+                    side: PORTRAIT_STATUS_MAP[apiStatus.side] || 'waiting' as const,
+                    back: PORTRAIT_STATUS_MAP[apiStatus.back] || 'waiting' as const,
+                  }
+                : {
+                    front: backPortraits.front ? 'generated' as const : 'waiting' as const,
+                    side: backPortraits.side ? 'generated' as const : 'waiting' as const,
+                    back: backPortraits.back ? 'generated' as const : 'waiting' as const,
+                  }
+              return {
+                name,
+                staticFeatures: c.appearance || '',
+                dynamicFeatures: c.attire || '',
+                portraits: backPortraits,
+                sourceUrl: c.sourceUrl || '',
+                portraitStatus: status,
+              }
+            }))
+          }
+          break
+
+        case 'scene_scripts':
+        case 'storyboard':
+        case 'shot_frames':
+        case 'composite_video':
+          if (data.scenes?.length) {
+            setScenes(data.scenes.map((s: any) => ({
+              title: s.title || '',
+              content: s.content || '',
+              shots: (s.shots || []).map((shot: any) => {
+                const ff = shot.firstFrame
+                  ? (shot.firstFrame.startsWith(BASE) || shot.firstFrame.startsWith('http://') || shot.firstFrame.startsWith('https://')
+                    ? shot.firstFrame
+                    : `${BASE}${shot.firstFrame}`)
+                  : ''
+                const lf = shot.lastFrame
+                  ? (shot.lastFrame.startsWith(BASE) || shot.lastFrame.startsWith('http://') || shot.lastFrame.startsWith('https://')
+                    ? shot.lastFrame
+                    : `${BASE}${shot.lastFrame}`)
+                  : ''
+                const vid = shot.video ? (shot.video.startsWith(BASE) ? shot.video : `${BASE}${shot.video}`) : ''
+                const preview = shot.videoPreview ? (shot.videoPreview.startsWith(BASE) ? shot.videoPreview : `${BASE}${shot.videoPreview}`) : ''
+                const sfStatus = shot.startFrameStatus !== undefined ? shot.startFrameStatus : 0
+                const efStatus = shot.endFrameStatus !== undefined ? shot.endFrameStatus : 0
+                const vStatus = shot.videoStatus || 'pending'
+                return {
+                  title: shot.title || '',
+                  visualDescription: shot.visualDescription || '',
+                  voiceDescription: shot.voiceDescription || '',
+                  motionDescription: shot.motionDescription || '',
+                  variationType: shot.variationType || 'small',
+                  firstFrame: ff,
+                  lastFrame: lf,
+                  video: vid,
+                  videoPreview: preview,
+                  firstFrameStatus: sfStatus !== 0
+                    ? (SHOT_STATUS_MAP[sfStatus] || 'waiting')
+                    : ff
+                      ? 'generated' as const
+                      : 'waiting' as const,
+                  lastFrameStatus: efStatus !== 0
+                    ? (SHOT_STATUS_MAP[efStatus] || 'waiting')
+                    : lf
+                      ? 'generated' as const
+                      : 'waiting' as const,
+                  videoStatus: vStatus !== 'pending'
+                    ? (VIDEO_STATUS_MAP[vStatus] || 'waiting')
+                    : vid
+                      ? 'generated' as const
+                      : 'waiting' as const,
+                }
+              }),
+              compositedVideo: s.compositedVideo
+                ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`)
+                : '',
+              compositedPreview: s.compositedPreview
+                ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`)
+                : '',
+              compositVideoStatus: s.compositVideoStatus !== undefined ? s.compositVideoStatus : 0,
+            })))
+          }
+          if (step === 'composite_video') {
+            if (data.final_video) {
+              setFinalVideo(data.final_video.startsWith(BASE) ? data.final_video : `${BASE}${data.final_video}`)
+            }
+            if (data.final_preview) {
+              setFinalPreview(data.final_preview.startsWith(BASE) ? data.final_preview : `${BASE}${data.final_preview}`)
+            }
+            setFinalVideoStatus(data.step_statuses?.composite_video ?? 0)
+          }
+          break
+      }
+    } catch (e) {
+      console.error(`[NewProject] refreshStepData failed for ${step}:`, e)
+    }
+  }, [])
+
   const handlePipelineEvent = useCallback((event: any) => {
     try {
-      if (event.type === EVENT_PROJECT_UPDATED) {
-        const pid = getEffectiveProjectId()
-        if (pid) refreshProjectData(pid)
+      const pid = getEffectiveProjectId()
+      if (!pid) return
+      if (event.type === 'step_data_ready' && event.step) {
+        refreshStepData(pid, event.step)
+      } else if (event.type === EVENT_PROJECT_UPDATED) {
+        refreshProjectData(pid)
       }
     } catch (e) {
       console.error('[NewProject] handlePipelineEvent crashed:', e, 'event:', event)
     }
-  }, [refreshProjectData])
+  }, [refreshProjectData, refreshStepData])
 
   const pipeline = usePipelineSSE(getEffectiveProjectId(), handlePipelineEvent)
   const pipelineRunning = pipeline.status?.pipeline_status === 'running'

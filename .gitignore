@@ -32,3 +32,4 @@ project_data.json
 app_data
 c[0-9]*/
 .vscode/
+todo/
