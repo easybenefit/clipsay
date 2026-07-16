@@ -91,9 +91,6 @@
 }
 
 .character-card-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
   padding: 16px 20px 20px;
   animation: character-card-content-enter 0.45s ease-out;
 }
@@ -109,19 +106,15 @@
   }
 }
 
-.character-card-scroll::-webkit-scrollbar {
-  display: none;
-}
-
 .character-card-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 20px;
-  min-width: min-content;
+  min-width: 0;
 }
 
 .character-card-item {
-  flex-shrink: 0;
-  width: 600px;
+  min-width: 0;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -230,7 +223,8 @@
 }
 
 .character-card-photo {
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   border-radius: 6px;
   overflow: hidden;
   background: var(--bg);

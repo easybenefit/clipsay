@@ -41,24 +41,15 @@ interface CharacterCardProps {
   onRefreshImage?: (characterIdx: number, view: string) => string | void
 }
 
-function getHeightRatio(aspectRatio: string): number {
-  const parts = aspectRatio.split(':')
-  if (parts.length === 2) {
-    const w = parseFloat(parts[0])
-    const h = parseFloat(parts[1])
-    if (w > 0) return h / w
-  }
-  return 1
+function toCssAspectRatio(aspectRatio: string): string {
+  return aspectRatio.replace(':', ' / ')
 }
 
-const PHOTO_WIDTH = 180
 const VIEW_LABELS: Record<string, string> = { front: '正面', side: '侧面', back: '背面' }
 
 function CharacterCard({ characters, aspectRatio, loading = false, disabled = false, statusMessage, onRegenerate, onCharacterUpdate, onRefreshImage }: CharacterCardProps): JSX.Element {
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [lightbox, setLightbox] = useState<{ charIdx: number; viewIdx: number } | null>(null)
-
-  const photoHeight = PHOTO_WIDTH * getHeightRatio(aspectRatio)
 
   const views: Array<{ key: keyof CharacterPortraits; label: string }> = [
     { key: 'front', label: '正面' },
@@ -152,14 +143,12 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
                 </div>
                 <div className="character-card-photos">
                   {views.map(({ key }, vi) => (
-                    <div key={key} className="character-card-photo" style={{ width: PHOTO_WIDTH, height: photoHeight }}>
+                    <div key={key} className="character-card-photo" style={{ aspectRatio: toCssAspectRatio(aspectRatio) }}>
                       <ImageWithPlaceholder
                         key={char.portraits[key]}
                         src={char.portraits[key]}
                         alt={`${char.name} ${key}`}
                         status={char.portraitStatus?.[key] ?? (char.portraits?.[key] ? 'generated' : 'waiting')}
-                        width={PHOTO_WIDTH}
-                        height={photoHeight}
                         onClick={char.portraits[key] ? () => setLightbox({ charIdx: idx, viewIdx: vi }) : undefined}
                       />
                     </div>
@@ -252,10 +241,6 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
     } else {
       showToast(`${VIEW_LABELS[view] || view} 图片重新生成中...`)
     }
-  }
-
-  function toCssAspectRatio(aspectRatio: string): string {
-    return aspectRatio.replace(':', ' / ')
   }
 
   return (

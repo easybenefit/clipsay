@@ -657,12 +657,12 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
 /* ── Project Grid ── */
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 16px;
 }
 
 .project-thumb {
-  height: 100px;
+  height: 150px;
   background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(99,102,241,0.08));
   display: flex;
   align-items: center;
