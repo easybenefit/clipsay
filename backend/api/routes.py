@@ -28,6 +28,7 @@ from backend.db import (
     read_full_project, read_step_data, save_full_project, duplicate_project_full,
     update_step_db_status, update_story_content,
 )
+from backend.db.scene_scripts import read_scene_script_data
 from backend.db.projects import load_session_config, increment_project_clicks, list_top_completed_projects
 from backend.pipeline.conductor._types import StageStatus
 
@@ -195,10 +196,38 @@ async def get_project(project_id: int):
 
 @router.get("/api/projects/{project_id}/step-data")
 async def get_step_data(project_id: int, step: str):
-    data = await read_step_data(project_id, step)
+    if step == "scene_scripts":
+        data = await read_scene_script_data(project_id)
+    else:
+        data = await read_step_data(project_id, step)
     if data is None:
         raise ProjectNotFoundError(project_id)
     return data
+
+
+@router.post("/api/projects/{project_id}/scene-scripts/generate")
+async def regenerate_scene_scripts(project_id: int):
+    from backend.services.scene_script_service import generate_scene_scripts
+    from backend.db.scene_scripts import save_scene_scripts
+    from backend.pipeline.events import event_bus, EventEmitter
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        project = await read_full_project(db, project_id)
+        if project is None:
+            raise ProjectNotFoundError(project_id)
+
+    emitter = EventEmitter(event_bus, project_id)
+
+    try:
+        scenes = await generate_scene_scripts(project_id)
+    except Exception as e:
+        logger.error("Generate scene scripts failed (project=%d): %s", project_id, e)
+        await emitter.project_data_changed()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    await save_scene_scripts(project_id, scenes)
+    await emitter.project_data_changed()
+    return {"scenes": scenes}
 
 
 @router.put("/api/projects/{project_id}/scenes")

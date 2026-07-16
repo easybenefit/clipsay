@@ -13,7 +13,7 @@ async def load_scene_script_data(project_id: int) -> tuple[str | None, list["Cha
     return story, characters
 
 
-async def save_scene_scripts(project_id: int, story: str, scenes: list[dict]):
+async def save_scene_scripts(project_id: int, scenes: list[dict]):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM scenes WHERE project_id = ?", (project_id,))
         for si, sc in enumerate(scenes):
@@ -24,6 +24,29 @@ async def save_scene_scripts(project_id: int, story: str, scenes: list[dict]):
                  sc.get("script", "")),
             )
         await db.commit()
+
+
+async def read_scene_script_data(project_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        scenes = []
+        for sc in await (await db.execute(
+                "SELECT * FROM scenes WHERE project_id=? ORDER BY idx",
+                (project_id,))).fetchall():
+            scene = dict(sc)
+            scene["shots"] = []
+            scenes.append(scene)
+
+        status_row = await (await db.execute(
+            "SELECT scene_scripts_status FROM projects WHERE id=?",
+            (project_id,))).fetchone()
+        step_status = status_row["scene_scripts_status"] if status_row else 0
+
+    return {
+        "step": "scene_scripts",
+        "step_status": step_status,
+        "scenes": scenes,
+    }
 
 
 async def update_scenes(project_id: int, scenes: list[dict]):

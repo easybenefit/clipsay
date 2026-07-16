@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BASE, createProject, generateStory, extractCharacters, generateScript, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData } from './api'
+import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData } from './api'
 import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
@@ -440,6 +440,67 @@ function NewProject(props: NewProjectProps): JSX.Element {
           break
 
         case 'scene_scripts':
+          if (data.step_status !== undefined) {
+            setStepStatuses(prev => ({ ...prev, scene_scripts: data.step_status }))
+          }
+          if (data.scenes?.length) {
+            setScenes(data.scenes.map((s: any) => ({
+              title: s.title || '',
+              content: s.content || '',
+              shots: (s.shots || []).map((shot: any) => {
+                const ff = shot.firstFrame
+                  ? (shot.firstFrame.startsWith(BASE) || shot.firstFrame.startsWith('http://') || shot.firstFrame.startsWith('https://')
+                    ? shot.firstFrame
+                    : `${BASE}${shot.firstFrame}`)
+                  : ''
+                const lf = shot.lastFrame
+                  ? (shot.lastFrame.startsWith(BASE) || shot.lastFrame.startsWith('http://') || shot.lastFrame.startsWith('https://')
+                    ? shot.lastFrame
+                    : `${BASE}${shot.lastFrame}`)
+                  : ''
+                const vid = shot.video ? (shot.video.startsWith(BASE) ? shot.video : `${BASE}${shot.video}`) : ''
+                const preview = shot.videoPreview ? (shot.videoPreview.startsWith(BASE) ? shot.videoPreview : `${BASE}${shot.videoPreview}`) : ''
+                const sfStatus = shot.startFrameStatus !== undefined ? shot.startFrameStatus : 0
+                const efStatus = shot.endFrameStatus !== undefined ? shot.endFrameStatus : 0
+                const vStatus = shot.videoStatus || 'pending'
+                return {
+                  title: shot.title || '',
+                  visualDescription: shot.visualDescription || '',
+                  voiceDescription: shot.voiceDescription || '',
+                  motionDescription: shot.motionDescription || '',
+                  variationType: shot.variationType || 'small',
+                  firstFrame: ff,
+                  lastFrame: lf,
+                  video: vid,
+                  videoPreview: preview,
+                  firstFrameStatus: sfStatus !== 0
+                    ? (SHOT_STATUS_MAP[sfStatus] || 'waiting')
+                    : ff
+                      ? 'generated' as const
+                      : 'waiting' as const,
+                  lastFrameStatus: efStatus !== 0
+                    ? (SHOT_STATUS_MAP[efStatus] || 'waiting')
+                    : lf
+                      ? 'generated' as const
+                      : 'waiting' as const,
+                  videoStatus: vStatus !== 'pending'
+                    ? (VIDEO_STATUS_MAP[vStatus] || 'waiting')
+                    : vid
+                      ? 'generated' as const
+                      : 'waiting' as const,
+                }
+              }),
+              compositedVideo: s.compositedVideo
+                ? (s.compositedVideo.startsWith(BASE) ? s.compositedVideo : `${BASE}${s.compositedVideo}`)
+                : '',
+              compositedPreview: s.compositedPreview
+                ? (s.compositedPreview.startsWith(BASE) ? s.compositedPreview : `${BASE}${s.compositedPreview}`)
+                : '',
+              compositVideoStatus: s.compositVideoStatus !== undefined ? s.compositVideoStatus : 0,
+            })))
+          }
+          break
+
         case 'storyboard':
         case 'shot_frames':
         case 'composite_video':
@@ -1090,69 +1151,22 @@ function NewProject(props: NewProjectProps): JSX.Element {
   }
 
   const handleRefreshSceneScripts = async () => {
+    const pid = getEffectiveProjectId()
+    if (!pid) return
     setRefreshingSceneScripts(true)
     try {
-      const charText = characters.map(c => {
-        let text = `角色: ${c.name}`
-        if (c.staticFeatures) text += `,  静态特征: ${c.staticFeatures}`
-        if (c.dynamicFeatures) text += `,  动态特征: ${c.dynamicFeatures}`
-        return text
-      }).join('\n')
-
-      const res = await generateScript({
-        story: idea,
-        characters_text: charText || undefined,
-        model: chatModel,
-        api_key: props.chatApiKey,
-        base_url: props.chatBaseUrl,
-        user_requirement: DURATION_REQUIREMENTS[duration] || '',
-      })
-
-      if (res.scenes?.length) {
-        const pid = getEffectiveProjectId()
-        setScenes(prev => {
-          const updated = res.scenes.map((s, i) => {
-            const existing = prev[i]
-            return {
-              ...(existing || { shots: [], compositedVideo: '', compositedPreview: '' }),
-              title: s.title,
-              content: s.content,
-            }
-          })
-          if (pid) {
-            const scenesPayload = updated.map(s => ({
-              title: s.title,
-              content: s.content,
-              slugline: '',
-              environmentDesc: '',
-              script: '',
-              compositedVideo: s.compositedVideo || '',
-              compositedPreview: s.compositedPreview || '',
-              shots: s.shots.map(sh => ({
-                title: sh.title,
-                visualDescription: sh.visualDescription,
-                voiceDescription: sh.voiceDescription,
-                motionDescription: sh.motionDescription || '',
-                variationType: sh.variationType || 'small',
-                firstFrame: sh.firstFrame,
-                lastFrame: sh.lastFrame,
-                video: sh.video,
-                videoPreview: sh.videoPreview || '',
-              })),
-            }))
-            fetch(`${BASE}/api/projects/${pid}/scenes`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ scenes: scenesPayload }),
-            }).then(async r => {
-              if (!r.ok) {
-                const err = await r.json().catch(() => ({ error: r.statusText }))
-                console.error('保存分场剧本失败:', err.error || r.statusText)
-              }
-            }).catch(e => console.error('保存分场剧本失败:', e))
-          }
-          return updated
-        })
+      const res = await fetch(`${BASE}/api/projects/${pid}/scene-scripts/generate`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.scenes) {
+          setScenes(data.scenes.map((s: any) => ({
+            title: s.title || '',
+            content: s.content || '',
+            shots: [],
+            compositedVideo: '',
+            compositedPreview: '',
+          })))
+        }
       }
     } catch (e: any) {
       console.error('重新生成分场剧本失败:', e)
@@ -1513,11 +1527,11 @@ function NewProject(props: NewProjectProps): JSX.Element {
               />
             </div>
           )}
-          {(scenes.length > 0 || (pipeline.status?.steps?.scene_scripts?.status && pipeline.status?.steps?.scene_scripts?.status !== 'pending')) && (
+          {(scenes.length > 0 || (pipeline.status?.steps?.scene_scripts?.status && pipeline.status?.steps?.scene_scripts?.status !== 'pending') || stepStatuses?.scene_scripts === 1) && (
             <div className="npm-card-enter">
               <SceneScriptsCard
                 scenes={scenes}
-                loading={refreshingSceneScripts || pipeline.status?.steps?.scene_scripts?.status === 'running' || scenes.length === 0}
+                loading={refreshingSceneScripts || stepStatuses?.scene_scripts === 1}
                 onRefresh={handleRefreshSceneScripts}
                 onSceneEdit={handleSceneScriptEdit}
               />

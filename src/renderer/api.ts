@@ -338,6 +338,16 @@ export async function fetchStepData(projectId: number, step: string): Promise<St
   return res.json()
 }
 
+export async function regenerateSceneScripts(projectId: number): Promise<void> {
+  const res = await fetch(`${BASE}/api/projects/${projectId}/scene-scripts/generate`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+}
+
 export async function getProject(id: number): Promise<ProjectFull> {
   return withRetry(async () => {
     const res = await fetch(`${BASE}/api/projects/${id}`)

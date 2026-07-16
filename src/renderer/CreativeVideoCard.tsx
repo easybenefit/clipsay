@@ -46,7 +46,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
                   onClick={() => setMediaPreview({ items: [{ src: finalVideo, isVideo: true, label: '成片' }], currentIndex: 0 })}
                 />
               </div>
-            ) : finalVideoStatus === 1 ? (
+            ) : finalVideoStatus === 1 || finalVideoStatus === 2 ? (
               <div className="creative-video-single">
                 <ImageWithPlaceholder
                   src=""
