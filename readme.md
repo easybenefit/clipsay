@@ -1,4 +1,4 @@
-<img src="assets/logo.jpg" alt="Clipsay — say it, clip it" width="720" />
+<img src="assets/logo.jpg" alt="Clipsay — say it, clip it" width="320" />
 
 
 # Clipsay — AI-Powered Video Creation Tool
