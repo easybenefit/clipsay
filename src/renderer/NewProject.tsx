@@ -824,8 +824,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
     setCharacters([])
     setScenes([])
     setOutput(null)
-
     setCreating(true)
+    setStage('story')
+    setStepStatuses({ story: 1 })
     try {
       // 1. 首次创建才创建项目
       let pid = getEffectiveProjectId()
@@ -856,8 +857,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
       // 3. 启动 pipeline（后端异步执行，前端通过 SSE 接收进度）
       await pipeline.start()
       pipelineStartedRef.current = true
-      setStage('story')
-      setStepStatuses({ story: 1 })
 
       // 4. Now propagate project ID to parent so it persists in localStorage
       if (isNew) {
@@ -866,6 +865,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
     } catch (e: any) {
       console.error('启动 pipeline 失败:', e)
       setError(`启动失败: ${e?.message || String(e)}`)
+      setStage('new')
+      setStepStatuses(null)
     } finally {
       setCreating(false)
     }
@@ -1556,7 +1557,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
               />
             </div>
           )}
-          {(finalVideo || scenes.some(s => s.compositedVideo) || finalVideoStatus === 1) && (
+          {(finalVideo || finalVideoStatus >= 1) && (
             <div className="npm-card-enter">
               <CreativeVideoCard
                 scenes={scenes}

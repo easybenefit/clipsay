@@ -115,6 +115,34 @@
   text-overflow: ellipsis;
 }
 
+.story-card-body-edit {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+  z-index: 1;
+}
+
+.story-card-body-item:hover .story-card-body-edit {
+  opacity: 1;
+}
+
+.story-card-body-edit:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .story-card-content {
   font-size: 0.85rem;
   color: var(--text);
