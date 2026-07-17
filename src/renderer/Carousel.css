@@ -23,7 +23,7 @@
 
 .carousel-slide {
   min-width: 33.33%;
-  aspect-ratio: 16 / 7;
+  aspect-ratio: 16 / 8;
   display: flex;
   align-items: flex-end;
   padding: 24px;
