@@ -339,50 +339,35 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
 [data-aspect="4:3"] .np-size-schema { aspect-ratio: 4 / 3; }
 [data-aspect="3:4"] .np-size-schema { aspect-ratio: 3 / 4; }
 
-/* ── Right Main (4) ── */
+/* ── Floating Steps Section ── */
+.npm-steps-section {
+  position: relative;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
 
-.new-project-main {
-  flex: 4;
+.npm-steps-header {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  align-items: center;
+  margin-bottom: 14px;
 }
 
-.new-project-main::-webkit-scrollbar {
-  width: 5px;
-}
-
-.new-project-main::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.new-project-main::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-
-.npm-header {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  padding-bottom: 8px;
-}
-
-.npm-title {
-  font-size: 1.15rem;
+.npm-steps-title {
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text);
+  background: linear-gradient(135deg, var(--accent), var(--accent-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   letter-spacing: -0.01em;
+  animation: float-title 4s ease-in-out infinite;
   margin: 0;
-  line-height: 1;
 }
 
 .npm-steps {
   display: flex;
   gap: 12px;
+  perspective: 1000px;
 }
 
 .npm-step {
@@ -391,23 +376,91 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 8px;
-  transition: border-color 0.2s, background 0.2s;
+  gap: 6px;
+  background: rgba(20, 20, 28, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(37, 37, 48, 0.4);
+  border-radius: 14px;
+  padding: 14px 8px;
+  transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
   min-width: 0;
+  position: relative;
+  overflow: hidden;
+  animation: float-card 6s ease-in-out infinite;
+  animation-delay: calc(var(--step-index, 0) * 0.25s);
+  transform: translateY(0);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15);
 }
 
 .npm-step:hover {
+  transform: translateY(-8px) scale(1.03);
   border-color: var(--accent);
+  box-shadow: 0 16px 40px rgba(139,92,246,0.15), 0 4px 12px rgba(0,0,0,0.3);
+  background: rgba(26, 26, 34, 0.7);
+}
+
+.npm-step-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  opacity: 0;
+  transition: opacity 0.35s;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-glow) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.npm-step:hover .npm-step-glow {
+  opacity: 1;
+}
+
+@keyframes float-card {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes float-title {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+/* ── Right Main (4) ── */
+
+.new-project-main {
+  flex: 4;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.npm-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.npm-scroll-area::-webkit-scrollbar {
+  width: 5px;
+}
+
+.npm-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.npm-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 .npm-step-icon {
   font-size: 0.9rem;
   line-height: 1;
   margin-bottom: 2px;
+  position: relative;
+  z-index: 1;
 }
 
 .npm-step-title-sm {
@@ -417,6 +470,8 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
   text-align: center;
   line-height: 1.2;
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
 }
 
 .npm-step-desc-sm {
@@ -427,15 +482,19 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── States ── */
 .npm-step-pending {
-  opacity: 0.45;
+  opacity: 0.5;
 }
 
 .npm-step-running {
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-color: var(--accent) !important;
+  box-shadow: 0 4px 24px rgba(139,92,246,0.12), 0 1px 4px rgba(0,0,0,0.2) !important;
+  animation: float-card 2s ease-in-out infinite !important;
 }
 
 .npm-step-dot {
@@ -455,7 +514,8 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
 }
 
 .npm-step-completed {
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-color: rgba(139,92,246,0.3) !important;
+  background: rgba(20, 20, 28, 0.6) !important;
 }
 .npm-step-completed .npm-step-title-sm,
 .npm-step-completed .npm-step-icon {
@@ -463,8 +523,8 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
 }
 
 .npm-step-failed {
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-  opacity: 0.75;
+  opacity: 0.7;
+  border-color: rgba(255,59,48,0.3) !important;
 }
 .npm-step-failed .npm-step-title-sm,
 .npm-step-failed .npm-step-icon {

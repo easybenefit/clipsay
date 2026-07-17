@@ -1481,34 +1481,38 @@ function NewProject(props: NewProjectProps): JSX.Element {
 
         </aside>
 
-        <main className="new-project-main">
-          <div className="npm-header">
-            <h2 className="npm-title">创作流程</h2>
-          </div>
+         <main className="new-project-main">
+          <div className="npm-steps-section">
+            <div className="npm-steps-header">
+              <h2 className="npm-steps-title">创作流程</h2>
+            </div>
 
-          <div className="npm-steps">
-            {STEPS.map(step => {
-              const stepState = pipeline.status?.steps?.[step.stepKey]
-              const dbStatus = STEP_STATUS_MAP[stepStatuses?.[step.stepKey] ?? 0]
-              const rawStatus = stepState?.status || dbStatus
-              const isRunning = rawStatus === 'running' || rawStatus === 'generating' || rawStatus === 'regenerating'
-              const statusClass = rawStatus === 'completed' ? 'npm-step-completed'
-                : isRunning ? 'npm-step-running'
-                : rawStatus === 'failed' ? 'npm-step-failed'
-                : 'npm-step-pending'
-              return (
-                <div key={step.num} className={`npm-step ${statusClass}`}>
-                  <span className="npm-step-icon">{step.icon}</span>
-                  <div className="npm-step-title-sm">
-                    {isRunning && <span className="npm-step-dot" />}
-                    {step.title}
+            <div className="npm-steps">
+              {STEPS.map((step, si) => {
+                const stepState = pipeline.status?.steps?.[step.stepKey]
+                const dbStatus = STEP_STATUS_MAP[stepStatuses?.[step.stepKey] ?? 0]
+                const rawStatus = stepState?.status || dbStatus
+                const isRunning = rawStatus === 'running' || rawStatus === 'generating' || rawStatus === 'regenerating'
+                const statusClass = rawStatus === 'completed' ? 'npm-step-completed'
+                  : isRunning ? 'npm-step-running'
+                  : rawStatus === 'failed' ? 'npm-step-failed'
+                  : 'npm-step-pending'
+                return (
+                  <div key={step.num} className={`npm-step ${statusClass}`} style={{ '--step-index': si } as React.CSSProperties}>
+                    <span className="npm-step-icon">{step.icon}</span>
+                    <div className="npm-step-title-sm">
+                      {isRunning && <span className="npm-step-dot" />}
+                      {step.title}
+                    </div>
+                    <div className="npm-step-desc-sm">{step.desc}</div>
+                    <div className="npm-step-glow" />
                   </div>
-                  <div className="npm-step-desc-sm">{step.desc}</div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
 
+          <div className="npm-scroll-area">
           {showPlaceholder && !creating && (
             <div className="npm-placeholder">
               <div className="npm-placeholder-ring">
@@ -1609,6 +1613,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
               <div className="npm-output-content">{error}</div>
             </div>
           )}
+          </div>
         </main>
       </div>
     </div>
