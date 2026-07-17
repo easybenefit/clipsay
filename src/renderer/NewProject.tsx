@@ -1531,7 +1531,11 @@ function NewProject(props: NewProjectProps): JSX.Element {
               <CharacterCard
                 characters={characters}
                 aspectRatio={size}
-                loading={creatingCharacter || (pipelineStartedRef.current && characters.length === 0)}
+                loading={creatingCharacter || (characters.length === 0 && (
+                  pipelineStartedRef.current ||
+                  pipeline.status?.steps?.characters?.status === 'running' ||
+                  pipeline.status?.steps?.portraits?.status === 'running'
+                ))}
                 statusMessage={characters.length === 0 ? '正在提取角色...' : undefined}
                 onCharacterUpdate={handleCharacterUpdate}
                 onRefreshImage={handleRefreshImage}
@@ -1542,7 +1546,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <div className="npm-card-enter">
               <SceneScriptsCard
                 scenes={scenes}
-                loading={refreshingSceneScripts || stepStatuses?.scene_scripts === 1}
+                loading={refreshingSceneScripts || stepStatuses?.scene_scripts === 1 || pipeline.status?.steps?.scene_scripts?.status === 'running'}
                 onRefresh={handleRefreshSceneScripts}
                 onSceneEdit={handleSceneScriptEdit}
               />

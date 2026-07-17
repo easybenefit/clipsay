@@ -88,6 +88,7 @@ async def generate_shot_video(
     conductor: "PipelineConductor",
     scene: "SceneScope",
     emit: Optional["EventEmitter"] = None,
+    size: str = "",
 ) -> None:
     shot_idx = shot_description.idx
     scene_idx = scene.scene_idx
@@ -124,11 +125,20 @@ async def generate_shot_video(
     logger.info("[video] shot=%d generating, prompt_len=%d, refs=%d",
                 shot_idx, len(prompt), len(ref_urls))
 
-    payload = {
+    payload: dict = {
         "prompt": prompt,
         "extra_body": {"image": ref_urls},
         "save_path": str(video_path),
     }
+
+    if size:
+        parts = size.split("x")
+        if len(parts) == 2:
+            try:
+                payload["width"] = int(parts[0])
+                payload["height"] = int(parts[1])
+            except ValueError:
+                pass
     await Video.generate(
         config.model, payload, config.api_key, config.base_url,
         project_id=project_id,
@@ -156,6 +166,7 @@ async def generate_scene_shot_videos(
     shot_descriptions: List["ShotSpec"],
     scene: "SceneScope",
     emit: Optional["EventEmitter"] = None,
+    size: str = "",
 ) -> None:
     if not shot_descriptions:
         return
@@ -168,6 +179,7 @@ async def generate_scene_shot_videos(
             conductor=get_conductor(),
             scene=scene,
             emit=emit,
+            size=size,
         )
         for sd in shot_descriptions
     ]

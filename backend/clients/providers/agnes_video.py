@@ -59,14 +59,11 @@ class AgnesVideoProvider(BaseProvider):
         payload: dict = {
             "model": self.model,
             "prompt": prompt,
-            "duration": 5,
-            "seconds": "5",
         }
 
-        if "size" in extra:
-            payload["size"] = extra["size"]
-        if "aspect_ratio" in body:
-            payload["aspect_ratio"] = body["aspect_ratio"]
+        if "width" in body and "height" in body:
+            payload["width"] = body["width"]
+            payload["height"] = body["height"]
 
         if len(valid_urls) >= 2:
             payload["extra_body"] = {

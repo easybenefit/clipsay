@@ -94,6 +94,7 @@ async def generate_scene_videos(
     shot_specs: List["ShotSpec"],
     scene: "SceneScope",
     emit: Optional["EventEmitter"] = None,
+    size: str = "",
 ) -> None:
     """Generate videos for all shots in a scene concurrently."""
     from backend.pipeline.steps.shot_video import generate_shot_video
@@ -109,6 +110,7 @@ async def generate_scene_videos(
         generate_shot_video(
             config=video_config, project_id=project_id,
             shot_description=sd, conductor=get_conductor(), scene=scene, emit=emit,
+            size=size,
         )
         for sd in shot_specs
     ])
@@ -193,6 +195,7 @@ async def generate_scene_frames_and_videos(
                 shot_specs=shot_specs,
                 scene=scene_scope,
                 emit=emit,
+                size=config._get_aspect_size(),
             )
         )
 

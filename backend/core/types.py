@@ -98,15 +98,17 @@ class SessionConfig:
         mapping = {
             "480p": "854x480",
             "720p": "1280x720",
-            "1080p": "1920x1920",
+            "1080p": "1920x1080",
         }
         return mapping.get(self.resolution, "1280x720")
 
     def _get_aspect_size(self) -> str:
         aspect_map = {
+            "1:1": "1024x1024",
+            "4:3": "1024x768",
+            "3:4": "768x1024",
             "16:9": "1280x720",
             "9:16": "720x1280",
-            "1:1": "1024x1024",
         }
         return aspect_map.get(self.size, "1280x720")
 
