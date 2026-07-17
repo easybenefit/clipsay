@@ -256,9 +256,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
           const existing = prevMap.get(name)
           const portraitUrl = (url: unknown) => {
             if (!url || typeof url !== 'string') return ''
-            return url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
+            const full = url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
               ? url
               : `${BASE}${url}`
+            return `${full}?t=${Date.now()}`
           }
           const backPortraits = {
             front: portraitUrl(c.front_url),
@@ -409,9 +410,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
               const name = c.name || c.identifier || ''
               const portraitUrl = (url: unknown) => {
                 if (!url || typeof url !== 'string') return ''
-                return url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
+                const full = url.startsWith(BASE) || url.startsWith('http://') || url.startsWith('https://')
                   ? url
                   : `${BASE}${url}`
+                return `${full}?t=${Date.now()}`
               }
               const backPortraits = {
                 front: portraitUrl(c.front_url),
@@ -1233,6 +1235,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
         }],
         view,
         style,
+        size: getSizeString(size, props.sizeMap),
         model: imageModel,
         api_key: props.imageApiKey,
         base_url: props.imageBaseUrl,
@@ -1243,7 +1246,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       console.log(`[portraits] handleRefreshImage ${view} response:`, res)
 
       if (res.url) {
-        const url = `${BASE}${res.url}`
+        const url = `${BASE}${res.url}?t=${Date.now()}`
         setCharacters(prev => prev.map((c, i) =>
           i === characterIdx ? {
             ...c,
