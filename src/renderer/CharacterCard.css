@@ -244,6 +244,18 @@
   display: block;
 }
 
+.character-card-voiceover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg, #14141a);
+  color: #666;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
 /* ── Editor dialog ── */
 
 .character-editor-dialog {

@@ -7,7 +7,7 @@ from typing import Optional
 from backend.utils.logging import setup_logger
 from backend.core.types import ImageRef, VIEW_FRONT, VIEW_SIDE, VIEW_BACK, PARALLEL_VIEWS, \
     PORTRAIT_STATUS_GENERATED
-from backend.db import get_characters
+from backend.db import get_characters, update_character_portrait_status
 from backend.pipeline.events import EventEmitter
 
 _logger = setup_logger("pipeline.portraits")
@@ -48,6 +48,15 @@ async def _generate_character_portraits(
 ) -> None:
     identifier = character.identifier
     _logger.info("[portraits] character start: %s .", identifier)
+
+    # ── voiceover-only: mark as generated without API call ──
+    if "（画外音）" in identifier:
+        _logger.info("[portraits] %s 为画外音角色，跳过肖像生成", identifier)
+        for view in (VIEW_FRONT, VIEW_SIDE, VIEW_BACK):
+            await update_character_portrait_status(
+                config.project_id, identifier, view, PORTRAIT_STATUS_GENERATED)
+        await emit.project_data_changed()
+        return
 
     # ── front ──
     if _is_generated(character, VIEW_FRONT):

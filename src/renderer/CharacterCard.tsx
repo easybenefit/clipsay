@@ -144,13 +144,16 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
                 <div className="character-card-photos">
                   {views.map(({ key }, vi) => (
                     <div key={key} className="character-card-photo" style={{ aspectRatio: toCssAspectRatio(aspectRatio) }}>
-                      <ImageWithPlaceholder
-                        key={char.portraits[key]}
-                        src={char.portraits[key]}
-                        alt={`${char.name} ${key}`}
-                        status={char.portraitStatus?.[key] ?? (char.portraits?.[key] ? 'generated' : 'waiting')}
-                        onClick={char.portraits[key] ? () => setLightbox({ charIdx: idx, viewIdx: vi }) : undefined}
-                      />
+                      {char.name.includes('（画外音）')
+                        ? <div className="character-card-voiceover"><span>画外音</span></div>
+                        : <ImageWithPlaceholder
+                            key={char.portraits[key]}
+                            src={char.portraits[key]}
+                            alt={`${char.name} ${key}`}
+                            status={char.portraitStatus?.[key] ?? (char.portraits?.[key] ? 'generated' : 'waiting')}
+                            onClick={char.portraits[key] ? () => setLightbox({ charIdx: idx, viewIdx: vi }) : undefined}
+                          />
+                      }
                     </div>
                   ))}
                 </div>

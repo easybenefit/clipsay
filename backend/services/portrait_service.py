@@ -257,6 +257,8 @@ class PortraitService:
         char = await read_character(self._project_id, identifier)
         if not char:
             raise ValueError(f"角色 {identifier} 不存在")
+        if "（画外音）" in identifier:
+            raise ValueError(f"角色 {identifier} 为画外音角色，无需生成肖像")
 
         if view in ("side", "back"):
             await self._check_front_generating(identifier)
