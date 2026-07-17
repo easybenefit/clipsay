@@ -21,6 +21,7 @@ interface AppSettings {
     rateLimitDay: string
   }
   imageSize: string
+  sizeTier: string
   sizeMap: Record<string, string>
 }
 

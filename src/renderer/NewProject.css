@@ -267,6 +267,7 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   position: relative;
 }
@@ -310,7 +311,12 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
 }
 
 .np-size-btn span {
-  margin-top: auto;
+  line-height: 1;
+}
+
+.np-size-sub {
+  font-size: 0.6rem;
+  opacity: 0.5;
   line-height: 1;
 }
 

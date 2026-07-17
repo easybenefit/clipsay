@@ -35,10 +35,18 @@ interface NewProjectProps {
   videoRateLimitDay: string
   sizeMap: Record<string, string>
   defaultSize: string
+  defaultSizeTier: string
   editProjectId?: number
 }
 
 const SIZES = SIZE_OPTIONS.map(s => ({ id: s.id, label: s.label }))
+
+const SIZE_TIERS = [
+  { id: '1K', label: 'Basic', subLabel: '1K' },
+  { id: '2K', label: 'HD', subLabel: '2K' },
+  { id: '3K', label: 'Ultra HD', subLabel: '3K' },
+  { id: '4K', label: '4K UHD', subLabel: '4K' },
+]
 
 const DURATION_REQUIREMENTS: Record<string, string> = {
   '5': '场次总数不超过1场，每场镜头数不超过2个。',
@@ -113,6 +121,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const [imageModel, setImageModel] = useState(props.imageOptions[0] ?? '')
   const [videoModel, setVideoModel] = useState(props.videoOptions[0] ?? '')
   const [size, setSize] = useState(props.defaultSize || '16:9')
+  const [sizeTier, setSizeTier] = useState(props.defaultSizeTier || '1K')
   const [resolution, setResolution] = useState('720p')
   const [frameRate, setFrameRate] = useState('24')
   const [duration, setDuration] = useState('10')
@@ -700,6 +709,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       setIdea(p.idea || '')
       setStyle(p.style || 'realistic')
       setSize(p.size || '16:9')
+      setSizeTier(p.size_tier || '2K')
       setResolution(p.resolution || '720p')
       setFrameRate(String(p.frame_rate || '24'))
       setDuration(String(p.duration || '10'))
@@ -846,6 +856,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
         idea,
         style,
         size,
+        size_tier: sizeTier,
         resolution,
         frame_rate: parseInt(frameRate) || 24,
         duration: parseInt(duration) || 10,
@@ -882,6 +893,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
         idea,
         style,
         size,
+        size_tier: sizeTier,
         resolution,
         frame_rate: parseInt(frameRate) || 24,
         duration: parseInt(duration) || 10,
@@ -1349,7 +1361,24 @@ function NewProject(props: NewProjectProps): JSX.Element {
             </div>
 
             <div className="np-model-group">
-              <div className="np-model-group-title">生成尺寸</div>
+              <div className="np-model-group-title">尺寸</div>
+              <div className="np-size-grid">
+                {SIZE_TIERS.map(t => (
+                  <button
+                    key={t.id}
+                    className={`np-size-btn${sizeTier === t.id ? ' active' : ''}`}
+                    onClick={() => setSizeTier(t.id)}
+                  >
+                    <span>{t.label}</span>
+                    <span className="np-size-sub">{t.subLabel}</span>
+                    <span className="np-size-check" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="np-model-group">
+              <div className="np-model-group-title">宽高比</div>
               <div className="np-size-grid">
                 {SIZES.map(s => (
                   <button

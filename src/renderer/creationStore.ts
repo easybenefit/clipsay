@@ -8,6 +8,7 @@ export interface CreationState {
   idea: string
   style: string
   size: string
+  sizeTier: string
   resolution: string
   frameRate: string
   duration: string

@@ -5,6 +5,13 @@ import Carousel, { CarouselSlide } from './Carousel'
 import ModelCard from './ModelCard'
 import { SIZE_OPTIONS, DEFAULT_SIZE_MAP } from './sizeConfig'
 
+const SIZE_TIERS = [
+  { id: '1K', label: 'Basic', subLabel: '1K' },
+  { id: '2K', label: 'HD', subLabel: '2K' },
+  { id: '3K', label: 'Ultra HD', subLabel: '3K' },
+  { id: '4K', label: '4K UHD', subLabel: '4K' },
+]
+
 import NewProject from './NewProject'
 
 type Page = 'home' | 'new' | 'settings'
@@ -95,6 +102,7 @@ function App(): JSX.Element {
   const initState = loadUiState()
   const [page, _setPage] = useState<Page>(initState?.page ?? 'home')
   const [pageRestored, setPageRestored] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   // ── debug: log every page navigation with caller stack ────────
   const setPage = useCallback((p: Page) => {
     console.log(`[nav] page: ${page} -> ${p}`, new Error().stack?.split('\n').slice(2, 5).join(' | '))
@@ -110,9 +118,9 @@ function App(): JSX.Element {
     image: { ...IMAGE_PRESETS[0], rateLimitMin: IMAGE_PRESETS[0].rateLimitMin, rateLimitDay: IMAGE_PRESETS[0].rateLimitDay },
     video: { ...VIDEO_PRESETS[0], rateLimitMin: VIDEO_PRESETS[0].rateLimitMin, rateLimitDay: VIDEO_PRESETS[0].rateLimitDay },
     imageSize: '16:9',
+    sizeTier: '1K',
     sizeMap: { ...DEFAULT_SIZE_MAP }
   })
-  const [localSizeMap, setLocalSizeMap] = useState<Record<string, string>>({ ...DEFAULT_SIZE_MAP })
   const [toast, setToast] = useState<string | null>(null)
   const [playVideoUrl, setPlayVideoUrl] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -153,7 +161,8 @@ function App(): JSX.Element {
         setSettings(merged)
         applyRateLimitDefaults(merged)
       }
-    }).catch(() => {})
+      setSettingsLoaded(true)
+    }).catch(() => { setSettingsLoaded(true) })
     if (initState && initState.page !== 'home') {
       console.log('[nav] restored page from localStorage:', initState.page, 'editProjectId:', initState.editProjectId)
     }
@@ -205,29 +214,6 @@ function App(): JSX.Element {
         body: JSON.stringify({ defaults }),
       })
     } catch {}
-  }
-
-  useEffect(() => {
-    if (settings.sizeMap) {
-      setLocalSizeMap({ ...settings.sizeMap })
-    }
-  }, [page, settings.sizeMap])
-
-  const saveSizeMap = async () => {
-    for (const [id, val] of Object.entries(localSizeMap)) {
-      if (!/^\d{3,4}x\d{3,4}$/.test(val)) {
-        showToast(`保存失败: ${id} 的分辨率格式不正确`)
-        return
-      }
-    }
-    const next = { ...settings, sizeMap: { ...localSizeMap } }
-    setSettings(next)
-    try {
-      await window.electronAPI.saveSettings(next)
-      showToast('保存成功')
-    } catch {
-      showToast('保存失败')
-    }
   }
 
   const saveChat = async () => {
@@ -454,11 +440,12 @@ function App(): JSX.Element {
               videoRateLimitDay={settings.video.rateLimitDay}
                sizeMap={settings.sizeMap}
                defaultSize={settings.imageSize}
+               defaultSizeTier={settings.sizeTier}
               editProjectId={editProjectId}
             />
           )}
 
-          {page === 'settings' && (
+          {page === 'settings' && settingsLoaded && (
             <div className="settings-page">
               <h2 className="settings-heading">模型</h2>
               <div className="settings-grid">
@@ -504,32 +491,45 @@ function App(): JSX.Element {
               </div>
               <div className="settings-image">
                 <h2 className="settings-heading">图像设置</h2>
-                <div className="settings-image-card">
-                  <div className="settings-image-header">
-                    <span className="settings-card-title">生成尺寸</span>
+                <div className="settings-image-cards-row">
+                  <div className="settings-image-card">
+                    <div className="settings-image-header">
+                      <span className="settings-card-title">尺寸</span>
+                    </div>
+                    <div className="settings-image-grid">
+                      {SIZE_TIERS.map(t => (
+                        <div
+                          key={t.id}
+                          className={`settings-image-cell${settings.sizeTier === t.id ? ' active' : ''}`}
+                          onClick={() => {
+                            const next = { ...settings, sizeTier: t.id }
+                            setSettings(next)
+                            window.electronAPI.saveSettings(next).catch(() => {})
+                          }}
+                        >
+                          <span className="settings-image-label">{t.label}</span>
+                          <span className="settings-image-sub">{t.subLabel}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="settings-image-grid">
-                    {SIZE_OPTIONS.map(s => (
-                      <div key={s.id} className={`settings-image-cell${settings.imageSize === s.id ? ' active' : ''}`} data-aspect={s.id} onClick={() => {
-                        const next = { ...settings, imageSize: s.id }
-                        setSettings(next)
-                        window.electronAPI.saveSettings(next).catch(() => {})
-                      }}>
-                        <span className="settings-image-cn">{s.labelCn}</span>
-                        <div className="settings-image-schema" />
-                        <span className="settings-image-label">{s.label}</span>
-                        <input
-                          className="settings-image-input"
-                          value={localSizeMap[s.id] || ''}
-                          onChange={e => setLocalSizeMap(prev => ({ ...prev, [s.id]: e.target.value }))}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="settings-image-actions">
-                    <button className="btn-primary" onClick={saveSizeMap}>
-                      保存
-                    </button>
+                  <div className="settings-image-card">
+                    <div className="settings-image-header">
+                      <span className="settings-card-title">宽高比</span>
+                    </div>
+                    <div className="settings-image-grid">
+                      {SIZE_OPTIONS.map(s => (
+                        <div key={s.id} className={`settings-image-cell${settings.imageSize === s.id ? ' active' : ''}`} data-aspect={s.id} onClick={() => {
+                          const next = { ...settings, imageSize: s.id }
+                          setSettings(next)
+                          window.electronAPI.saveSettings(next).catch(() => {})
+                        }}>
+                          <span className="settings-image-cn">{s.labelCn}</span>
+                          <div className="settings-image-schema" />
+                          <span className="settings-image-label">{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
