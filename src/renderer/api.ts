@@ -39,6 +39,7 @@ export interface Project {
 
 export interface ProjectFull extends Project {
   story: string | null
+  storyTitle: string
   characters: any[]
   scenes: any[]
   final_video: string
@@ -64,6 +65,7 @@ export interface ProjectUpdate {
   video_model?: string
   stage?: string
   story?: string | null
+  storyTitle?: string
   characters?: any[]
   scenes?: any[]
   story_fresh?: number
@@ -326,6 +328,7 @@ export interface StepData {
   step: string
   step_statuses: Record<string, number>
   story?: string | null
+  storyTitle?: string
   characters?: any[]
   scenes?: any[]
   final_video?: string

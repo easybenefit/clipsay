@@ -29,6 +29,7 @@ TABLES = [
         pipeline_step TEXT DEFAULT '',
         pipeline_error TEXT DEFAULT '',
         story_content TEXT DEFAULT '',
+        story_title TEXT DEFAULT '',
         story_status INTEGER DEFAULT 0,
         characters_status INTEGER DEFAULT 0,
         portraits_status INTEGER DEFAULT 0,
@@ -156,6 +157,7 @@ MIGRATIONS = [
     "ALTER TABLE projects ADD COLUMN composite_video_status INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN clicks INTEGER DEFAULT 0",
     "ALTER TABLE scenes ADD COLUMN composit_video_status INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN story_title TEXT DEFAULT ''",
 ]
 
 INDEXES = [

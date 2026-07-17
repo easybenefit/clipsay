@@ -122,6 +122,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const canGenerate = idea.trim().length >= 6
   const [creating, setCreating] = useState(false)
   const [output, setOutput] = useState<string | null>(null)
+  const [storyTitle, setStoryTitle] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [dotCount, setDotCount] = useState(0)
   const [stage, setStage] = useState<CreationStage>('new')
@@ -245,6 +246,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
     const p = await getProject(pid)
     if (p.step_statuses) setStepStatuses(p.step_statuses)
     if (p.story && p.story !== output) setOutput(p.story)
+    if (p.storyTitle) setStoryTitle(p.storyTitle)
     if (p.characters?.length) {
       setPortraitsReady(true)
       setCharacters(prev => {
@@ -396,6 +398,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       switch (step) {
         case 'story':
           if (data.story !== undefined) setOutput(data.story)
+          if (data.storyTitle !== undefined) setStoryTitle(data.storyTitle)
           break
 
         case 'characters':
@@ -703,6 +706,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       setImageModel(p.image_model || '')
       setVideoModel(p.video_model || '')
       if (p.story) setOutput(p.story)
+      if (p.storyTitle) setStoryTitle(p.storyTitle)
       if (p.step_statuses) setStepStatuses(p.step_statuses)
       if (p.characters?.length) {
         setCharacters(p.characters.map((c: any) => ({
@@ -1484,6 +1488,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
           {(!showPlaceholder || creating) && (
             <div className="npm-card-enter">
             <StoryCard
+              title={storyTitle}
               content={output || ''}
               loading={stepStatuses?.story != null && stepStatuses.story !== 2 && stepStatuses.story !== 3}
               regenerating={stepStatuses?.story === 4}
@@ -1497,6 +1502,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
                   if (!res.ok) throw new Error(await res.text())
                   const data = await res.json()
                   setOutput(data.result)
+                  if (data.storyTitle) setStoryTitle(data.storyTitle)
                   refreshProjectData(pid)
                 } catch (e: any) {
                   console.error('regenerate story failed', e)

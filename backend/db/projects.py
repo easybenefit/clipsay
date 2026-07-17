@@ -97,6 +97,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
         return None
     project = dict(row)
     project["story"] = row["story_content"] or None
+    project["storyTitle"] = row["story_title"] or ""
     project["step_statuses"] = {step: row[col] or 0 for step, col in STEP_STATUS_COLUMNS.items()}
     project["finalVideoStatus"] = project["step_statuses"].get("composite_video", 0)
 
@@ -189,6 +190,10 @@ async def save_full_project(db, project_id: int, data) -> None:
     if "story" in sent:
         await db.execute("UPDATE projects SET story_content = ? WHERE id = ?",
                          (sent["story"] or "", project_id))
+
+    if "storyTitle" in sent:
+        await db.execute("UPDATE projects SET story_title = ? WHERE id = ?",
+                         (sent["storyTitle"] or "", project_id))
 
     if data.characters is not None:
         db.row_factory = __import__("aiosqlite").Row
@@ -283,8 +288,8 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
         new_id = cur.lastrowid
         if original.get("story"):
             await conn.execute(
-                "UPDATE projects SET story_content = ? WHERE id = ?",
-                (original["story"], new_id))
+                "UPDATE projects SET story_content = ?, story_title = ? WHERE id = ?",
+                (original["story"], original.get("storyTitle", ""), new_id))
         for ch in original.get("characters", []):
             name = ch.get("identifier", "")
             await conn.execute(
@@ -318,11 +323,11 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
     return await read_full_project(db, new_id)
 
 
-async def update_story_content(project_id: int, content: str, **kwargs) -> None:
+async def update_story_content(project_id: int, content: str, title: str = "", **kwargs) -> None:
     async with _get_connection() as db:
         await db.execute(
-            "UPDATE projects SET story_content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (content, project_id))
+            "UPDATE projects SET story_content = ?, story_title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (content, title, project_id))
         await db.commit()
 
 
@@ -564,6 +569,7 @@ async def read_step_data(project_id: int, step: str) -> dict | None:
 
     if step == "story":
         result["story"] = project.get("story")
+        result["storyTitle"] = project.get("storyTitle", "")
 
     elif step in ("characters", "portraits"):
         result["characters"] = project.get("characters", [])

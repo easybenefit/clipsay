@@ -83,7 +83,7 @@ async def generate_story(body: StoryRequest):
     try:
         writer = StoryWriter(body.model, body.api_key, body.base_url)
         result = await writer.write_story(body.idea, body.user_requirement or None)
-        return {"result": result}
+        return {"result": result.content, "storyTitle": result.title}
     except Exception as e:
         logger.error("Generate story failed: %s", e, exc_info=True)
         return JSONResponse(
@@ -98,9 +98,13 @@ async def regenerate_project_story(project_id: int):
     await update_step_db_status(project_id, "story", StageStatus.REGENERATING)
     try:
         from backend.pipeline.steps.story import generate_story_for_project
-        result = await generate_story_for_project(project_id)
+        from backend.db.projects import read_full_project, _get_connection
+        from backend.db._config import DB_PATH
+        story_content = await generate_story_for_project(project_id)
+        async with aiosqlite.connect(DB_PATH) as db:
+            project = await read_full_project(db, project_id)
         await update_step_db_status(project_id, "story", StageStatus.COMPLETE)
-        return {"result": result}
+        return {"result": story_content, "storyTitle": (project or {}).get("storyTitle", "")}
     except Exception as e:
         logger.error("Regenerate story failed: %s", e, exc_info=True)
         await update_step_db_status(project_id, "story", StageStatus.STALE)

@@ -4,6 +4,7 @@ import { useEscClose } from './useEscClose'
 import './StoryCard.css'
 
 interface StoryCardProps {
+  title?: string
   content: string
   loading?: boolean
   regenerating?: boolean
@@ -12,7 +13,7 @@ interface StoryCardProps {
   onSave?: (content: string) => void
 }
 
-function StoryCard({ content, loading = false, regenerating = false, disabled = false, onRegenerate, onSave }: StoryCardProps): JSX.Element {
+function StoryCard({ title, content, loading = false, regenerating = false, disabled = false, onRegenerate, onSave }: StoryCardProps): JSX.Element {
   const [showEditor, setShowEditor] = useState(false)
 
   const handleSave = (text: string) => {
@@ -51,7 +52,13 @@ function StoryCard({ content, loading = false, regenerating = false, disabled = 
         </div>
       ) : (
         <div className="story-card-body">
-          <div className="story-card-content"><Markdown content={content} /></div>
+          <div className="story-card-body-item">
+            <div className="story-card-body-pill">
+              <span className="story-card-body-pill-icon">✦</span>
+              <span className="story-card-body-pill-title">{title || '故事'}</span>
+            </div>
+            <div className="story-card-content"><Markdown content={content} /></div>
+          </div>
         </div>
       )}
 

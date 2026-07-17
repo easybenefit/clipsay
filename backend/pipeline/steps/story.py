@@ -35,13 +35,13 @@ async def _write_and_save_story(config: SessionConfig) -> str:
 
     logger.info("[story] start: project=%d idea=%s requirement=%s",
                 config.project_id, config.idea, requirement)
-    story = await writer.write_story(config.idea, requirement)
+    result = await writer.write_story(config.idea, requirement)
     logger.info("[story] done: project=%d, model=%s, story=%s",
-                config.project_id, config.chat.model, story or "")
+                config.project_id, config.chat.model, result.content[:80] if result.content else "")
 
     await update_story_content(
-        config.project_id, story,
+        config.project_id, result.content, title=result.title,
         idea=config.idea, style=config.style, language=config.language,
         duration=config.duration, user_requirement=requirement, model=config.chat.model,
     )
-    return story
+    return result.content

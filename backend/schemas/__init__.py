@@ -166,6 +166,7 @@ class ProjectUpdate(BaseModel):
     video_base_url: Optional[str] = None
     stage: Optional[str] = None
     story: Optional[str] = None
+    storyTitle: Optional[str] = None
     characters: Optional[List[CharacterSave]] = None
     scenes: Optional[List[SceneSave]] = None
     final_video: Optional[str] = Field(default=None, alias="finalVideo")

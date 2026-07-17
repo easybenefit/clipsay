@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from typing import Optional
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from backend.clients.llm import LLM
+
+
+@dataclass
+class StoryResult:
+    title: str
+    content: str
 
 
 SYSTEM_PROMPT_STORY_DEVELOP = \
@@ -70,7 +78,21 @@ class StoryWriter:
         self._api_key = api_key
         self._base_url = base_url
 
-    async def write_story(self, idea: str, user_requirement: Optional[str] = None) -> str:
+    @staticmethod
+    def extract_title(text: str) -> str:
+        m = re.search(r'《([^》]+)》', text)
+        if m:
+            return m.group(1).strip()
+        m = re.search(r'(?:剧名[/／]片名|片名|剧名)[：:]\s*(.+?)(?:\n|$)', text)
+        if m:
+            return m.group(1).strip().rstrip('。.')
+        for line in text.split('\n'):
+            line = line.strip()
+            if line and not line.startswith(('─', '-', '=', '#', '【')):
+                return line.rstrip('。.')
+        return ''
+
+    async def write_story(self, idea: str, user_requirement: Optional[str] = None) -> StoryResult:
         messages = [
             SystemMessage(content=SYSTEM_PROMPT_STORY_DEVELOP),
             HumanMessage(content=HUMAN_PROMPT_STORY_DEVELOP.format(
@@ -80,4 +102,6 @@ class StoryWriter:
         ]
 
         result = await LLM.chat(self._model, messages, self._api_key, self._base_url)
-        return result.strip()
+        content = result.strip()
+        title = self.extract_title(content)
+        return StoryResult(title=title, content=content)
