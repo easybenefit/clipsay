@@ -1038,9 +1038,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
                     const next = [...prev]
                     const updatedShots = [...next[i].shots]
                     if (frame.frame_type === 'first_frame') {
-                      updatedShots[idxInShots] = { ...updatedShots[idxInShots], firstFrame: url }
+                      updatedShots[idxInShots] = { ...updatedShots[idxInShots], firstFrame: url, firstFrameStatus: 'generated' as const }
                     } else if (frame.frame_type === 'last_frame') {
-                      updatedShots[idxInShots] = { ...updatedShots[idxInShots], lastFrame: url }
+                      updatedShots[idxInShots] = { ...updatedShots[idxInShots], lastFrame: url, lastFrameStatus: 'generated' as const }
                     }
                     next[i] = { ...next[i], shots: updatedShots }
                     return next
@@ -1196,7 +1196,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
       setScenes(prev => {
         const next = [...prev]
         const updatedShots = [...next[sceneIdx].shots]
-        updatedShots[shotIdx] = { ...updatedShots[shotIdx], [frameType]: url }
+        const statusKey = `${frameType}Status` as 'firstFrameStatus' | 'lastFrameStatus'
+        updatedShots[shotIdx] = { ...updatedShots[shotIdx], [frameType]: url, [statusKey]: 'generated' as const }
         next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
         return next
       })
