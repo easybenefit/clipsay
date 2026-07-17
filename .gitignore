@@ -33,3 +33,4 @@ app_data
 c[0-9]*/
 .vscode/
 todo/
+backend/clients/legacy/

@@ -2,144 +2,112 @@ from __future__ import annotations
 
 import asyncio
 import traceback
+from typing import Optional
 
-from backend.utils.image import to_filename
 from backend.utils.logging import setup_logger
-from backend.db._enums import AssetStatus
 from backend.core.types import ImageRef, VIEW_FRONT, VIEW_SIDE, VIEW_BACK, PARALLEL_VIEWS, \
-    PORTRAIT_STATUS_GENERATING, PORTRAIT_STATUS_GENERATED, PORTRAIT_STATUS_ERROR
-from backend.db import (
-    get_characters,
-    update_character_portrait_url,
-    update_character_portrait_status,
-)
+    PORTRAIT_STATUS_GENERATED
+from backend.db import get_characters
 from backend.pipeline.events import EventEmitter
 
 _logger = setup_logger("pipeline.portraits")
 
 
 async def generate_portraits(config: "SessionConfig", emit: EventEmitter) -> None:
-    from backend.services.portrait_generator import PortraitGenerator
+    from backend.services.portrait_service import PortraitService
 
     characters = await get_characters(config.project_id)
     if not characters:
         raise ValueError("No characters found; run characters step first")
 
-    generator = PortraitGenerator(
+    service = PortraitService(
         config.image.model, config.image.api_key, config.image.base_url,
         config.project_id,
     )
     aspect_size = config._get_aspect_size()
 
     await asyncio.gather(
-        *[_generate_character_portraits(generator, emit, character,
+        *[_generate_character_portraits(service, emit, character,
                                         aspect_size, config) for character in characters],
     )
 
     _logger.info("[portraits] done: characters=%d", len(characters))
 
 
+def _is_generated(character: "CharacterRead", view: str) -> bool:
+    ps = character.portrait_status or {}
+    return ps.get(view) == PORTRAIT_STATUS_GENERATED and bool(getattr(character, f"{view}_url", ""))
+
+
 async def _generate_character_portraits(
-    generator: "PortraitGenerator",
+    service: "PortraitService",
     emit: EventEmitter,
     character: "CharacterRead",
     aspect_size: str,
     config: "SessionConfig",
 ) -> None:
-    """Render front, side, and back portraits for one character.
-
-    Each view is persisted to the ``portrait_{view}`` column as soon as it
-    completes, so a crash mid-step loses at most the in-flight image —
-    not the whole set.
-
-    Front is critical: a failure aborts so the runner can retry the step.
-    Side/back errors are absorbed per-view; the existing portrait column is
-    left untouched so the UI keeps showing what worked.
-    """
     identifier = character.identifier
     _logger.info("[portraits] character start: %s .", identifier)
 
-    ps = character.portrait_status or {}
-    if isinstance(ps, dict) and all(ps.get(v) == PORTRAIT_STATUS_GENERATED for v in (VIEW_FRONT, VIEW_SIDE, VIEW_BACK)):
-        _logger.info(
-            "[portraits] %s all views already generated, skipping", identifier)
-        return
-
-    ref = await _generate_view(
-        generator, emit, identifier, character, VIEW_FRONT, aspect_size,
-        style=config.style, project_id=config.project_id,
-    )
-    _logger.info("[portraits] %s front done: url=%s",
-                 identifier, ref.url if ref.url else "EMPTY")
-    if not ref.url:
-        raise RuntimeError(
-            f"front missing url for {identifier} after render — DB write may have failed",
+    # ── front ──
+    if _is_generated(character, VIEW_FRONT):
+        _logger.info("[portraits] %s front already generated, using cached", identifier)
+        front_ref = ImageRef(identifier=identifier, url=character.front_url)
+    else:
+        front_ref = await _generate_one(
+            service, emit, identifier, character, VIEW_FRONT, aspect_size,
+            style=config.style,
         )
+        _logger.info("[portraits] %s front done: url=%s",
+                     identifier, front_ref.url if front_ref.url else "EMPTY")
+        if not front_ref.url:
+            raise RuntimeError(f"front missing url for {identifier} after render")
 
-    # side/back run in parallel; individual failures don't abort the other
-    _logger.info("[portraits] %s side/back start (parallel)", identifier)
-    tasks = [
-        _generate_view(generator, emit, identifier, character, view, aspect_size,
-                       ref=ref, project_id=config.project_id)
-        for view in PARALLEL_VIEWS
-    ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    for view, result in zip(PARALLEL_VIEWS, results):
-        if isinstance(result, Exception):
-            _logger.error(
-                "[portraits] %s %s FAILED: %s\n%s",
-                identifier, view, result, "".join(traceback.format_exception(
-                    type(result), result, result.__traceback__)),
-            )
-            await update_character_portrait_status(config.project_id, identifier, view, PORTRAIT_STATUS_ERROR)
+    # ── side / back ──
+    tasks = []
+    views_to_do = []
+    for view in PARALLEL_VIEWS:
+        if _is_generated(character, view):
+            _logger.info("[portraits] %s %s already generated, skipping", identifier, view)
         else:
-            _logger.info("[portraits] %s %s done url=%s",
-                         identifier, view,
-                         result.url if result and result.url else "EMPTY")
+            views_to_do.append(view)
+            tasks.append(_generate_one(service, emit, identifier, character, view,
+                                       aspect_size, front_ref=front_ref))
+
+    if tasks:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for view, result in zip(views_to_do, results):
+            if isinstance(result, Exception):
+                _logger.error(
+                    "[portraits] %s %s FAILED: %s\n%s",
+                    identifier, view, result, "".join(traceback.format_exception(
+                        type(result), result, result.__traceback__)),
+                )
+            else:
+                _logger.info("[portraits] %s %s done url=%s",
+                             identifier, view,
+                             result.url if result and result.url else "EMPTY")
+
     await emit.project_data_changed()
     _logger.info("[portraits] %s done", identifier)
 
 
-async def _generate_view(
-    generator: "PortraitGenerator",
+async def _generate_one(
+    service: "PortraitService",
     emit: EventEmitter,
     identifier: str,
     character: "CharacterRead",
     view: str,
     aspect_size: str,
     style: str = "",
-    ref: ImageRef = None,
-    project_id: int = 0,
+    front_ref: Optional[ImageRef] = None,
 ) -> ImageRef:
-    """Render one portrait view (front/side/back) for a character.
-
-    Checks the DB cache first.  For side/back, ``front_url`` is
-    stored as the image's ``url`` so the UI can load the front image when
-    the side/back hasn't been generated yet.
-    """
-    # ── mark generating ──
-    await update_character_portrait_status(project_id, identifier, view, PORTRAIT_STATUS_GENERATING)
     await emit.project_data_changed()
 
-    # ── generate ──
-    if view == VIEW_FRONT:
-        ref = await generator.generate_front(
-            identifier=identifier, appearance=character.appearance,
-            attire=character.attire, style=style, size=aspect_size,
-        )
-    else:
-        method = getattr(generator, f"generate_{view}")
-        ref = await method(identifier=identifier, ref=ref, style=style, size=aspect_size)
+    ref = await service.generate_view(
+        identifier=identifier, view=view, style=style,
+        appearance=character.appearance, attire=character.attire,
+        front_ref=front_ref, size=aspect_size,
+    )
 
-    if not ref.url:
-        await update_character_portrait_status(project_id, identifier, view, PORTRAIT_STATUS_ERROR)
-        await emit.project_data_changed()
-        raise RuntimeError(
-            f"{view} portrait for {identifier}: url is empty after generation")
-
-    # ── persist portrait URL to DB ──
-    await update_character_portrait_url(project_id, identifier, view, ref.url)
-    await update_character_portrait_status(project_id, identifier, view, PORTRAIT_STATUS_GENERATED)
-
-    await emit.project_data_changed()
     return ref
