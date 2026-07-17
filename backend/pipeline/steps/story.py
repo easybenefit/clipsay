@@ -11,7 +11,23 @@ from backend.pipeline.events import EventEmitter
 logger = setup_logger("pipeline.story")
 
 
-async def write_and_save_story(config: SessionConfig) -> str:
+async def generate_story_for_project(project_id: int) -> str:
+    """Generate and persist story for a project, loading config from DB.
+
+    Only requires project_id — all other params (idea, style, duration,
+    model, api_key, base_url, etc.) are read from the database.
+    """
+    from backend.db.projects import load_session_config
+    cfg = await load_session_config(project_id)
+    return await _write_and_save_story(cfg)
+
+
+async def generate_story(config: SessionConfig, emit: EventEmitter) -> None:
+    """Generate the high-level story outline for ``config.project_id``."""
+    await _write_and_save_story(config)
+
+
+async def _write_and_save_story(config: SessionConfig) -> str:
     """Core logic: call StoryWriter and persist result."""
     writer = StoryWriter(
         config.chat.model, config.chat.api_key, config.chat.base_url)
@@ -29,8 +45,3 @@ async def write_and_save_story(config: SessionConfig) -> str:
         duration=config.duration, user_requirement=requirement, model=config.chat.model,
     )
     return story
-
-
-async def generate_story(config: SessionConfig, emit: EventEmitter) -> None:
-    """Generate the high-level story outline for ``config.project_id``."""
-    await write_and_save_story(config)

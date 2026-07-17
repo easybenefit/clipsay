@@ -27,7 +27,7 @@ from backend.db import (
     update_step_db_status, update_story_content,
 )
 from backend.db.scene_scripts import read_scene_script_data
-from backend.db.projects import load_session_config, increment_project_clicks, list_top_completed_projects
+from backend.db.projects import increment_project_clicks, list_top_completed_projects
 from backend.pipeline.conductor._types import StageStatus
 
 logger = logging.getLogger("api.routes")
@@ -97,9 +97,8 @@ async def regenerate_project_story(project_id: int):
     """只重新生成故事内容，不重置下游流水线步骤。"""
     await update_step_db_status(project_id, "story", StageStatus.REGENERATING)
     try:
-        cfg = await load_session_config(project_id)
-        from backend.pipeline.steps.story import write_and_save_story
-        result = await write_and_save_story(cfg)
+        from backend.pipeline.steps.story import generate_story_for_project
+        result = await generate_story_for_project(project_id)
         await update_step_db_status(project_id, "story", StageStatus.COMPLETE)
         return {"result": result}
     except Exception as e:
