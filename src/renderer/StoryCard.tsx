@@ -54,7 +54,6 @@ function StoryCard({ title, content, loading = false, regenerating = false, disa
         <div className="story-card-body">
           <div className="story-card-body-item">
             <div className="story-card-body-pill">
-              <span className="story-card-body-pill-icon">✦</span>
               <span className="story-card-body-pill-title">{title || '故事'}</span>
             </div>
             <div className="story-card-content"><Markdown content={content} /></div>

@@ -199,6 +199,19 @@ class PipelineStartRequest(BaseModel):
     video_rate_limit_day: int = 1000
 
 
+class StoryOutput(BaseModel):
+    title: str = Field(
+        description="""剧名/片名，抓人眼球且契合故事内核的暂定名。例如"我的影子朋友"、 "星际迷航"等。""",
+    )
+    content: str = Field(
+        description="""完整的影视故事策划文档正文（不含剧名），需包含以下模块（纯文本格式）：
+- 受众画像与题材类型：开篇需明确定调
+- 核心梗概：100-200字高度凝练的故事梗概
+- 主要人物：核心角色介绍
+- 完整故事大纲：按剧作结构展开的完整故事""",
+    )
+
+
 class StoryUpdate(BaseModel):
     content: str
 

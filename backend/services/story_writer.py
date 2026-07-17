@@ -1,19 +1,12 @@
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
 from typing import Optional
 
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.output_parsers import PydanticOutputParser
 
 from backend.clients.llm import LLM
-
-
-@dataclass
-class StoryResult:
-    title: str
-    content: str
-
+from backend.schemas import StoryOutput
 
 SYSTEM_PROMPT_STORY_DEVELOP = \
     """
@@ -24,7 +17,7 @@ SYSTEM_PROMPT_STORY_DEVELOP = \
 - 人物小传与角色弧光设计：擅长塑造立体、有血有肉的人物。能精准设定人物的核心动机、性格缺陷及成长弧光，并构建错综复杂的人物关系网。
 - 场景构建与戏剧节奏把控：具备极强的场面调度预设能力。能生动构建场景氛围，精准控制叙事节奏，并根据项目体量合理分配各场次的戏份比重。
 - 受众画像与内容调性适配：能根据目标受众画像（如Z世代、下沉市场、全年龄段等），精准调整故事的语言风格、主题深度及内容尺度，确保商业价值与艺术表达的平衡。
-- 影视化视听思维：具备强烈的"镜头感"。在构思故事时，能自然地将视听元素（如场景氛围、核心动作、视觉奇观、潜台词对话）融入叙事，确保故事具备极强的"可拍摄性"和画面感。
+- 影视化视听思维：具备强烈的"镜头感"。在构思故事时，能自然地将视听元素（如场景氛围、核心动作、视觉奇观、潜台词对话）融入叙事，确保故事具备"可拍摄性"和画面感。
 
 [核心任务]
 你的核心任务是：基于用户提供的"创意"和"项目需求"，策划并开发出一份完整、极具戏剧吸引力且符合影视化拍摄标准的【故事大纲】。
@@ -42,8 +35,7 @@ SYSTEM_PROMPT_STORY_DEVELOP = \
     - 其他特殊要求：如 必须包含反转结局、核心主题是爱与牺牲、必须包含一段极具张力的台词交锋。
 
 [输出格式]
-你必须输出一份结构严谨、排版专业的影视故事策划文档，具体包含以下模块：
-- 剧名/片名：一个抓人眼球且契合故事内核的暂定名。
+content 字段需包含一份结构严谨、排版专业的影视故事策划文档正文（不含剧名/片名），具体包含以下模块：
 - 受众画像与题材类型：开篇需明确定调："本项目目标受众为【用户指定受众】，属于【用户指定题材】类型。"
 - 核心梗概：提供一段（100-200字）高度凝练的故事梗概，必须涵盖核心情节、核心戏剧冲突及最终结局。
 - 主要人物：简明扼要地介绍核心角色，包括姓名、核心性格标签、人物前史、核心动机及人物关系。
@@ -51,7 +43,9 @@ SYSTEM_PROMPT_STORY_DEVELOP = \
     - 若未指定具体场次数：请按"建置 - 发展/对抗 - 高潮 - 结局"的经典剧作结构，以自然段落流畅叙述完整故事。
     - 若指定了具体场次数（如 N 场）：请将故事严格拆分为 N 个场次，并为每场拟定小标题（如：第一场：午夜代码）。每场戏的篇幅需相对均衡，描述中必须包含场景氛围、人物外部动作及核心台词/对话，确保每一场都在有效推动剧情。
 - 整体文本需具备强烈的视听画面感，文风与设定的题材类型及受众调性高度契合。
-- 直接输出正文内容，无需任何寒暄、解释或多余的引导语。
+- title 字段放入剧名/片名，content 字段放入上述正文内容（不含剧名/片名）。
+
+{format_instructions}
 
 [创作准则]
 - 输出语言需与用户输入的语言保持一致。
@@ -78,23 +72,13 @@ class StoryWriter:
         self._api_key = api_key
         self._base_url = base_url
 
-    @staticmethod
-    def extract_title(text: str) -> str:
-        m = re.search(r'《([^》]+)》', text)
-        if m:
-            return m.group(1).strip()
-        m = re.search(r'(?:剧名[/／]片名|片名|剧名)[：:]\s*(.+?)(?:\n|$)', text)
-        if m:
-            return m.group(1).strip().rstrip('。.')
-        for line in text.split('\n'):
-            line = line.strip()
-            if line and not line.startswith(('─', '-', '=', '#', '【')):
-                return line.rstrip('。.')
-        return ''
+    async def write_story(self, idea: str, user_requirement: Optional[str] = None) -> StoryOutput:
+        parser = PydanticOutputParser(pydantic_object=StoryOutput)
 
-    async def write_story(self, idea: str, user_requirement: Optional[str] = None) -> StoryResult:
         messages = [
-            SystemMessage(content=SYSTEM_PROMPT_STORY_DEVELOP),
+            SystemMessage(content=SYSTEM_PROMPT_STORY_DEVELOP.format(
+                format_instructions=parser.get_format_instructions(),
+            )),
             HumanMessage(content=HUMAN_PROMPT_STORY_DEVELOP.format(
                 idea=idea,
                 user_requirement=user_requirement or "",
@@ -102,6 +86,4 @@ class StoryWriter:
         ]
 
         result = await LLM.chat(self._model, messages, self._api_key, self._base_url)
-        content = result.strip()
-        title = self.extract_title(content)
-        return StoryResult(title=title, content=content)
+        return parser.parse(result.strip())

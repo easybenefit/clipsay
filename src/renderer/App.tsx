@@ -294,7 +294,7 @@ function App(): JSX.Element {
     const projectSlides: CarouselSlide[] = projects.map(p => ({
       type: 'project' as const,
       projectId: p.id,
-      title: p.name,
+      title: (p as any).story_title || p.name,
       desc: p.idea,
       previewUrl: p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : undefined,
       videoUrl: p.final_video ? (p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`) : undefined,
@@ -413,9 +413,10 @@ function App(): JSX.Element {
                         )}
                       </div>
                       <div className="project-card-body">
-                        <div className="project-name">{p.name || '未命名项目'}</div>
+                        <div className="project-name">{(p as any).story_title || p.name || '未命名项目'}</div>
                         <div className="project-actions">
                           <div className="project-meta">{STYLE_LABEL[p.style] || p.style || '写实'} {p.final_video && p.duration ? `· ${formatDuration(p.duration)}` : ''}</div>
+                          {(p as any).pipeline_status === 'running' && <span className="project-status-dot" />}
                           <button className="project-btn" onClick={e => { e.stopPropagation(); setEditProjectId(p.id); setPage('new') }} title="编辑">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                           </button>

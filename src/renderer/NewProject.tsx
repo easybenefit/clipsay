@@ -119,7 +119,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   const [idea, setIdea] = useState('严寒的冬天早上，两个8岁的中国小男孩在雪地上缓慢行走')
   const [language, setLanguage] = useState('zh')
   const [style, setStyle] = useState('realistic')
-  const canGenerate = idea.trim().length >= 6
+  const canGenerate = idea.trim().length >= 5
   const [creating, setCreating] = useState(false)
   const [output, setOutput] = useState<string | null>(null)
   const [storyTitle, setStoryTitle] = useState('')
