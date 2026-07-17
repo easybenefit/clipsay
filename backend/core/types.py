@@ -79,6 +79,7 @@ class SessionConfig:
     idea: str = ""
     style: str = "realistic"
     size: str = "16:9"
+    size_tier: str = "1K"
     resolution: str = "720p"
     duration: int = 10
     frame_rate: int = 24
@@ -102,15 +103,19 @@ class SessionConfig:
         }
         return mapping.get(self.resolution, "1280x720")
 
-    def _get_aspect_size(self) -> str:
-        aspect_map = {
-            "1:1": "1024x1024",
-            "4:3": "1024x768",
-            "3:4": "768x1024",
-            "16:9": "1280x720",
-            "9:16": "720x1280",
+    def get_image_size(self) -> str:
+        """Return pixel dimensions for video generation (width x height)."""
+        tier_mul = {"1K": 1, "2K": 2, "3K": 3, "4K": 4}
+        mul = tier_mul.get(self.size_tier, 1)
+        base_map = {
+            "1:1": (1024, 1024),
+            "4:3": (1024, 768),
+            "3:4": (768, 1024),
+            "16:9": (1024, 576),
+            "9:16": (576, 1024),
         }
-        return aspect_map.get(self.size, "1280x720")
+        w, h = base_map.get(self.size, (1024, 576))
+        return f"{w * mul}x{h * mul}"
 
     @property
     def project_root(self) -> Path:

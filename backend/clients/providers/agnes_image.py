@@ -35,14 +35,15 @@ class AgnesImageProvider(BaseProvider):
             "Content-Type": "application/json",
         }
 
+        body: dict[str, Any] = {**payload, "model": self.model}
+        self._normalize_size(body)
+
         if refs:
             resolved = await self._resolve_refs(refs)
             logger.info("[AgnesImage] refs resolved: %d urls", len(resolved))
-            extra_body = dict(payload.get("extra_body", {}))
+            extra_body = dict(body.get("extra_body", {}))
             extra_body["image"] = resolved
-            body = {**payload, "model": self.model, "extra_body": extra_body}
-        else:
-            body = {**payload, "model": self.model}
+            body["extra_body"] = extra_body
 
         base = self.base_url.rstrip("/")
         if base.endswith("/v1"):
@@ -81,6 +82,28 @@ class AgnesImageProvider(BaseProvider):
                     logger.info("[AgnesImage] saved to %s", save_path)
 
                 return resp_body
+
+    @staticmethod
+    def _normalize_size(body: dict[str, Any]) -> None:
+        """Convert pixel-format size to tier+ratio format when ratio is present."""
+        size = body.get("size", "")
+        ratio = body.get("ratio", "")
+        if not ratio or "x" not in size:
+            return
+        try:
+            w = int(size.split("x")[0])
+            if w >= 3500:
+                tier = "4K"
+            elif w >= 2400:
+                tier = "3K"
+            elif w >= 1300:
+                tier = "2K"
+            else:
+                tier = "1K"
+            body["size"] = tier
+            logger.info("[AgnesImage] size normalized: %s -> %s (ratio=%s)", size, tier, ratio)
+        except (ValueError, IndexError):
+            pass
 
     @staticmethod
     def _extract_url(data: dict) -> str:

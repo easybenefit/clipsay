@@ -143,8 +143,9 @@ async def generate_scene_frames_and_videos(
     frame_generator = FrameGenerator(
         image_config=config.image,
         chat_config=config.chat,
-        size=config._get_aspect_size(),
+        size=config.get_image_size(),
         emit=emit,
+        ratio=config.size,
     )
     video_config = config.video
 
@@ -195,7 +196,7 @@ async def generate_scene_frames_and_videos(
                 shot_specs=shot_specs,
                 scene=scene_scope,
                 emit=emit,
-                size=config._get_aspect_size(),
+                size=config.get_image_size(),
             )
         )
 

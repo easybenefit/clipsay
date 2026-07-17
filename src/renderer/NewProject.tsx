@@ -709,7 +709,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
       setIdea(p.idea || '')
       setStyle(p.style || 'realistic')
       setSize(p.size || '16:9')
-      setSizeTier(p.size_tier || '2K')
+      setSizeTier(p.size_tier || '1K')
       setResolution(p.resolution || '720p')
       setFrameRate(String(p.frame_rate || '24'))
       setDuration(String(p.duration || '10'))
@@ -1008,7 +1008,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
             const cameraTree = (r.camera_tree || []) as Array<Record<string, any>>
             if (cameraTree.length > 0) {
               const pid = getEffectiveProjectId()
-              const resolutionStr = getSizeString(size, props.sizeMap)
+              const resolutionStr = getSizeString(size, props.sizeMap, sizeTier)
 
               // Build portrait registry from current characters
               const registry: Record<string, any> = {}
@@ -1195,7 +1195,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
   }
 
   const handleRefreshFrame = async (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => {
-    const resolutionStr = getSizeString(size, props.sizeMap)
+    const resolutionStr = getSizeString(size, props.sizeMap, sizeTier)
     try {
       const res = await generateFrame({
         prompt,
@@ -1248,7 +1248,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
         }],
         view,
         style,
-        size: getSizeString(size, props.sizeMap),
+        size: getSizeString(size, props.sizeMap, sizeTier),
         model: imageModel,
         api_key: props.imageApiKey,
         base_url: props.imageBaseUrl,
@@ -1363,17 +1363,16 @@ function NewProject(props: NewProjectProps): JSX.Element {
             <div className="np-model-group">
               <div className="np-model-group-title">尺寸</div>
               <div className="np-size-grid">
-                {SIZE_TIERS.map(t => (
-                  <button
-                    key={t.id}
-                    className={`np-size-btn${sizeTier === t.id ? ' active' : ''}`}
-                    onClick={() => setSizeTier(t.id)}
-                  >
-                    <span>{t.label}</span>
-                    <span className="np-size-sub">{t.subLabel}</span>
-                    <span className="np-size-check" />
-                  </button>
-                ))}
+                  {SIZE_TIERS.map(t => (
+                    <button
+                      key={t.id}
+                      className={`np-size-btn${sizeTier === t.id ? ' active' : ''}`}
+                      onClick={() => setSizeTier(t.id)}
+                    >
+                      <span>{t.subLabel}</span>
+                      <span className="np-size-check" />
+                    </button>
+                  ))}
               </div>
             </div>
 

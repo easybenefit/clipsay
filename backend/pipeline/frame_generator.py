@@ -40,12 +40,14 @@ class FrameGenerator:
         size: str = "1024x576",
         vision_config: ModelConfig | None = None,
         emit: Optional["EventEmitter"] = None,
+        ratio: str = "",
     ):
         self._image_generator = ImageGenerator(
             image_config=image_config,
             chat_config=chat_config,
             size=size,
             vision_config=vision_config,
+            ratio=ratio,
         )
         self._emit = emit
 

@@ -158,6 +158,7 @@ MIGRATIONS = [
     "ALTER TABLE projects ADD COLUMN clicks INTEGER DEFAULT 0",
     "ALTER TABLE scenes ADD COLUMN composit_video_status INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN story_title TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN size_tier TEXT DEFAULT '1K'",
 ]
 
 INDEXES = [

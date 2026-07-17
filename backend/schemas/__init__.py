@@ -152,6 +152,7 @@ class ProjectUpdate(BaseModel):
     idea: Optional[str] = None
     style: Optional[str] = None
     size: Optional[str] = None
+    size_tier: Optional[str] = None
     resolution: Optional[str] = None
     frame_rate: Optional[int] = None
     duration: Optional[int] = None

@@ -22,9 +22,9 @@ async def generate_portraits(config: "SessionConfig", emit: EventEmitter) -> Non
 
     service = PortraitService(
         config.image.model, config.image.api_key, config.image.base_url,
-        config.project_id,
+        config.project_id, ratio=config.size,
     )
-    aspect_size = config._get_aspect_size()
+    aspect_size = config.get_image_size()
 
     await asyncio.gather(
         *[_generate_character_portraits(service, emit, character,

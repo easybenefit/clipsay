@@ -86,12 +86,13 @@ class PortraitService:
     Level 3 — 生成 + DB 持久化（routes.py 和 pipeline step 都走这层）
     """
 
-    def __init__(self, model: str, api_key: str, base_url: str, project_id: int | str):
+    def __init__(self, model: str, api_key: str, base_url: str, project_id: int | str, ratio: str = ""):
         self._model = model
         self._api_key = api_key
         self._base_url = base_url
         self._project_id = project_id
         self._project = PathResolver().project(project_id)
+        self._ratio = ratio
 
     # ══════════════════════════════════════════════════════════════════
     # Level 1 — 核心 API 调用
@@ -102,6 +103,8 @@ class PortraitService:
         from backend.clients.image import Image
 
         payload: dict = {"prompt": prompt, "n": 1, "size": size or "1024x1024"}
+        if self._ratio:
+            payload["ratio"] = self._ratio
         if reference_images:
             payload["reference_images"] = [
                 {"url": r.url} for r in reference_images]

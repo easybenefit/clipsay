@@ -23,6 +23,7 @@ export interface Project {
   idea: string
   style: string
   size: string
+  size_tier: string
   resolution: string
   frame_rate: number
   duration: number
@@ -57,6 +58,7 @@ export interface ProjectUpdate {
   idea?: string
   style?: string
   size?: string
+  size_tier?: string
   resolution?: string
   frame_rate?: number
   duration?: number

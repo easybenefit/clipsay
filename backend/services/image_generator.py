@@ -41,8 +41,10 @@ class ImageGenerator:
         chat_config: ModelConfig,
         size: str = "1024x576",
         vision_config: ModelConfig | None = None,
+        ratio: str = "",
     ):
         self._size = size
+        self._ratio = ratio
         self._image_config = image_config
         self._chat_config = chat_config
 
@@ -130,6 +132,8 @@ class ImageGenerator:
             raise RuntimeError("Image generator is not configured")
 
         payload: dict = {"prompt": prompt, "n": 1, "size": size}
+        if self._ratio:
+            payload["ratio"] = self._ratio
         if reference_images:
             payload["reference_images"] = [
                 {"url": r.url} for r in reference_images]

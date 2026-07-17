@@ -22,8 +22,19 @@ export const DEFAULT_SIZE_MAP: Record<string, string> = {
   '9:16': '576x1024',
 }
 
-export function getSizeString(ratioId: string, sizeMap: Record<string, string>): string {
-  return sizeMap[ratioId] || '1024x1024'
+const SIZE_TIER_MULTIPLIER: Record<string, number> = {
+  '1K': 1,
+  '2K': 2,
+  '3K': 3,
+  '4K': 4,
+}
+
+export function getSizeString(ratioId: string, sizeMap: Record<string, string>, sizeTier?: string): string {
+  const base = sizeMap[ratioId] || '1024x1024'
+  if (!sizeTier || sizeTier === '1K') return base
+  const mul = SIZE_TIER_MULTIPLIER[sizeTier] || 1
+  const [w, h] = base.split('x').map(Number)
+  return `${w * mul}x${h * mul}`
 }
 
 export function toCssAspectRatio(ratioId: string): string {

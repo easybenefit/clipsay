@@ -173,7 +173,7 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
 
 async def save_full_project(db, project_id: int, data) -> None:
     fields = {}
-    for k in ("name", "language", "idea", "style", "size", "resolution", "frame_rate",
+    for k in ("name", "language", "idea", "style", "size", "size_tier", "resolution", "frame_rate",
               "duration", "chat_model", "chat_api_key", "chat_base_url",
               "image_model", "image_api_key", "image_base_url",
               "video_model", "video_api_key", "video_base_url"):
@@ -472,6 +472,7 @@ async def load_session_config(project_id: int) -> "SessionConfig":
             idea=row["idea"] or "",
             style=row["style"] or "realistic",
             size=row["size"] or "16:9",
+            size_tier=row["size_tier"] or "1K",
             resolution=row["resolution"] or "720p",
             duration=row["duration"] or 10,
             frame_rate=row["frame_rate"] or 24,
