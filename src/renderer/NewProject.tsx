@@ -1580,12 +1580,12 @@ function NewProject(props: NewProjectProps): JSX.Element {
               />
             </div>
           )}
-          {(portraitsReady || creatingStoryboard || regenerating || pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.storyboard?.status === 'completed' || pipeline.status?.steps?.shot_frames?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'completed' || scenes.some(s => s.shots.length > 0)) && scenes.length > 0 && (
+          {(portraitsReady || creatingStoryboard || regenerating || pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.storyboard?.status === 'completed' || pipeline.status?.steps?.shot_frames?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'completed' || scenes.some(s => s.shots.length > 0) || stepStatuses?.storyboard === 1 || stepStatuses?.storyboard === 4 || stepStatuses?.shot_frames === 1 || stepStatuses?.shot_frames === 4) && scenes.length > 0 && (
             <div className="npm-card-enter">
               <ShootingScriptCard
                 scenes={scenes}
-                loading={pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running' || creatingStoryboard || regenerating}
-                creating={creatingStoryboard || regenerating || pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running'}
+                loading={pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running' || creatingStoryboard || regenerating || stepStatuses?.storyboard === 1 || stepStatuses?.storyboard === 4 || stepStatuses?.shot_frames === 1 || stepStatuses?.shot_frames === 4}
+                creating={creatingStoryboard || regenerating || pipeline.status?.steps?.storyboard?.status === 'running' || pipeline.status?.steps?.shot_frames?.status === 'running' || stepStatuses?.storyboard === 1 || stepStatuses?.storyboard === 4 || stepStatuses?.shot_frames === 1 || stepStatuses?.shot_frames === 4}
                 onSceneUpdate={handleSceneUpdate}
                 onRegenerate={handleRegenerateStoryboard}
                 onRefreshFrame={handleRefreshFrame}

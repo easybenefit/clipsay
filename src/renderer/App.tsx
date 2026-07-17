@@ -397,6 +397,7 @@ function App(): JSX.Element {
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
                           </div>
                         )}
+                        {p.idea ? <div className="project-thumb-idea">{p.idea}</div> : null}
                       </div>
                       <div className="project-card-body">
                         <div className="project-name">{(p as any).story_title || p.name || '未命名项目'}</div>
