@@ -725,6 +725,28 @@
   gap: 12px;
 }
 
+.shot-editor-textarea {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 48px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.shot-editor-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: var(--card);
+}
+
 .shot-editor-frames .shot-card-frame {
   min-height: 120px;
 }

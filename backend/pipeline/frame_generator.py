@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import shutil
 from typing import TYPE_CHECKING, List, Optional
 
 from backend.utils.logging import setup_logger
@@ -158,17 +157,6 @@ class FrameGenerator:
         scene_idx: int,
         project_id: int,
     ) -> None:
-        # logger.info("[cam=%d shot=%d] checking for existing START_FRAME",
-        #             camera.idx, shot_idx)
-
-        # existing = await self._try_use_existing(
-        #     scene, shot_idx, START_FRAME, conductor, log_tag=f"cam={camera.idx}",
-        # )
-        # if existing:
-        #     logger.info("[cam=%d shot=%d] START_FRAME already exists, skipping",
-        #                 camera.idx, shot_idx)
-        #     return
-
         logger.info("[cam=%d shot=%d] marking START_FRAME CREATING",
                     camera.idx, shot_idx)
 
@@ -179,9 +167,8 @@ class FrameGenerator:
 
         # ── build parent composition reference ──
         parent_ref = None
-        parent_frame_path = None
         if camera.parent_shot_idx is not None:
-            logger.info("[cam=%d shot=%d] loading parent shot=%d data for copy ref",
+            logger.info("[cam=%d shot=%d] loading parent shot=%d data for reference",
                         camera.idx, shot_idx, camera.parent_shot_idx)
             parent_shot_spec = await get_shot_by_project_scene(project_id, scene_idx, camera.parent_shot_idx)
             if parent_shot_spec:
@@ -189,51 +176,23 @@ class FrameGenerator:
                     url=parent_shot_spec.get("start_frame_url") or "",
                     prompt=parent_shot_spec.get("sf_dec") or "",
                 )
-                parent_frame_path = parent_shot_spec.get(
-                    "start_frame_path") or ""
-                logger.info("[cam=%d shot=%d] parent ref loaded: path=%s",
-                            camera.idx, shot_idx, parent_frame_path)
 
-        # ── copy from parent or AI-generate ──
+        # ── always AI-generate (parent ref is used as extra reference) ──
         current_frame_path = shot_scope.path(START_FRAME)
-        if camera.parent_cam_idx is not None and camera.missing_info is None:
-            if camera.parent_shot_idx is None:
-                logger.warning("[cam=%d shot=%d] parent_cam_idx set but parent_shot_idx is None, falling back to AI generation",
-                               camera.idx, shot_idx)
-                ref = await self._image_generator.generate(
-                    shot_idx=shot_idx,
-                    frame_type=START_FRAME,
-                    frame_description=shot_spec.sf_dec,
-                    vis_char_idxs=shot_spec.sf_vis_char_idxs,
-                    characters=characters,
-                    scene=scene,
-                    extra_references=[parent_ref] if parent_ref else None,
-                )
-            else:
-                logger.info("[cam=%d shot=%d] copying parent start_frame from %s to %s",
-                            camera.idx, shot_idx, parent_frame_path, current_frame_path)
-                parent_shot_scope = scene.shot(camera.parent_shot_idx)
-                shutil.copy(parent_shot_scope.path(
-                    START_FRAME), current_frame_path)
-
-                ref = ImageRef(url=parent_ref.url if parent_ref else "")
-                logger.info(
-                    "[cam=%d shot=%d] copied parent start_frame", camera.idx, shot_idx)
-        else:
-            logger.info("[cam=%d shot=%d] calling AI to generate start_frame (parent_ref=%s, missing_info=%s)",
-                        camera.idx, shot_idx,
-                        bool(parent_ref), camera.missing_info)
-            ref = await self._image_generator.generate(
-                shot_idx=shot_idx,
-                frame_type=START_FRAME,
-                frame_description=shot_spec.sf_dec,
-                vis_char_idxs=shot_spec.sf_vis_char_idxs,
-                characters=characters,
-                scene=scene,
-                extra_references=[parent_ref] if parent_ref else None,
-            )
-            logger.info("[cam=%d shot=%d] start_frame AI generation done, url=%s",
-                        camera.idx, shot_idx, ref.url)
+        logger.info("[cam=%d shot=%d] calling AI to generate start_frame (parent_ref=%s, missing_info=%s)",
+                    camera.idx, shot_idx,
+                    bool(parent_ref), camera.missing_info)
+        ref = await self._image_generator.generate(
+            shot_idx=shot_idx,
+            frame_type=START_FRAME,
+            frame_description=shot_spec.sf_dec,
+            vis_char_idxs=shot_spec.sf_vis_char_idxs,
+            characters=characters,
+            scene=scene,
+            extra_references=[parent_ref] if parent_ref else None,
+        )
+        logger.info("[cam=%d shot=%d] start_frame AI generation done, url=%s",
+                    camera.idx, shot_idx, ref.url)
 
         if (not os.path.exists(current_frame_path)
                 or os.path.getsize(current_frame_path) == 0):

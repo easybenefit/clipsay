@@ -150,6 +150,15 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
     <div className="script-card">
       <div className="script-card-header">
         <div className="script-card-title">拍摄脚本</div>
+        {onRegenerate && (
+          <button className="card-refresh-btn" onClick={onRegenerate} title="重新生成">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+        )}
       </div>
       <div className="script-card-divider" />
       {loading && scenes.length === 0 ? (
@@ -201,6 +210,12 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
           cssAspectRatio={cssAspectRatio}
           sceneIdx={editShotKey.sceneIdx}
           shotIdx={editShotKey.shotIdx}
+          onSave={(updatedShot) => {
+            const scene = scenes[editShotKey.sceneIdx]
+            const newShots = [...scene.shots]
+            newShots[editShotKey.shotIdx] = updatedShot
+            onSceneUpdate?.(editShotKey.sceneIdx, { ...scene, shots: newShots })
+          }}
           onRefreshFrame={onRefreshFrame}
           onClose={() => setEditShotKey(null)}
           onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
@@ -248,12 +263,6 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
           <span className="scene-pill-num">场{sceneIdx + 1}</span>
           <span className="scene-pill-title">{cleanTitle}</span>
         </div>
-        <button className="script-card-edit-btn scene-pill-edit" onClick={onEdit} title="编辑">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
       </div>
       <div className="script-card-item-divider" />
 
@@ -589,12 +598,15 @@ interface ShotEditorProps {
   cssAspectRatio: string
   sceneIdx: number
   shotIdx: number
+  onSave?: (shot: ShotData) => void
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
   onClose: () => void
   onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
 }
 
-function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, onClose, onPreview }: ShotEditorProps): JSX.Element {
+function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefreshFrame, onClose, onPreview }: ShotEditorProps): JSX.Element {
+  const [visualDesc, setVisualDesc] = useState(shot.visualDescription)
+  const [voiceDesc, setVoiceDesc] = useState(shot.voiceDescription)
   const handleFramePreview = useCallback((clickedSrc: string) => {
     const items = buildShotPreviewFrames(shot)
     const idx = items.findIndex(i => i.src === clickedSrc)
@@ -602,12 +614,33 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, o
   }, [shot, onPreview])
   const cleanTitle = stripShotPrefix(shot.title) || `镜头${shotIdx + 1}`
   useEscClose(onClose)
+
+  const dirty = visualDesc !== shot.visualDescription || voiceDesc !== shot.voiceDescription
+
+  const handleSave = () => {
+    if (!dirty) return
+    onSave?.({ ...shot, visualDescription: visualDesc, voiceDescription: voiceDesc })
+    onClose()
+  }
+
   return (
     <div className="story-editor-backdrop" onClick={onClose}>
       <div className="shot-editor-dialog" onClick={e => e.stopPropagation()}>
         <div className="story-editor-header">
           <div className="story-editor-title">编辑镜头 — {cleanTitle}</div>
           <div className="story-editor-actions">
+            <button
+              className={`story-editor-btn${!dirty ? ' story-editor-btn-disabled' : ''}`}
+              onClick={handleSave}
+              disabled={!dirty}
+              title="保存"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+            </button>
             <button className="story-editor-btn" onClick={onClose} title="关闭">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -621,11 +654,11 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onRefreshFrame, o
           <div className="shot-editor-desc">
             <div className="shot-card-row">
               <span className="shot-card-tag">[视觉描述]</span>
-              <span className="shot-card-text">{shot.visualDescription}</span>
+              <textarea className="shot-editor-textarea" value={visualDesc} onChange={e => setVisualDesc(e.target.value)} />
             </div>
             <div className="shot-card-row">
               <span className="shot-card-tag">[对白音效]</span>
-              <span className="shot-card-text">{shot.voiceDescription}</span>
+              <textarea className="shot-editor-textarea" value={voiceDesc} onChange={e => setVoiceDesc(e.target.value)} />
             </div>
           </div>
           <div className="shot-editor-frames">
