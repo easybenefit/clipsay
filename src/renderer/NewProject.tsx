@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData, compositeProjectVideo } from './api'
+import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData, compositeProjectVideo, regenerateStartFrame, regenerateEndFrame, regenerateShotVideo } from './api'
 import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
@@ -1211,26 +1211,71 @@ function NewProject(props: NewProjectProps): JSX.Element {
   }
 
   const handleRefreshFrame = async (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => {
-    const resolutionStr = getSizeString(size, props.sizeMap, sizeTier)
+    const pid = getEffectiveProjectId()
+    if (!pid) return
     try {
-      const res = await generateFrame({
-        prompt,
-        size: resolutionStr,
-        model: imageModel,
-        api_key: props.imageApiKey,
-        base_url: props.imageBaseUrl,
+      const statusKey = `${frameType}Status` as 'firstFrameStatus' | 'lastFrameStatus'
+      setScenes(prev => {
+        const next = [...prev]
+        const updatedShots = [...next[sceneIdx].shots]
+        updatedShots[shotIdx] = { ...updatedShots[shotIdx], [statusKey]: 'generating' as const }
+        next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
+        return next
       })
+      const res = frameType === 'firstFrame'
+        ? await regenerateStartFrame(pid, sceneIdx, shotIdx)
+        : await regenerateEndFrame(pid, sceneIdx, shotIdx)
       const url = res.url.startsWith(BASE) ? res.url : `${BASE}${res.url}`
       setScenes(prev => {
         const next = [...prev]
         const updatedShots = [...next[sceneIdx].shots]
-        const statusKey = `${frameType}Status` as 'firstFrameStatus' | 'lastFrameStatus'
         updatedShots[shotIdx] = { ...updatedShots[shotIdx], [frameType]: url, [statusKey]: 'generated' as const }
         next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
         return next
       })
     } catch (e) {
       console.error(`镜头 ${shotIdx} ${frameType} 重新生成失败:`, e)
+      setScenes(prev => {
+        const next = [...prev]
+        const updatedShots = [...next[sceneIdx].shots]
+        const statusKey = `${frameType}Status` as 'firstFrameStatus' | 'lastFrameStatus'
+        updatedShots[shotIdx] = { ...updatedShots[shotIdx], [statusKey]: 'error' as const }
+        next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
+        return next
+      })
+    }
+  }
+
+  const handleRefreshVideo = async (sceneIdx: number, shotIdx: number) => {
+    const pid = getEffectiveProjectId()
+    if (!pid) return
+    try {
+      setScenes(prev => {
+        const next = [...prev]
+        const updatedShots = [...next[sceneIdx].shots]
+        updatedShots[shotIdx] = { ...updatedShots[shotIdx], videoStatus: 'generating' as const }
+        next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
+        return next
+      })
+      const res = await regenerateShotVideo(pid, sceneIdx, shotIdx)
+      const videoUrl = res.video_url.startsWith(BASE) ? res.video_url : `${BASE}${res.video_url}`
+      const previewUrl = res.video_preview_url.startsWith(BASE) ? res.video_preview_url : `${BASE}${res.video_preview_url}`
+      setScenes(prev => {
+        const next = [...prev]
+        const updatedShots = [...next[sceneIdx].shots]
+        updatedShots[shotIdx] = { ...updatedShots[shotIdx], video: videoUrl, videoPreview: previewUrl, videoStatus: 'generated' as const }
+        next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
+        return next
+      })
+    } catch (e) {
+      console.error(`镜头 ${shotIdx} 动态分镜重新生成失败:`, e)
+      setScenes(prev => {
+        const next = [...prev]
+        const updatedShots = [...next[sceneIdx].shots]
+        updatedShots[shotIdx] = { ...updatedShots[shotIdx], videoStatus: 'error' as const }
+        next[sceneIdx] = { ...next[sceneIdx], shots: updatedShots }
+        return next
+      })
     }
   }
 
@@ -1609,6 +1654,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
                 onSceneUpdate={handleSceneUpdate}
                 onRegenerate={handleRegenerateStoryboard}
                 onRefreshFrame={handleRefreshFrame}
+                onRefreshVideo={handleRefreshVideo}
                 aspectRatio={size}
               />
             </div>

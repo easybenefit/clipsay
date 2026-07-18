@@ -17,8 +17,11 @@ from backend.core.types import ImageRef
 from backend.schemas.models import ModelConfig
 from backend.db.storyboards import (
     get_shot_by_project_scene,
+    get_shots_by_project_scene,
     update_shot,
 )
+from backend.db.loaders import load_shot_descriptions
+from backend.utils.paths import PathResolver
 
 if TYPE_CHECKING:
     from backend.schemas.character import CharacterRead
@@ -374,3 +377,174 @@ class FrameGenerator:
         await conductor.change_stage(scene.project_id, scene.scene_idx, shot_idx, resource, StageStatus.COMPLETE, url=ref.url)
         if self._emit:
             await self._emit.project_data_changed()
+
+
+# ===================================================================
+#  Standalone functions — regenerate a single frame/video for any
+#  shot without requiring a running pipeline context (conductor,
+#  camera tree, event emitter, etc.).
+#
+#  These can be called from pipeline steps, router endpoints, or
+#  the shot-editing dialog in the frontend.
+# ===================================================================
+
+
+async def _load_characters_and_spec(
+    project_id: int,
+    scene_idx: int,
+    shot_idx: int,
+) -> tuple[ShotSpec, list[CharacterRead], dict | None]:
+    """Load shot spec and characters for *shot_idx* in *scene_idx*.
+
+    Returns ``(shot_spec, characters, shot_db)``.
+    """
+    from backend.db.projects import get_characters
+    from backend.schemas.shot_spec import ShotSpec
+
+    shot_descs = await load_shot_descriptions(project_id, scene_idx)
+    if not shot_descs or shot_idx >= len(shot_descs):
+        raise ValueError(f"shot_idx={shot_idx} not found in scene={scene_idx}")
+    shot_spec = shot_descs[shot_idx]
+
+    characters = await get_characters(project_id)
+    shot_db = await get_shot_by_project_scene(project_id, scene_idx, shot_idx)
+    return shot_spec, characters, shot_db
+
+
+def _build_frame_scene_scope(
+    project_id: int,
+    scene_idx: int,
+) -> SceneScope:
+    resolver = PathResolver()
+    return resolver.project(project_id).scene(scene_idx)
+
+
+async def generate_single_start_frame(
+    project_id: int,
+    scene_idx: int,
+    shot_idx: int,
+    image_config: ModelConfig,
+    chat_config: ModelConfig,
+    vision_config: ModelConfig | None = None,
+    size: str = "1024x576",
+    ratio: str = "",
+) -> ImageRef:
+    """Regenerate the **start frame** for a single shot.
+
+    Loads the shot description and characters from the DB, generates the
+    image via :class:`ImageGenerator`, persists the result back to the
+    database and disk, and returns the :class:`ImageRef`.
+
+    This function is fully self-contained — no pipeline context needed.
+    """
+    shot_spec, characters, shot_db = await _load_characters_and_spec(
+        project_id, scene_idx, shot_idx,
+    )
+    scene = _build_frame_scene_scope(project_id, scene_idx)
+    frame_path = scene.shot(shot_idx).path(START_FRAME)
+
+    # Remove existing file so generation is forced
+    if os.path.exists(frame_path):
+        os.remove(frame_path)
+
+    image_gen = ImageGenerator(
+        image_config=image_config,
+        chat_config=chat_config,
+        size=size,
+        vision_config=vision_config,
+        ratio=ratio,
+    )
+
+    # Build extra references from the first shot of the scene (for consistency)
+    extra_refs = None
+    all_shots = await get_shots_by_project_scene(project_id, scene_idx)
+    if all_shots and all_shots[0].get("start_frame_url"):
+        extra_refs = [
+            ImageRef(
+                url=all_shots[0]["start_frame_url"],
+                prompt=all_shots[0].get("sf_dec", ""),
+            )
+        ]
+
+    ref = await image_gen.generate(
+        shot_idx=shot_idx,
+        frame_type=START_FRAME,
+        frame_description=shot_spec.sf_dec,
+        vis_char_idxs=shot_spec.sf_vis_char_idxs,
+        characters=characters,
+        scene=scene,
+        extra_references=extra_refs,
+    )
+
+    if not os.path.exists(frame_path) or os.path.getsize(frame_path) == 0:
+        raise RuntimeError(f"start_frame file missing after generation: {frame_path}")
+
+    await update_shot(
+        project_id, scene_idx, shot_idx,
+        start_frame_path=frame_path,
+        start_frame_url=ref.url,
+        start_frame_status=StageStatus.COMPLETE,
+    )
+    return ref
+
+
+async def generate_single_end_frame(
+    project_id: int,
+    scene_idx: int,
+    shot_idx: int,
+    image_config: ModelConfig,
+    chat_config: ModelConfig,
+    vision_config: ModelConfig | None = None,
+    size: str = "1024x576",
+    ratio: str = "",
+) -> ImageRef:
+    """Regenerate the **end frame** for a single shot.
+
+    Same contract as :func:`generate_single_start_frame`.
+    """
+    shot_spec, characters, shot_db = await _load_characters_and_spec(
+        project_id, scene_idx, shot_idx,
+    )
+    scene = _build_frame_scene_scope(project_id, scene_idx)
+    frame_path = scene.shot(shot_idx).path(END_FRAME)
+
+    if os.path.exists(frame_path):
+        os.remove(frame_path)
+
+    image_gen = ImageGenerator(
+        image_config=image_config,
+        chat_config=chat_config,
+        size=size,
+        vision_config=vision_config,
+        ratio=ratio,
+    )
+
+    extra_refs = None
+    if shot_db and shot_db.get("start_frame_url"):
+        extra_refs = [
+            ImageRef(
+                url=shot_db["start_frame_url"],
+                prompt=shot_spec.sf_dec,
+            )
+        ]
+
+    ref = await image_gen.generate(
+        shot_idx=shot_idx,
+        frame_type=END_FRAME,
+        frame_description=shot_spec.sf_desc,
+        vis_char_idxs=shot_spec.ef_vis_char_idxs,
+        characters=characters,
+        scene=scene,
+        extra_references=extra_refs,
+    )
+
+    if not os.path.exists(frame_path) or os.path.getsize(frame_path) == 0:
+        raise RuntimeError(f"end_frame file missing after generation: {frame_path}")
+
+    await update_shot(
+        project_id, scene_idx, shot_idx,
+        end_frame_path=frame_path,
+        end_frame_url=ref.url,
+        end_frame_status=StageStatus.COMPLETE,
+    )
+    return ref

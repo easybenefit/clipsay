@@ -407,3 +407,47 @@ export async function checkPipelineRunning(): Promise<{ running: boolean; projec
     return { running: false }
   }
 }
+
+// ── Single-shot frame / video regeneration ─────────────────────────────
+
+export async function regenerateStartFrame(
+  projectId: number, sceneIdx: number, shotIdx: number,
+): Promise<{ url: string }> {
+  const res = await fetch(
+    `${BASE}/api/projects/${projectId}/scenes/${sceneIdx}/shots/${shotIdx}/regenerate-start-frame`,
+    { method: 'POST' },
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function regenerateEndFrame(
+  projectId: number, sceneIdx: number, shotIdx: number,
+): Promise<{ url: string }> {
+  const res = await fetch(
+    `${BASE}/api/projects/${projectId}/scenes/${sceneIdx}/shots/${shotIdx}/regenerate-end-frame`,
+    { method: 'POST' },
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function regenerateShotVideo(
+  projectId: number, sceneIdx: number, shotIdx: number,
+): Promise<{ video_url: string; video_preview_url: string }> {
+  const res = await fetch(
+    `${BASE}/api/projects/${projectId}/scenes/${sceneIdx}/shots/${shotIdx}/regenerate-video`,
+    { method: 'POST' },
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}

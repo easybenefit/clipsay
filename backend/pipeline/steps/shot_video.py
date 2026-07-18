@@ -207,3 +207,108 @@ async def compose_scene_video(
     await asyncio.to_thread(VideoCompositor.compose, video_paths, str(scene_video_path))
     logger.info("[video] scene=%d composite done: %s",
                 scene_idx, scene_video_path)
+
+
+# ===================================================================
+#  Standalone function — regenerate a single shot's dynamic storyboard
+#  (video) without requiring a running pipeline context.
+#
+#  Can be called from pipeline steps, router endpoints, or the
+#  shot-editing dialog in the frontend.
+# ===================================================================
+
+
+async def regenerate_single_shot_video(
+    project_id: int,
+    scene_idx: int,
+    shot_idx: int,
+    video_config: ModelConfig,
+    size: str = "",
+) -> dict:
+    """Regenerate the **dynamic storyboard (video)** for a single shot.
+
+    Loads the shot description and frame URLs from the DB, calls the
+    video generation API, persists the result, and returns a dict with
+    ``video_url`` and ``video_preview_url`` keys.
+    """
+    from backend.db.loaders import load_shot_descriptions
+    from backend.utils.paths import PathResolver
+
+    shot_descs = await load_shot_descriptions(project_id, scene_idx)
+    if not shot_descs or shot_idx >= len(shot_descs):
+        raise ValueError(f"shot_idx={shot_idx} not found in scene={scene_idx}")
+    shot_spec = shot_descs[shot_idx]
+
+    resolver = PathResolver()
+    scene = resolver.project(project_id).scene(scene_idx)
+    shot_scope = scene.shot(shot_idx)
+    video_path = shot_scope.path(SHOT_VIDEO_NAME)
+
+    # Remove existing file so generation is forced
+    if os.path.exists(str(video_path)):
+        os.remove(str(video_path))
+
+    shot_db = await get_shot_by_project_scene(project_id, scene_idx, shot_idx)
+    ref_urls = [
+        shot_db.get("start_frame_url", ""),
+        shot_db.get("end_frame_url", ""),
+    ] if shot_db else []
+
+    missing = [k for k, v in [("start_frame", ref_urls[0]), ("end_frame", ref_urls[1])] if not v]
+    if missing:
+        raise RuntimeError(
+            f"shot={shot_idx} missing frame(s): {', '.join(missing)}"
+        )
+
+    await update_shot(project_id, scene_idx, shot_idx, video_status="generating")
+
+    prompt = (shot_spec.motion_desc or "") + "\n" + (shot_spec.audio_desc or "")
+    payload: dict = {
+        "prompt": prompt,
+        "extra_body": {"image": ref_urls},
+        "save_path": str(video_path),
+    }
+    if size:
+        parts = size.split("x")
+        if len(parts) == 2:
+            try:
+                payload["width"] = int(parts[0])
+                payload["height"] = int(parts[1])
+            except ValueError:
+                pass
+
+    await Video.generate(
+        video_config.model, payload, video_config.api_key, video_config.base_url,
+        project_id=project_id,
+        task_id=f"scene-{scene_idx}-shot-{shot_idx}-video",
+        rpm=video_config.rate_limit_min,
+        rpd=video_config.rate_limit_day,
+    )
+
+    if not os.path.exists(str(video_path)) or os.path.getsize(str(video_path)) == 0:
+        raise RuntimeError(f"shot video file missing after generation: {video_path}")
+
+    video_preview_url = ""
+    try:
+        preview_filename = "video_preview.jpg"
+        await asyncio.to_thread(
+            VideoCompositor.extract_first_frame, str(video_path),
+            str(shot_scope.path(preview_filename)),
+        )
+        video_preview_url = shot_scope.url(preview_filename)
+    except Exception as e:
+        logger.warning("Failed to extract video preview for shot %d: %s", shot_idx, e)
+
+    video_url = shot_scope.url(SHOT_VIDEO_NAME)
+    await update_shot(project_id, scene_idx, shot_idx, shot_video_url=video_url, video_status="completed")
+    if video_preview_url:
+        await update_shot(project_id, scene_idx, shot_idx, shot_preview_url=video_preview_url)
+
+    VideoCompositor.extract_first_frame(
+        str(video_path), shot_scope.path(SHOT_PREVIEW_NAME))
+
+    logger.info("[video] single shot=%d regeneration done, url=%s", shot_idx, video_url)
+    return {
+        "video_url": video_url,
+        "video_preview_url": video_preview_url or "",
+    }

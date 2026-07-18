@@ -44,6 +44,7 @@ interface ScriptCardProps {
   onSceneUpdate?: (idx: number, data: SceneData) => void
   onRegenerate?: () => void
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
+  onRefreshVideo?: (sceneIdx: number, shotIdx: number) => void
 }
 
 export interface MediaPreviewFrame {
@@ -139,7 +140,7 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
   )
 }
 
-function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame }: ScriptCardProps): JSX.Element {
+function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame, onRefreshVideo }: ScriptCardProps): JSX.Element {
   const cssAspectRatio = toCssAspectRatio(aspectRatio)
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [editShotKey, setEditShotKey] = useState<{ sceneIdx: number; shotIdx: number } | null>(null)
@@ -183,6 +184,7 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
               onEdit={() => setEditIdx(idx)}
               onEditShot={(shotIdx) => setEditShotKey({ sceneIdx: idx, shotIdx })}
               onRefreshFrame={(shotIdx, frameType, prompt) => onRefreshFrame?.(idx, shotIdx, frameType, prompt)}
+              onRefreshVideo={(shotIdx) => onRefreshVideo?.(idx, shotIdx)}
               onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
               creating={creating}
               loading={scene.shots.length === 0}
@@ -217,6 +219,7 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
             onSceneUpdate?.(editShotKey.sceneIdx, { ...scene, shots: newShots })
           }}
           onRefreshFrame={onRefreshFrame}
+          onRefreshVideo={onRefreshVideo}
           onClose={() => setEditShotKey(null)}
           onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
         />
@@ -238,6 +241,7 @@ interface SceneCardProps {
   onEdit: () => void
   onEditShot?: (shotIdx: number) => void
   onRefreshFrame?: (shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
+  onRefreshVideo?: (shotIdx: number) => void
   onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
   loading?: boolean
   creating?: boolean
@@ -248,7 +252,7 @@ function stripScenePrefix(title: string): string {
   return title.replace(/^\s*场景\s*\d+\s*[:：、\-]?\s*/, '').trim()
 }
 
-function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onEditShot, onRefreshFrame, onPreview, loading = false, creating = false, cssAspectRatio = '16 / 9' }: SceneCardProps): JSX.Element {
+function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onEditShot, onRefreshFrame, onRefreshVideo, onPreview, loading = false, creating = false, cssAspectRatio = '16 / 9' }: SceneCardProps): JSX.Element {
   const isHovered = hoveredKey === sceneKey
   const cleanTitle = stripScenePrefix(scene.title) || `场景${sceneIdx + 1}`
 
@@ -289,6 +293,7 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
               cssAspectRatio={cssAspectRatio}
               onEdit={() => onEditShot?.(sidx)}
               onRefreshFrame={(frameType, prompt) => onRefreshFrame?.(sidx, frameType, prompt)}
+              onRefreshVideo={() => onRefreshVideo?.(sidx)}
               onPreview={onPreview}
             />
           ))}
@@ -350,6 +355,7 @@ interface ShotCardProps {
   cssAspectRatio?: string
   onEdit?: () => void
   onRefreshFrame?: (frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
+  onRefreshVideo?: () => void
   onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
 }
 
@@ -358,7 +364,7 @@ function stripShotPrefix(title?: string): string {
   return title.replace(/^\s*镜\s*头?\s*\d+\s*[:：、\-]?\s*/, '').trim()
 }
 
-function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio = '16 / 9', onEdit, onRefreshFrame, onPreview }: ShotCardProps): JSX.Element {
+function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio = '16 / 9', onEdit, onRefreshFrame, onRefreshVideo, onPreview }: ShotCardProps): JSX.Element {
   const isHovered = hoveredKey === shotKey
   const cleanTitle = stripShotPrefix(shot.title) || `镜头${shotIdx + 1}`
   const handleFramePreview = useCallback((clickedSrc: string) => {
@@ -429,6 +435,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             isVideo
             className="order-3"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
+            onRefresh={onRefreshVideo}
             onClick={() => handleFramePreview(shot.video)}
             status={shot.videoStatus}
           />
@@ -600,11 +607,12 @@ interface ShotEditorProps {
   shotIdx: number
   onSave?: (shot: ShotData) => void
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
+  onRefreshVideo?: (sceneIdx: number, shotIdx: number) => void
   onClose: () => void
   onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
 }
 
-function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefreshFrame, onClose, onPreview }: ShotEditorProps): JSX.Element {
+function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefreshFrame, onRefreshVideo, onClose, onPreview }: ShotEditorProps): JSX.Element {
   const [visualDesc, setVisualDesc] = useState(shot.visualDescription)
   const [voiceDesc, setVoiceDesc] = useState(shot.voiceDescription)
   const handleFramePreview = useCallback((clickedSrc: string) => {
@@ -693,6 +701,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefresh
               onHover={() => {}}
               isVideo
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
+              onRefresh={() => onRefreshVideo?.(sceneIdx, shotIdx)}
               onClick={() => handleFramePreview(shot.video)}
               status={shot.videoStatus}
             />

@@ -27,7 +27,7 @@ from backend.db import (
     update_step_db_status, update_story_content,
 )
 from backend.db.scene_scripts import read_scene_script_data
-from backend.db.projects import increment_project_clicks, list_top_completed_projects
+from backend.db.projects import increment_project_clicks, list_top_completed_projects, load_session_config
 from backend.pipeline.conductor._types import StageStatus
 
 logger = logging.getLogger("api.routes")
@@ -372,3 +372,81 @@ async def composite_project_video(project_id: int):
         "final_preview": result["final_preview_url"],
         "project_id": project_id,
     }
+
+
+# ── Single-shot frame / video regeneration ───────────────────────────────
+
+
+@router.post("/api/projects/{project_id}/scenes/{scene_idx}/shots/{shot_idx}/regenerate-start-frame")
+async def regenerate_shot_start_frame(project_id: int, scene_idx: int, shot_idx: int):
+    """Regenerate the **start frame** for a single shot.
+
+    Fully self-contained — loads project config, characters and shot
+    descriptions from the database, re-generates the image, persists the
+    result, and returns the new URL.
+    """
+    from backend.pipeline.frame_generator import generate_single_start_frame
+    try:
+        cfg = await load_session_config(project_id)
+        ref = await generate_single_start_frame(
+            project_id=project_id,
+            scene_idx=scene_idx,
+            shot_idx=shot_idx,
+            image_config=cfg.image,
+            chat_config=cfg.chat,
+            vision_config=cfg.chat,
+            size=cfg.get_image_size(),
+            ratio=cfg.size,
+        )
+        return {"url": ref.url}
+    except Exception as e:
+        logger.error("Regenerate start frame failed (project=%d, scene=%d, shot=%d): %s",
+                      project_id, scene_idx, shot_idx, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/projects/{project_id}/scenes/{scene_idx}/shots/{shot_idx}/regenerate-end-frame")
+async def regenerate_shot_end_frame(project_id: int, scene_idx: int, shot_idx: int):
+    """Regenerate the **end frame** for a single shot."""
+    from backend.pipeline.frame_generator import generate_single_end_frame
+    try:
+        cfg = await load_session_config(project_id)
+        ref = await generate_single_end_frame(
+            project_id=project_id,
+            scene_idx=scene_idx,
+            shot_idx=shot_idx,
+            image_config=cfg.image,
+            chat_config=cfg.chat,
+            vision_config=cfg.chat,
+            size=cfg.get_image_size(),
+            ratio=cfg.size,
+        )
+        return {"url": ref.url}
+    except Exception as e:
+        logger.error("Regenerate end frame failed (project=%d, scene=%d, shot=%d): %s",
+                      project_id, scene_idx, shot_idx, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/projects/{project_id}/scenes/{scene_idx}/shots/{shot_idx}/regenerate-video")
+async def regenerate_shot_video(project_id: int, scene_idx: int, shot_idx: int):
+    """Regenerate the **dynamic storyboard (video)** for a single shot.
+
+    Loads project config, shot descriptions and frame URLs from DB,
+    re-generates the video, persists the result, and returns the new URLs.
+    """
+    from backend.pipeline.steps.shot_video import regenerate_single_shot_video
+    try:
+        cfg = await load_session_config(project_id)
+        result = await regenerate_single_shot_video(
+            project_id=project_id,
+            scene_idx=scene_idx,
+            shot_idx=shot_idx,
+            video_config=cfg.video,
+            size=cfg.get_image_size(),
+        )
+        return result
+    except Exception as e:
+        logger.error("Regenerate shot video failed (project=%d, scene=%d, shot=%d): %s",
+                      project_id, scene_idx, shot_idx, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
