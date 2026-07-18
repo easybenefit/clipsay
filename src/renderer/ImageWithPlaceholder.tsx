@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Blurhash } from 'react-blurhash'
 
 export type ImageState = 'waiting' | 'generating' | 'generated' | 'error'
@@ -36,10 +36,11 @@ export default function ImageWithPlaceholder({
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
 
-  useEffect(() => {
-    setImgLoaded(false)
-    setImgError(false)
-  }, [src])
+  // NOTE: No useEffect resetting imgLoaded/imgError here.
+  // The caller uses key={src} so the component is fully re-mounted when src changes.
+  // A useEffect would race with a synchronous onLoad (cached image) and
+  // reset imgLoaded to false after onLoad set it true, causing the
+  // absolutely-positioned Blurhash canvas to permanently cover the <img>.
 
   const isPending = status === 'waiting' || status === 'generating'
   const hasValidSrc = src && src.length > 0

@@ -276,14 +276,17 @@ function NewProject(props: NewProjectProps): JSX.Element {
             back: portraitUrl(c.back_url),
           }
           const apiStatus = c.portrait_status as Record<string, number> | undefined
-          const status: PortraitStatus = apiStatus
+          // If portrait_status exists but all zeros while URLs exist, fall back to URL-based check
+          const hasUrls = backPortraits.front || backPortraits.side || backPortraits.back
+          const allZeroStatus = apiStatus && !apiStatus.front && !apiStatus.side && !apiStatus.back
+          const status: PortraitStatus = (apiStatus && !allZeroStatus)
             ? {
                 front: PORTRAIT_STATUS_MAP[apiStatus.front] || 'waiting' as const,
                 side: PORTRAIT_STATUS_MAP[apiStatus.side] || 'waiting' as const,
                 back: PORTRAIT_STATUS_MAP[apiStatus.back] || 'waiting' as const,
               }
-            : // fallback for old data without portrait_status
-              (backPortraits.front || backPortraits.side || backPortraits.back
+            : // fallback for old data without portrait_status, or all-zero status with URLs
+              (hasUrls
                 ? {
                     front: backPortraits.front ? 'generated' as const : 'waiting' as const,
                     side: backPortraits.side ? 'generated' as const : 'waiting' as const,
@@ -430,7 +433,9 @@ function NewProject(props: NewProjectProps): JSX.Element {
                 back: portraitUrl(c.back_url),
               }
               const apiStatus = c.portrait_status as Record<string, number> | undefined
-              const status: PortraitStatus = apiStatus
+              const hasUrls = backPortraits.front || backPortraits.side || backPortraits.back
+              const allZeroStatus = apiStatus && !apiStatus.front && !apiStatus.side && !apiStatus.back
+              const status: PortraitStatus = (apiStatus && !allZeroStatus)
                 ? {
                     front: PORTRAIT_STATUS_MAP[apiStatus.front] || 'waiting' as const,
                     side: PORTRAIT_STATUS_MAP[apiStatus.side] || 'waiting' as const,
@@ -743,17 +748,28 @@ function NewProject(props: NewProjectProps): JSX.Element {
               : '',
           },
           sourceUrl: c.sourceUrl || '',
-          portraitStatus: c.portrait_status
-            ? {
-                front: PORTRAIT_STATUS_MAP[c.portrait_status.front] || 'waiting' as const,
-                side: PORTRAIT_STATUS_MAP[c.portrait_status.side] || 'waiting' as const,
-                back: PORTRAIT_STATUS_MAP[c.portrait_status.back] || 'waiting' as const,
-              }
-            : {
+          portraitStatus: (() => {
+            const ps = c.portrait_status
+            // If portrait_status exists but all zeros while URLs exist, fall back to URL-based check
+            if (ps && !ps.front && !ps.side && !ps.back && (c.front_url || c.side_url || c.back_url)) {
+              return {
                 front: c.front_url ? 'generated' as const : 'waiting' as const,
                 side: c.side_url ? 'generated' as const : 'waiting' as const,
                 back: c.back_url ? 'generated' as const : 'waiting' as const,
-              },
+              }
+            }
+            return ps
+              ? {
+                  front: PORTRAIT_STATUS_MAP[ps.front] || 'waiting' as const,
+                  side: PORTRAIT_STATUS_MAP[ps.side] || 'waiting' as const,
+                  back: PORTRAIT_STATUS_MAP[ps.back] || 'waiting' as const,
+                }
+              : {
+                  front: c.front_url ? 'generated' as const : 'waiting' as const,
+                  side: c.side_url ? 'generated' as const : 'waiting' as const,
+                  back: c.back_url ? 'generated' as const : 'waiting' as const,
+                }
+          })(),
           portraitDescriptions: c.portraitDescriptions || makePortraitDescriptions(c.name || c.identifier || ''),
         })) as CharacterData[])
         setPortraitsReady(true)

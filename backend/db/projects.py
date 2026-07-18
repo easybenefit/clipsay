@@ -229,7 +229,9 @@ async def save_full_project(db, project_id: int, data) -> None:
         existing_frames = {
             (r["scene_idx"], r["shot_idx"]): r for r in await (await db.execute(
                 "SELECT s.idx AS scene_idx, sh.idx AS shot_idx, "
-                "sh.start_frame_url, sh.end_frame_url, sh.shot_video_url, sh.shot_preview_url "
+                "sh.start_frame_url, sh.end_frame_url, sh.shot_video_url, sh.shot_preview_url, "
+                "sh.start_frame_status, sh.end_frame_status, "
+                "sh.image_status, sh.video_status, sh.video_dependency "
                 "FROM scenes s JOIN shots sh ON sh.scene_id = s.id "
                 "WHERE s.project_id = ?", (project_id,))).fetchall()
         }
@@ -251,15 +253,22 @@ async def save_full_project(db, project_id: int, data) -> None:
                 sv_url = normalize_local_url(sh.video or prev.get("shot_video_url", ""))
                 sp_url = normalize_local_url(getattr(sh, 'video_preview', '') or getattr(sh, 'videoPreview', '')
                           or prev.get("shot_preview_url", ""))
+                sf_status = prev.get("start_frame_status", 0)
+                ef_status = prev.get("end_frame_status", 0)
+                img_status = prev.get("image_status", 0)
+                v_status = prev.get("video_status", "pending")
+                v_dep = prev.get("video_dependency", "")
                 await db.execute(
                     "INSERT INTO shots (scene_id, idx, is_last, cam_idx, "
                     "variation_type, visual_desc, audio_desc, motion_desc, "
-                    "start_frame_url, end_frame_url, shot_video_url, shot_preview_url) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "start_frame_url, end_frame_url, shot_video_url, shot_preview_url, "
+                    "start_frame_status, end_frame_status, image_status, video_status, video_dependency) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (scid, shi, shi == len(sc.shots) - 1, 0,
                      sh.variation_type, sh.visual_description, sh.voice_description,
                      sh.motion_description, sf_url, ef_url,
-                     sv_url, sp_url))
+                     sv_url, sp_url,
+                     sf_status, ef_status, img_status, v_status, v_dep))
     await db.commit()
 
 
@@ -406,14 +415,23 @@ async def save_characters(project_id: int, characters: list) -> None:
         for ch in characters:
             name = ch.identifier or ""
             prev = existing.get(name, {})
+            front_url = prev.get("front_url", "")
+            side_url = prev.get("side_url", "")
+            back_url = prev.get("back_url", "")
+            portrait_status = prev.get("portrait_status", 0)
+            if front_url:
+                portrait_status = _ps_update(portrait_status, "front", 2)
+            if side_url:
+                portrait_status = _ps_update(portrait_status, "side", 2)
+            if back_url:
+                portrait_status = _ps_update(portrait_status, "back", 2)
             await db.execute(
                 "INSERT INTO attributes "
                 "(project_id, identifier, appearance, attire, idx, "
                 "front_url, side_url, back_url, portrait_status) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, name, ch.appearance or "", ch.attire or "", ch.idx,
-                 prev.get("front_url", ""), prev.get("side_url", ""),
-                 prev.get("back_url", ""), prev.get("portrait_status", 0)))
+                 front_url, side_url, back_url, portrait_status))
         await db.commit()
 
 
