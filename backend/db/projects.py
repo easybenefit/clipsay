@@ -432,12 +432,13 @@ async def read_scenes(db, project_id: int) -> list[dict]:
     return scenes
 
 
-async def get_scene_count(project_id: int) -> int:
+async def get_scene_ids(project_id: int) -> list[int]:
+    """Return the 0-based scene indices for a project, ordered by idx."""
     async with _get_connection() as db:
-        row = await (await db.execute(
-            "SELECT COUNT(*) FROM scenes WHERE project_id = ?",
-            (project_id,))).fetchone()
-        return row[0] if row else 0
+        rows = await (await db.execute(
+            "SELECT idx FROM scenes WHERE project_id = ? ORDER BY idx",
+            (project_id,))).fetchall()
+        return [r[0] for r in rows]
 
 
 async def increment_project_clicks(project_id: int) -> None:

@@ -358,101 +358,17 @@ async def composite_scene_video(scene_id: int):
 
 @router.post("/api/projects/{project_id}/composite-video")
 async def composite_project_video(project_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        scr = await (await db.execute(
-            "SELECT id FROM scripts WHERE project_id = ?", (project_id,))).fetchone()
-        if not scr:
-            raise HTTPException(
-                status_code=400, detail="Project has no script")
-
-        scene_rows = await (await db.execute(
-            "SELECT * FROM scenes WHERE script_id = ? ORDER BY idx",
-            (scr["id"],))).fetchall()
-
-    scene_video_paths = []
-    project_root = Path(PathResolver().project(project_id).path("")).parent
-    for i, sc in enumerate(scene_rows):
-        scene_composite_path = project_root / \
-            "scenes" / str(sc["idx"]) / "composite.mp4"
-        if scene_composite_path.exists():
-            scene_video_paths.append(str(scene_composite_path))
-            continue
-
-        resolved = _resolve_video_path(sc["composited_video"])
-        if resolved and os.path.exists(resolved):
-            scene_video_paths.append(resolved)
-            continue
-
-        shot_video_paths = []
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            sb = await (await db.execute(
-                "SELECT id FROM storyboards WHERE scene_id = ?", (sc["id"],))).fetchone()
-            if sb:
-                shot_rows = await (await db.execute(
-                    "SELECT * FROM shots WHERE storyboard_id = ? ORDER BY idx",
-                    (sb["id"],))).fetchall()
-                for sh in shot_rows:
-                    resolved_shot = _resolve_video_path(sh["video_url"])
-                    if resolved_shot:
-                        shot_video_paths.append(resolved_shot)
-
-        if shot_video_paths:
-            scene_dir = project_root / "scenes" / str(sc["idx"])
-            scene_dir.mkdir(parents=True, exist_ok=True)
-            scene_compositor = VideoCompositor(str(scene_dir))
-            loop = asyncio.get_event_loop()
-            scene_path = await loop.run_in_executor(
-                None, scene_compositor.compose, shot_video_paths, "composite.mp4"
-            )
-            scene_video = f"/local/proj_{project_id}/scenes/{sc['idx']}/composite.mp4"
-            async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute(
-                    "UPDATE scenes SET composited_video = ? WHERE id = ?",
-                    (normalize_local_url(scene_video), sc["id"]))
-                await db.commit()
-            scene_video_paths.append(scene_path)
-
-    if not scene_video_paths:
-        raise HTTPException(
-            status_code=400, detail="No scene videos available to compose")
-
-    project_dir = project_root
-    project_dir.mkdir(parents=True, exist_ok=True)
-    project_compositor = VideoCompositor(str(project_dir))
+    from backend.services.project_compositor import ProjectCompositor
     try:
-        loop = asyncio.get_event_loop()
-        output_path = await loop.run_in_executor(
-            None, project_compositor.compose, scene_video_paths, "final.mp4"
-        )
+        result = await ProjectCompositor.compose(project_id, force=True)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("Composite project %d video failed: %s", project_id, e)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-    final_video_url = f"/local/proj_{project_id}/final.mp4"
-    final_preview_url = ""
-    try:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None, project_compositor.extract_first_frame, output_path, "final_preview.jpg"
-        )
-        final_preview_url = f"/local/proj_{project_id}/final_preview.jpg"
-    except Exception as e:
-        logger.error("Extract final preview frame failed: %s", e)
-
-    actual_duration = 0
-    try:
-        from moviepy import VideoFileClip
-        actual_duration = int(VideoFileClip(output_path).duration)
-    except Exception as e:
-        logger.error("Read final video duration failed: %s", e)
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE projects SET final_video = ?, final_preview = ?, duration = ? WHERE id = ?",
-            (normalize_local_url(final_video_url), normalize_local_url(final_preview_url), actual_duration, project_id),
-        )
-        await db.commit()
-
-    return {"final_video": final_video_url, "final_preview": final_preview_url, "project_id": project_id}
+    return {
+        "final_video": result["final_video_url"],
+        "final_preview": result["final_preview_url"],
+        "project_id": project_id,
+    }

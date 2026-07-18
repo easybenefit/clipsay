@@ -3,7 +3,7 @@ and defines downstream dependencies for the pipeline runner."""
 
 from __future__ import annotations
 
-from backend.pipeline.composite.project import composite_video
+from backend.pipeline.composite.composite_video import composite_video
 from backend.pipeline.scene_storyboard import generate_storyboards
 from backend.pipeline.steps.characters import generate_characters
 from backend.pipeline.steps.portraits import generate_portraits

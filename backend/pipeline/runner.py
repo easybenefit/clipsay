@@ -174,6 +174,8 @@ class PipelineRunner:
                     )
                     if step_name in ("shot_frames", "storyboard"):
                         result = await executor(config, emit, pause_check)
+                    elif step_name == "composite_video":
+                        result = await executor(config.project_id, emit)
                     else:
                         result = await executor(config, emit)
                     _runner_logger.info(

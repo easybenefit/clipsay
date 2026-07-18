@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData } from './api'
+import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateFrame, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData, compositeProjectVideo } from './api'
 import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
@@ -1605,6 +1605,19 @@ function NewProject(props: NewProjectProps): JSX.Element {
                 finalVideo={finalVideo}
                 finalPreview={finalPreview}
                 finalVideoStatus={finalVideoStatus}
+                onRefresh={async () => {
+                  const pid = getEffectiveProjectId()
+                  if (!pid) return
+                  setFinalVideo('')
+                  setFinalPreview('')
+                  setFinalVideoStatus(1)
+                  try {
+                    await compositeProjectVideo(pid)
+                    refreshProjectData(pid)
+                  } catch (e) {
+                    setFinalVideoStatus(3)
+                  }
+                }}
               />
             </div>
           )}

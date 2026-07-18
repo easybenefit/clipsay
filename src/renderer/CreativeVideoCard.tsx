@@ -10,19 +10,47 @@ interface CreativeVideoCardProps {
   finalVideo?: string
   finalPreview?: string
   finalVideoStatus?: number
+  onRefresh?: () => Promise<void>
 }
 
-function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPreview, finalVideoStatus = 0 }: CreativeVideoCardProps): JSX.Element {
+function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPreview, finalVideoStatus = 0, onRefresh }: CreativeVideoCardProps): JSX.Element {
   const cssAspectRatio = toCssAspectRatio(aspectRatio)
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [mediaPreview, setMediaPreview] = useState<MediaPreviewData | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const hasVideo = !!(finalVideo || scenes.some(s => s.compositedVideo))
+
+  const handleRefresh = async () => {
+    if (!onRefresh || refreshing) return
+    setRefreshing(true)
+    try {
+      await onRefresh()
+    } catch (e) {
+      console.error('[composite_video] refresh failed:', e)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   return (
     <div className="script-card">
       <div className="script-card-header">
         <div className="script-card-title">成片</div>
+        {onRefresh && (
+          <button
+            className={`card-refresh-btn${refreshing ? ' spinning' : ''}`}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="重新合成视频"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+        )}
       </div>
       <div className="script-card-divider" />
       {!hasVideo && finalVideoStatus !== 1 ? (

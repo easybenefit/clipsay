@@ -628,6 +628,42 @@
   background: rgba(0,0,0,0.8);
 }
 
+/* ── Card header refresh button ── */
+
+.card-refresh-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s, transform 0.3s;
+}
+
+.card-refresh-btn:hover {
+  color: var(--accent);
+  background: var(--hover-bg);
+}
+
+.card-refresh-btn.spinning svg {
+  animation: card-refresh-spin 0.8s linear infinite;
+}
+
+.card-refresh-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@keyframes card-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ── Shot editor dialog ── */
 
 .shot-editor-dialog {
