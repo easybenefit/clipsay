@@ -36,6 +36,7 @@ class AgnesImageProvider(BaseProvider):
         }
 
         body: dict[str, Any] = {**payload, "model": self.model}
+        body.pop("save_path", None)
         self._normalize_size(body)
 
         if refs:

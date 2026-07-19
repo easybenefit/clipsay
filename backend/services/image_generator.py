@@ -87,7 +87,8 @@ class ImageGenerator:
             url = await self._get_existing_url(scene, shot_idx, frame_type)
             logger.info("[shot=%d] %s already exists on disk, reusing (url=%s)",
                         shot_idx, frame_type, url)
-            return ImageRef(url=url, prompt=frame_description)
+            local_url = scene.shot(shot_idx).url(frame_type)
+            return ImageRef(url=url, local_url=local_url, prompt=frame_description)
 
         reference_candidates = collect_character_references(
             vis_char_idxs, characters)
@@ -116,6 +117,7 @@ class ImageGenerator:
         )
         logger.info("[shot=%d] %s AI generation completed: url=%s",
                     shot_idx, frame_type, result.url)
+        result.local_url = scene.shot(shot_idx).url(frame_type)
         return result
 
     async def _generate_single_image(

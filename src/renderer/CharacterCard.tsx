@@ -38,7 +38,7 @@ interface CharacterCardProps {
 
   onRegenerate?: () => void
   onCharacterUpdate?: (idx: number, data: CharacterData) => void
-  onRefreshImage?: (characterIdx: number, view: string) => string | void
+  onRefreshImage?: (characterIdx: number, view: string) => string | void | Promise<string | void>
 }
 
 function toCssAspectRatio(aspectRatio: string): string {
@@ -50,6 +50,23 @@ const VIEW_LABELS: Record<string, string> = { front: '正面', side: '侧面', b
 function CharacterCard({ characters, aspectRatio, loading = false, disabled = false, statusMessage, onRegenerate, onCharacterUpdate, onRefreshImage }: CharacterCardProps): JSX.Element {
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [lightbox, setLightbox] = useState<{ charIdx: number; viewIdx: number } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 2000)
+  }
+
+  const handleRefreshImage = async (charIdx: number, view: string) => {
+    const msg = await onRefreshImage?.(charIdx, view)
+    if (msg) {
+      showToast(msg)
+    } else {
+      showToast(`${VIEW_LABELS[view] || view} 图片重新生成中...`)
+    }
+  }
 
   const views: Array<{ key: keyof CharacterPortraits; label: string }> = [
     { key: 'front', label: '正面' },
@@ -146,13 +163,28 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
                     <div key={key} className="character-card-photo" style={{ aspectRatio: toCssAspectRatio(aspectRatio) }}>
                       {char.name.includes('（画外音）')
                         ? <div className="character-card-voiceover"><span>画外音</span></div>
-                        : <ImageWithPlaceholder
-                            key={char.portraits[key]}
-                            src={char.portraits[key]}
-                            alt={`${char.name} ${key}`}
-                            status={char.portraitStatus?.[key] ?? (char.portraits?.[key] ? 'generated' : 'waiting')}
-                            onClick={char.portraits[key] ? () => setLightbox({ charIdx: idx, viewIdx: vi }) : undefined}
-                          />
+                        : <>
+                            <ImageWithPlaceholder
+                              key={char.portraits[key]}
+                              src={char.portraits[key]}
+                              alt={`${char.name} ${key}`}
+                              status={char.portraitStatus?.[key] ?? (char.portraits?.[key] ? 'generated' : 'waiting')}
+                              onClick={char.portraits[key] ? () => setLightbox({ charIdx: idx, viewIdx: vi }) : undefined}
+                            />
+                            {char.portraits[key] && (
+                              <button
+                                className="character-card-photo-refresh"
+                                onClick={(e) => { e.stopPropagation(); handleRefreshImage(idx, key) }}
+                                title={`重新生成${VIEW_LABELS[key]}图`}
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="23 4 23 10 17 10" />
+                                  <polyline points="1 20 1 14 7 14" />
+                                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                </svg>
+                              </button>
+                            )}
+                          </>
                       }
                     </div>
                   ))}
@@ -173,6 +205,8 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
           onLightbox={(view) => setLightbox({ charIdx: editIdx, viewIdx: views.findIndex(v => v.key === view) })}
         />
       )}
+
+      {toast && <div className="story-editor-toast">{toast}</div>}
 
       {lightbox && lightboxChar && lightboxView && (
         <div className="character-lightbox" onClick={() => setLightbox(null)}>

@@ -398,7 +398,7 @@ async def regenerate_shot_start_frame(project_id: int, scene_idx: int, shot_idx:
             size=cfg.get_image_size(),
             ratio=cfg.size,
         )
-        return {"url": ref.url}
+        return {"url": ref.local_url or ref.url}
     except Exception as e:
         logger.error("Regenerate start frame failed (project=%d, scene=%d, shot=%d): %s",
                       project_id, scene_idx, shot_idx, e, exc_info=True)
@@ -421,7 +421,7 @@ async def regenerate_shot_end_frame(project_id: int, scene_idx: int, shot_idx: i
             size=cfg.get_image_size(),
             ratio=cfg.size,
         )
-        return {"url": ref.url}
+        return {"url": ref.local_url or ref.url}
     except Exception as e:
         logger.error("Regenerate end frame failed (project=%d, scene=%d, shot=%d): %s",
                       project_id, scene_idx, shot_idx, e, exc_info=True)

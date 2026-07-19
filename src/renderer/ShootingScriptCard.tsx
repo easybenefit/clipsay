@@ -409,7 +409,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             onHover={onHover}
             className="order-1"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-            onRefresh={shot.firstFramePrompt ? () => onRefreshFrame?.('firstFrame', shot.firstFramePrompt!) : undefined}
+            onRefresh={shot.firstFrame ? () => onRefreshFrame?.('firstFrame', shot.firstFramePrompt || '') : undefined}
             onClick={() => handleFramePreview(shot.firstFrame)}
             status={shot.firstFrameStatus}
           />
@@ -421,7 +421,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             onHover={onHover}
             className="order-2"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-            onRefresh={shot.lastFramePrompt ? () => onRefreshFrame?.('lastFrame', shot.lastFramePrompt!) : undefined}
+            onRefresh={shot.lastFrame ? () => onRefreshFrame?.('lastFrame', shot.lastFramePrompt || '') : undefined}
             onClick={() => handleFramePreview(shot.lastFrame)}
             status={shot.lastFrameStatus}
           />
@@ -435,7 +435,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
             isVideo
             className="order-3"
             frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-            onRefresh={onRefreshVideo}
+            onRefresh={shot.video ? onRefreshVideo : undefined}
             onClick={() => handleFramePreview(shot.video)}
             status={shot.videoStatus}
           />
@@ -487,43 +487,45 @@ export function FrameCard({ label, src, frameKey, hoveredKey, onHover, isVideo, 
       onClick={handleClick}
     >
       {label && <span className="shot-card-image-label">{label}</span>}
-      {isVideo ? (
-        isPlaceholder ? (
+      <div className="shot-card-media-wrap">
+        {isVideo ? (
+          isPlaceholder ? (
+            <ImageWithPlaceholder
+              key={src}
+              src={src}
+              alt={label}
+              status={status || 'waiting'}
+              className="shot-card-img"
+              style={frameStyle}
+            />
+          ) : (
+            <div key={src} className="shot-card-video-placeholder" style={{ backgroundImage: `url(${previewSrc || src})`, ...frameStyle }}>
+              <svg className="shot-card-play-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <video src={src} muted preload="metadata" style={{ display: 'none' }} />
+            </div>
+          )
+        ) : (
           <ImageWithPlaceholder
             key={src}
             src={src}
             alt={label}
-            status={status || 'waiting'}
+            status={status || (isPlaceholder ? 'waiting' : 'generated')}
             className="shot-card-img"
             style={frameStyle}
           />
-        ) : (
-          <div key={src} className="shot-card-video-placeholder" style={{ backgroundImage: `url(${previewSrc || src})`, ...frameStyle }}>
-            <svg className="shot-card-play-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
+        )}
+        {onRefresh && (
+          <button className="frame-refresh-btn" onClick={(e) => { e.stopPropagation(); onRefresh() }} title="重新生成">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            <video src={src} muted preload="metadata" style={{ display: 'none' }} />
-          </div>
-        )
-      ) : (
-        <ImageWithPlaceholder
-          key={src}
-          src={src}
-          alt={label}
-          status={status || (isPlaceholder ? 'waiting' : 'generated')}
-          className="shot-card-img"
-          style={frameStyle}
-        />
-      )}
-      {onRefresh && (
-        <button className="frame-refresh-btn" onClick={(e) => { e.stopPropagation(); onRefresh() }} title="重新生成">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-        </button>
-      )}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -615,6 +617,13 @@ interface ShotEditorProps {
 function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefreshFrame, onRefreshVideo, onClose, onPreview }: ShotEditorProps): JSX.Element {
   const [visualDesc, setVisualDesc] = useState(shot.visualDescription)
   const [voiceDesc, setVoiceDesc] = useState(shot.voiceDescription)
+  const taRefs = useRef<(HTMLTextAreaElement | null)[]>([])
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }
+  useEffect(() => { taRefs.current.forEach(autoResize) }, [visualDesc, voiceDesc])
   const handleFramePreview = useCallback((clickedSrc: string) => {
     const items = buildShotPreviewFrames(shot)
     const idx = items.findIndex(i => i.src === clickedSrc)
@@ -635,7 +644,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefresh
     <div className="story-editor-backdrop" onClick={onClose}>
       <div className="shot-editor-dialog" onClick={e => e.stopPropagation()}>
         <div className="story-editor-header">
-          <div className="story-editor-title">编辑镜头 — {cleanTitle}</div>
+          <div className="story-editor-title">编辑 - 镜头{shotIdx + 1}</div>
           <div className="story-editor-actions">
             <button
               className={`story-editor-btn${!dirty ? ' story-editor-btn-disabled' : ''}`}
@@ -662,11 +671,11 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefresh
           <div className="shot-editor-desc">
             <div className="shot-card-row">
               <span className="shot-card-tag">[视觉描述]</span>
-              <textarea className="shot-editor-textarea" value={visualDesc} onChange={e => setVisualDesc(e.target.value)} />
+              <textarea className="shot-editor-textarea shot-editor-textarea--visual" ref={el => { taRefs.current[0] = el; autoResize(el) }} value={visualDesc} onChange={e => setVisualDesc(e.target.value)} />
             </div>
             <div className="shot-card-row">
               <span className="shot-card-tag">[对白音效]</span>
-              <textarea className="shot-editor-textarea" value={voiceDesc} onChange={e => setVoiceDesc(e.target.value)} />
+              <textarea className="shot-editor-textarea shot-editor-textarea--voice" ref={el => { taRefs.current[1] = el; autoResize(el) }} value={voiceDesc} onChange={e => setVoiceDesc(e.target.value)} />
             </div>
           </div>
           <div className="shot-editor-frames">
@@ -677,7 +686,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefresh
               hoveredKey={null}
               onHover={() => {}}
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-              onRefresh={shot.firstFramePrompt ? () => onRefreshFrame?.(sceneIdx, shotIdx, 'firstFrame', shot.firstFramePrompt!) : undefined}
+              onRefresh={shot.firstFrame ? () => onRefreshFrame?.(sceneIdx, shotIdx, 'firstFrame', shot.firstFramePrompt || '') : undefined}
               onClick={() => handleFramePreview(shot.firstFrame)}
               status={shot.firstFrameStatus}
             />
@@ -688,7 +697,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefresh
               hoveredKey={null}
               onHover={() => {}}
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-              onRefresh={shot.lastFramePrompt ? () => onRefreshFrame?.(sceneIdx, shotIdx, 'lastFrame', shot.lastFramePrompt!) : undefined}
+              onRefresh={shot.lastFrame ? () => onRefreshFrame?.(sceneIdx, shotIdx, 'lastFrame', shot.lastFramePrompt || '') : undefined}
               onClick={() => handleFramePreview(shot.lastFrame)}
               status={shot.lastFrameStatus}
             />
@@ -701,7 +710,7 @@ function ShotEditor({ shot, cssAspectRatio, sceneIdx, shotIdx, onSave, onRefresh
               onHover={() => {}}
               isVideo
               frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
-              onRefresh={() => onRefreshVideo?.(sceneIdx, shotIdx)}
+              onRefresh={shot.video ? () => onRefreshVideo?.(sceneIdx, shotIdx) : undefined}
               onClick={() => handleFramePreview(shot.video)}
               status={shot.videoStatus}
             />

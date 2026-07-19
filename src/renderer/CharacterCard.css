@@ -229,6 +229,7 @@
   overflow: hidden;
   background: var(--bg);
   border: 1px solid var(--border-subtle);
+  position: relative;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -242,6 +243,38 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.character-card-photo-refresh {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  background: rgba(0,0,0,0.5);
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0;
+  transform: scale(0.9);
+  z-index: 2;
+}
+
+.character-card-photo:hover .character-card-photo-refresh {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.character-card-photo-refresh:hover {
+  background: linear-gradient(135deg, var(--accent), var(--accent-end));
+  color: #fff;
+  transform: scale(1.1);
 }
 
 .character-card-voiceover {
