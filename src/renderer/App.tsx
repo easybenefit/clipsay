@@ -146,7 +146,7 @@ function App(): JSX.Element {
     sizeMap: { ...DEFAULT_SIZE_MAP }
   })
   const [toast, setToast] = useState<string | null>(null)
-  const [playVideoUrl, setPlayVideoUrl] = useState<string | null>(null)
+  const [playVideo, setPlayVideo] = useState<{ url: string; title: string; desc: string } | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const showToast = (msg: string) => {
@@ -156,7 +156,7 @@ function App(): JSX.Element {
   }
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPlayVideoUrl(null) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPlayVideo(null) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
@@ -436,7 +436,7 @@ function App(): JSX.Element {
                         key={p.id}
                         project={p}
                         index={i}
-                        onPlay={(url) => setPlayVideoUrl(url)}
+                        onPlay={(url, title, desc) => setPlayVideo({ url, title, desc })}
                         onEdit={(id) => { setEditProjectId(id); setPage('new') }}
                         onDuplicate={handleDuplicate}
                         onOpen={(id) => { setEditProjectId(id); setPage('new') }}
@@ -595,13 +595,16 @@ function App(): JSX.Element {
           )}
         </div>
       </main>
-      {playVideoUrl && (
-        <div className="carousel-modal-overlay" onClick={() => setPlayVideoUrl(null)}>
+      {playVideo && (
+        <div className="carousel-modal-overlay" onClick={() => setPlayVideo(null)}>
           <div className="carousel-modal" onClick={e => e.stopPropagation()}>
-            <video key={playVideoUrl} className="carousel-modal-video" src={playVideoUrl} autoPlay loop playsInline controls />
-            <button className="carousel-modal-close" onClick={() => setPlayVideoUrl(null)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <button className="carousel-modal-close" onClick={() => setPlayVideo(null)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
+            <video key={playVideo.url} className="carousel-modal-video" src={playVideo.url} autoPlay loop playsInline controls />
+            <div className="carousel-modal-top">
+              <span className="carousel-modal-title">{playVideo.title}</span>
+            </div>
           </div>
         </div>
       )}

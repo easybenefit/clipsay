@@ -48,7 +48,7 @@ function Carousel({ slides, onSlideClick }: CarouselProps) {
   const items = slides ?? DEFAULT_ITEMS
   const [slide, setSlide] = useState(0)
   const [erroredImages, setErroredImages] = useState<Set<number>>(new Set())
-  const [modalVideo, setModalVideo] = useState<string | null>(null)
+  const [modalSlide, setModalSlide] = useState<CarouselSlide | null>(null)
   const [isHovered, setIsHovered] = useState(false)
   const trackRef = useRef<HTMLDivElement>(null)
   const N = items.length
@@ -82,7 +82,7 @@ function Carousel({ slides, onSlideClick }: CarouselProps) {
   }, [nextSlide, isHovered])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setModalVideo(null) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setModalSlide(null) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
@@ -100,7 +100,7 @@ function Carousel({ slides, onSlideClick }: CarouselProps) {
             const clickHandler = () => {
               const videoUrl = item.type === 'default' ? splashMp4 : item.videoUrl
               if (videoUrl) {
-                setModalVideo(videoUrl)
+                setModalSlide(item)
               } else if (item.type === 'project' && item.projectId && onSlideClick) {
                 onSlideClick(item.projectId)
               }
@@ -139,13 +139,16 @@ function Carousel({ slides, onSlideClick }: CarouselProps) {
           <button key={i} className={`carousel-dot${i === slide ? ' active' : ''}`} onClick={() => setSlide(i)} />
         ))}
       </div>
-      {modalVideo && (
-        <div className="carousel-modal-overlay" onClick={() => setModalVideo(null)}>
+      {modalSlide && (
+        <div className="carousel-modal-overlay" onClick={() => setModalSlide(null)}>
           <div className="carousel-modal" onClick={e => e.stopPropagation()}>
-            <video key={modalVideo} className="carousel-modal-video" src={modalVideo} autoPlay loop playsInline controls />
-            <button className="carousel-modal-close" onClick={() => setModalVideo(null)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <button className="carousel-modal-close" onClick={() => setModalSlide(null)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
+            <video key={modalSlide.storyTitle || modalSlide.title} className="carousel-modal-video" src={modalSlide.type === 'default' ? splashMp4 : modalSlide.videoUrl} autoPlay loop playsInline controls />
+            <div className="carousel-modal-top">
+              <span className="carousel-modal-title">{modalSlide.storyTitle || modalSlide.title}</span>
+            </div>
           </div>
         </div>
       )}

@@ -21,7 +21,7 @@ const formatDuration = (s: number) => {
 interface ProjectCardProps {
   project: Project
   index: number
-  onPlay: (url: string) => void
+  onPlay: (url: string, title: string, desc: string) => void
   onEdit: (id: number) => void
   onDuplicate: (id: number) => void
   onOpen: (id: number) => void
@@ -70,7 +70,7 @@ export default function ProjectCard({
     if (hasVideo) {
       onIncrementClick(p.id)
       const url = p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`
-      onPlay(url)
+      onPlay(url, p.name, p.idea)
     } else {
       onOpen(p.id)
     }
