@@ -403,32 +403,65 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
   border-radius: 3px;
 }
 
-/* ── Hero ── */
-.hero {
-  margin-bottom: 20px;
+/* ── Home Welcome ── */
+.home-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  margin-bottom: 36px;
+  padding: 0 2px;
 }
 
-.hero-badge {
-  display: inline-block;
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin-bottom: 12px;
+.home-welcome-text h1 {
+  font-size: 1.55rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  margin-bottom: 10px;
 }
 
-.hero h1 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  margin-bottom: 6px;
-}
-
-.hero p {
+.home-welcome-text p {
   color: var(--text-muted);
-  margin-bottom: 20px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  margin-bottom: 22px;
+  line-height: 1.6;
+}
+
+.home-welcome-text .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: 0.85rem;
+}
+
+.home-welcome-stats {
+  display: flex;
+  gap: 28px;
+  flex-shrink: 0;
+}
+
+.home-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-stat-value {
+  font-size: 1.6rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.home-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 /* ── Waterfall ── */
@@ -463,27 +496,33 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
   pointer-events: none;
 }
 
-.waterfall-empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-dim);
-  font-size: 0.9rem;
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .project-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.35s cubic-bezier(0.32,0.72,0,1), box-shadow 0.35s cubic-bezier(0.32,0.72,0,1);
   cursor: pointer;
+  will-change: transform;
 }
 
 .project-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+  border-color: rgba(255,255,255,0.08);
+}
+
+.project-card:active {
+  transform: translateY(-1px) scale(0.99);
+  transition-duration: 0.08s;
 }
 
 .project-thumb {
@@ -614,38 +653,87 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
   color: var(--accent);
 }
 
-/* ── Section ── */
-.section-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  margin-bottom: 6px;
-  margin-top: 12px;
-}
-
-.section-divider {
-  height: 1px;
-  background: var(--border-subtle);
-  margin-top: 12px;
-}
-
-.section {
+/* ── Home Section ── */
+.home-section {
   margin-bottom: 32px;
 }
 
-.section-head {
+.home-section-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  padding: 0 2px;
 }
 
-.section-head h3 {
-  font-size: 0.8rem;
-  font-weight: 600;
+.home-section-head h2 {
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.home-section-count {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 20px;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  text-align: center;
+}
+
+.home-empty-icon {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+.home-empty p {
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.88rem;
+}
+
+.home-empty .btn-secondary {
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-welcome {
+    animation: home-fade-up 0.6s cubic-bezier(0.32,0.72,0,1);
+  }
+
+  .home-section {
+    animation: home-fade-up 0.6s cubic-bezier(0.32,0.72,0,1) 0.1s both;
+  }
+
+  .project-grid > * {
+    animation: home-card-in 0.5s cubic-bezier(0.32,0.72,0,1) both;
+  }
+
+  .project-grid > *:nth-child(1) { animation-delay: 0.05s; }
+  .project-grid > *:nth-child(2) { animation-delay: 0.08s; }
+  .project-grid > *:nth-child(3) { animation-delay: 0.11s; }
+  .project-grid > *:nth-child(4) { animation-delay: 0.14s; }
+  .project-grid > *:nth-child(5) { animation-delay: 0.17s; }
+  .project-grid > *:nth-child(6) { animation-delay: 0.2s; }
+}
+
+@keyframes home-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes home-card-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ── Buttons ── */
@@ -714,55 +802,6 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
 
 .empty p {
   font-size: 0.85rem;
-}
-
-/* ── Project Grid ── */
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-  margin-top: 16px;
-}
-
-.project-thumb {
-  aspect-ratio: 16 / 9;
-  width: 100%;
-  background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(99,102,241,0.08));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-dim);
-}
-
-.project-thumb svg {
-  opacity: 0.4;
-}
-
-.project-card:hover .project-thumb svg {
-  opacity: 0.8;
-  color: var(--accent);
-}
-
-.project-card:hover .project-thumb-play svg {
-  color: #fff;
-}
-
-.project-meta {
-  padding: 0px 0px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.project-name {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.project-date {
-  font-size: 0.72rem;
-  color: var(--text-dim);
 }
 
 /* ── Create Bar ── */

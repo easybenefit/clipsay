@@ -2,25 +2,29 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import './Carousel.css'
 import splashMp4 from '../../assets/splash.mp4'
 
-const DEFAULT_ITEMS = [
+const DEFAULT_ITEMS: CarouselSlide[] = [
   {
-    type: 'default' as const,
+    type: 'default',
     title: 'Seedance 2.0',
+    storyTitle: 'Seedance 2.0',
     desc: 'AI 视频生成，前所未有的画质与一致性',
   },
   {
-    type: 'default' as const,
+    type: 'default',
     title: '创作者挑战赛',
+    storyTitle: '创作者挑战赛',
     desc: '参与挑战，赢取大奖与曝光机会',
   },
   {
-    type: 'default' as const,
+    type: 'default',
     title: '智能剪辑',
+    storyTitle: '智能剪辑',
     desc: 'AI 自动识别高光片段，一键成片',
   },
   {
-    type: 'default' as const,
+    type: 'default',
     title: '语音转字幕',
+    storyTitle: '语音转字幕',
     desc: '精准语音识别，自动生成多语言字幕',
   },
 ]
@@ -29,6 +33,7 @@ export interface CarouselSlide {
   type: 'project' | 'default'
   projectId?: number
   title: string
+  storyTitle?: string
   desc: string
   previewUrl?: string
   videoUrl?: string
@@ -112,12 +117,10 @@ function Carousel({ slides, onSlideClick }: CarouselProps) {
                 ) : (
                   <video className="carousel-video" src={splashMp4} muted autoPlay loop playsInline />
                 )}
-                <svg className="deco" viewBox="0 0 200 200" fill="none">
-                  <circle cx="120" cy="100" r="80" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-                  <circle cx="120" cy="100" r="50" stroke="currentColor" strokeWidth="0.5" opacity="0.2" />
-                  <circle cx="120" cy="100" r="20" stroke="currentColor" strokeWidth="0.5" opacity="0.15" />
-                </svg>
-                <div className="carousel-content">
+                <div className="carousel-overlay" />
+                <div className={`carousel-bottom${pos === 'center' ? '' : ' compact'}`}>
+                  <div className="carousel-bottom-blur" />
+                  <h3>{item.storyTitle || item.title}</h3>
                   <p>{item.desc}</p>
                 </div>
               </div>

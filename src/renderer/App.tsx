@@ -310,15 +310,16 @@ function App(): JSX.Element {
 
   const buildCarouselSlides = (projects: Project[]): CarouselSlide[] => {
     const DEFAULT_SLIDES: CarouselSlide[] = [
-      { type: 'default', title: 'Seedance 2.0', desc: 'AI 视频生成，前所未有的画质与一致性' },
-      { type: 'default', title: '创作者挑战赛', desc: '参与挑战，赢取大奖与曝光机会' },
-      { type: 'default', title: '智能剪辑', desc: 'AI 自动识别高光片段，一键成片' },
-      { type: 'default', title: '语音转字幕', desc: '精准语音识别，自动生成多语言字幕' },
+      { type: 'default', title: 'Seedance 2.0', storyTitle: 'Seedance 2.0', desc: 'AI 视频生成，前所未有的画质与一致性' },
+      { type: 'default', title: '创作者挑战赛', storyTitle: '创作者挑战赛', desc: '参与挑战，赢取大奖与曝光机会' },
+      { type: 'default', title: '智能剪辑', storyTitle: '智能剪辑', desc: 'AI 自动识别高光片段，一键成片' },
+      { type: 'default', title: '语音转字幕', storyTitle: '语音转字幕', desc: '精准语音识别，自动生成多语言字幕' },
     ]
     const projectSlides: CarouselSlide[] = projects.map(p => ({
       type: 'project' as const,
       projectId: p.id,
-      title: (p as any).story_title || p.name,
+      title: p.name,
+      storyTitle: (p as any).story_title || p.name,
       desc: p.idea,
       previewUrl: p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : undefined,
       videoUrl: p.final_video ? (p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`) : undefined,
@@ -396,64 +397,95 @@ function App(): JSX.Element {
           {page === 'home' && (
             <>
               <Carousel slides={buildCarouselSlides(topProjects)} onSlideClick={handleCarouselSlideClick} />
-              <div className="hero">
-                <h1>欢迎使用 Clipsay</h1>
-                <p>用 AI 将你的创意转化为惊艳的视频。</p>
-                <button className="btn-primary" onClick={async () => {
-                  if (await requireNoRunningPipeline()) {
-                    setEditProjectId(undefined); setPage('new')
-                  }
-                }}>
-                  开启创作
-                </button>
+
+              <div className="home-welcome">
+                <div className="home-welcome-text">
+                  <h1>转化为惊艳的视频</h1>
+                  <p>输入想法，AI 一键生成专业视频</p>
+                  <button className="btn-primary" onClick={async () => {
+                    if (await requireNoRunningPipeline()) {
+                      setEditProjectId(undefined); setPage('new')
+                    }
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                    开启创作
+                  </button>
+                </div>
+                <div className="home-welcome-stats">
+                  <div className="home-stat">
+                    <span className="home-stat-value">{projects.length}</span>
+                    <span className="home-stat-label">作品</span>
+                  </div>
+                  <div className="home-stat">
+                    <span className="home-stat-value">4</span>
+                    <span className="home-stat-label">AI 模型</span>
+                  </div>
+                  <div className="home-stat">
+                    <span className="home-stat-value">{topProjects.length > 0 ? topProjects.length : '∞'}</span>
+                    <span className="home-stat-label">精选</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="section-divider" />
-              <h2 className="section-title">TV Show</h2>
-              {projects.length === 0 ? (
-                <div className="waterfall-empty">暂无创作，点击"开启创作"开始</div>
-              ) : (
-                <div className="project-grid">
-                  {projects.map(p => (
-                    <div key={p.id} className="project-card" onClick={() => {
-                      if (p.final_video && p.final_video.length > 0) {
-                        incrementProjectClick(p.id).catch(() => {})
-                        const url = p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`
-                        setPlayVideoUrl(url)
+              <div className="home-section">
+                <div className="home-section-head">
+                  <h2>全部作品</h2>
+                </div>
+                {projects.length === 0 ? (
+                  <div className="home-empty">
+                    <div className="home-empty-icon">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
+                    </div>
+                    <p>还没有作品，开始你的第一个创作</p>
+                    <button className="btn-secondary" onClick={async () => {
+                      if (await requireNoRunningPipeline()) {
+                        setEditProjectId(undefined); setPage('new')
                       }
-                    }}>
-                      <div className="project-thumb">
-                        {(p as any).final_preview ? (
-                          <img className="project-thumb-img" src={(p as any).final_preview.startsWith(BASE) ? (p as any).final_preview : `${BASE}${(p as any).final_preview}`} alt="" />
-                        ) : p.final_video && p.final_video.length > 0 ? (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="project-thumb-icon">
-                            <polygon points="5 3 19 12 5 21 5 3" />
-                          </svg>
-                        ) : null}
-                        {p.final_video && p.final_video.length > 0 && (
-                          <div className="project-thumb-play">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                    }}>开启创作</button>
+                  </div>
+                ) : (
+                  <div className="project-grid">
+                    {projects.map(p => (
+                      <div key={p.id} className="project-card" onClick={() => {
+                        if (p.final_video && p.final_video.length > 0) {
+                          incrementProjectClick(p.id).catch(() => {})
+                          const url = p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`
+                          setPlayVideoUrl(url)
+                        }
+                      }}>
+                        <div className="project-thumb">
+                          {(p as any).final_preview ? (
+                            <img className="project-thumb-img" src={(p as any).final_preview.startsWith(BASE) ? (p as any).final_preview : `${BASE}${(p as any).final_preview}`} alt="" />
+                          ) : p.final_video && p.final_video.length > 0 ? (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="project-thumb-icon">
+                              <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                          ) : null}
+                          {p.final_video && p.final_video.length > 0 && (
+                            <div className="project-thumb-play">
+                              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                            </div>
+                          )}
+                          {p.idea ? <div className="project-thumb-idea">{p.idea}</div> : null}
+                        </div>
+                        <div className="project-card-body">
+                          <div className="project-name">{(p as any).story_title || p.name || '未命名项目'}</div>
+                          <div className="project-actions">
+                            <div className="project-meta">{STYLE_LABEL[p.style] || p.style || '写实'} {p.final_video && p.duration ? `· ${formatDuration(p.duration)}` : ''}</div>
+                            {(p as any).pipeline_status === 'running' && <span className="project-status-dot" />}
+                            <button className="project-btn" onClick={e => { e.stopPropagation(); setEditProjectId(p.id); setPage('new') }} title="编辑">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                            </button>
+                            <button className="project-btn" onClick={e => { e.stopPropagation(); handleDuplicate(p.id) }} title="复制">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                            </button>
                           </div>
-                        )}
-                        {p.idea ? <div className="project-thumb-idea">{p.idea}</div> : null}
-                      </div>
-                      <div className="project-card-body">
-                        <div className="project-name">{(p as any).story_title || p.name || '未命名项目'}</div>
-                        <div className="project-actions">
-                          <div className="project-meta">{STYLE_LABEL[p.style] || p.style || '写实'} {p.final_video && p.duration ? `· ${formatDuration(p.duration)}` : ''}</div>
-                          {(p as any).pipeline_status === 'running' && <span className="project-status-dot" />}
-                          <button className="project-btn" onClick={e => { e.stopPropagation(); setEditProjectId(p.id); setPage('new') }} title="编辑">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                          </button>
-                          <button className="project-btn" onClick={e => { e.stopPropagation(); handleDuplicate(p.id) }} title="复制">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
 
