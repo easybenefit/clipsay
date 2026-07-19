@@ -12,29 +12,32 @@
   transition: gap 0.35s ease;
 }
 
-/* ── Left Sidebar (1) ── */
+/* ── Left Sidebar (1) — hidden by default, toggled via body.show-new-sidebar ── */
 
-body.window-maximized .new-project-sidebar {
+.new-project-sidebar {
+  flex: 1;
   max-width: 0;
   padding: 0;
   border-width: 0;
   border-radius: 14px 0 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-left: 0;
   opacity: 0;
   filter: blur(8px);
   transform: translateX(-12px);
   pointer-events: none;
   visibility: hidden;
+  overflow: hidden;
+  transition: max-width 0.35s ease, opacity 0.3s ease, filter 0.3s ease,
+              transform 0.3s ease, padding 0.35s ease, border-width 0.3s ease,
+              visibility 0s 0.35s;
 }
 
-body.window-maximized .new-project-layout {
-  gap: 0;
-}
-
-body.window-maximized.show-new-sidebar .new-project-layout {
-  gap: 16px;
-}
-
-body.window-maximized.show-new-sidebar .new-project-sidebar {
+body.show-new-sidebar .new-project-sidebar {
   max-width: 320px;
   padding: 16px 16px 12px;
   border-width: 1px;
@@ -46,21 +49,12 @@ body.window-maximized.show-new-sidebar .new-project-sidebar {
   visibility: visible;
 }
 
-.new-project-sidebar {
-  flex: 1;
-  max-width: 320px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-left: 0;
-  transition: max-width 0.35s ease, opacity 0.3s ease, filter 0.3s ease,
-              transform 0.3s ease, padding 0.35s ease, border-width 0.3s ease,
-              visibility 0s 0.35s;
-  overflow: hidden;
+body.window-maximized .new-project-layout {
+  gap: 0;
+}
+
+body.window-maximized.show-new-sidebar .new-project-layout {
+  gap: 16px;
 }
 
 .new-project-sidebar-header {
