@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, Fragment } from 'react'
+import { useEffect, useState, useRef, useCallback, Fragment, type ReactNode } from 'react'
 import { getHealth, listProjects, createProject, duplicateProject, checkPipelineRunning, listTopCompletedProjects, incrementProjectClick, BASE, Project } from './api'
 import logoSrc from './logo.jpg'
 import Carousel, { CarouselSlide } from './Carousel'
@@ -16,19 +16,55 @@ import NewProject from './NewProject'
 
 type Page = 'home' | 'new' | 'settings'
 
+const HomeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+)
+
+const PlusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+)
+
+const GridIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" />
+    <rect x="3" y="14" width="7" height="7" />
+  </svg>
+)
+
+const FolderIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+)
+
+const SettingsIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+)
+
 interface NavItem {
   key: string
-  icon: string
+  icon: ReactNode
   label: string
   isPage?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'home', icon: '⏺', label: '首页', isPage: true },
-  { key: 'new', icon: '+', label: '创作', isPage: true },
-  { key: 'canvas', icon: '▣', label: '画布' },
-  { key: 'asset', icon: '⊞', label: '资产' },
-  { key: 'settings', icon: '⚙', label: '设置', isPage: true },
+  { key: 'home', icon: <HomeIcon />, label: '首页', isPage: true },
+  { key: 'new', icon: <PlusIcon />, label: '创作', isPage: true },
+  { key: 'canvas', icon: <GridIcon />, label: '画布' },
+  { key: 'asset', icon: <FolderIcon />, label: '资产' },
+  { key: 'settings', icon: <SettingsIcon />, label: '设置', isPage: true },
 ]
 
 interface ModelPreset {
@@ -332,7 +368,7 @@ function App(): JSX.Element {
                 } else showToast('正在开发...') }}
                 title={item.label}
               >
-                <span className="nav-icon" style={item.key === 'new' ? { fontSize: '1.15rem' } : undefined}>{item.icon}</span>
+                <span className="nav-icon">{item.icon}</span>
                 <span className={`nav-label${expanded ? '' : ' collapsed'}`}>{item.label}</span>
               </button>
               </Fragment>
@@ -493,43 +529,47 @@ function App(): JSX.Element {
               <div className="settings-image">
                 <h2 className="settings-heading">图像设置</h2>
                 <div className="settings-image-cards-row">
-                  <div className="settings-image-card">
-                    <div className="settings-image-header">
-                      <span className="settings-card-title">尺寸</span>
-                    </div>
-                    <div className="settings-image-grid">
-                      {SIZE_TIERS.map(t => (
-                        <div
-                          key={t.id}
-                          className={`settings-image-cell${settings.sizeTier === t.id ? ' active' : ''}`}
-                          onClick={() => {
-                            const next = { ...settings, sizeTier: t.id }
-                            setSettings(next)
-                            window.electronAPI.saveSettings(next).catch(() => {})
-                          }}
-                        >
-                          <span className="settings-image-label">{t.label}</span>
-                          <span className="settings-image-sub">{t.subLabel}</span>
-                        </div>
-                      ))}
+                  <div className="settings-image-card-outer">
+                    <div className="settings-image-card">
+                      <div className="settings-image-header">
+                        <span className="settings-card-title">尺寸</span>
+                      </div>
+                      <div className="settings-image-grid">
+                        {SIZE_TIERS.map(t => (
+                          <div
+                            key={t.id}
+                            className={`settings-image-cell${settings.sizeTier === t.id ? ' active' : ''}`}
+                            onClick={() => {
+                              const next = { ...settings, sizeTier: t.id }
+                              setSettings(next)
+                              window.electronAPI.saveSettings(next).catch(() => {})
+                            }}
+                          >
+                            <span className="settings-image-label">{t.label}</span>
+                            <span className="settings-image-sub">{t.subLabel}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="settings-image-card">
-                    <div className="settings-image-header">
-                      <span className="settings-card-title">宽高比</span>
-                    </div>
-                    <div className="settings-image-grid">
-                      {SIZE_OPTIONS.map(s => (
-                        <div key={s.id} className={`settings-image-cell${settings.imageSize === s.id ? ' active' : ''}`} data-aspect={s.id} onClick={() => {
-                          const next = { ...settings, imageSize: s.id }
-                          setSettings(next)
-                          window.electronAPI.saveSettings(next).catch(() => {})
-                        }}>
-                          <span className="settings-image-cn">{s.labelCn}</span>
-                          <div className="settings-image-schema" />
-                          <span className="settings-image-label">{s.label}</span>
-                        </div>
-                      ))}
+                  <div className="settings-image-card-outer">
+                    <div className="settings-image-card">
+                      <div className="settings-image-header">
+                        <span className="settings-card-title">宽高比</span>
+                      </div>
+                      <div className="settings-image-grid">
+                        {SIZE_OPTIONS.map(s => (
+                          <div key={s.id} className={`settings-image-cell${settings.imageSize === s.id ? ' active' : ''}`} data-aspect={s.id} onClick={() => {
+                            const next = { ...settings, imageSize: s.id }
+                            setSettings(next)
+                            window.electronAPI.saveSettings(next).catch(() => {})
+                          }}>
+                            <span className="settings-image-cn">{s.labelCn}</span>
+                            <div className="settings-image-schema" />
+                            <span className="settings-image-label">{s.label}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -537,16 +577,23 @@ function App(): JSX.Element {
 
               <div className="settings-backend">
                 <h2 className="settings-heading">后端</h2>
-                <div className="settings-backend-card">
-                  <div className="settings-backend-row">
-                    <span>后端状态</span>
-                    <span className={`badge ${health === 'ok' ? 'online' : 'offline'}`}>
-                      {health === 'ok' ? '已连接' : '未连接'}
-                    </span>
-                  </div>
-                  <div className="settings-backend-row">
-                    <span>端口号</span>
-                    <span className="settings-port">8765</span>
+                <div className="settings-backend-card-outer">
+                  <div className="settings-backend-card">
+                    <div className="settings-backend-row">
+                      <span className="settings-backend-label">后端状态</span>
+                      <span className="settings-backend-value">
+                        <span className={`badge ${health === 'ok' ? 'online' : 'offline'}`}>
+                          <span className="badge-dot" />
+                          {health === 'ok' ? '已连接' : '未连接'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="settings-backend-row">
+                      <span className="settings-backend-label">端口号</span>
+                      <span className="settings-backend-value">
+                        <span className="settings-port">8765</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
