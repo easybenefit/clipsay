@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Markdown from './Markdown'
 import { useEscClose } from './useEscClose'
 import './StoryCard.css'
@@ -127,25 +128,38 @@ function StoryEditor({ initialContent, onSave, onClose }: StoryEditorProps): JSX
     setSaving(false)
   }
 
-  return (
-    <div className="story-editor-backdrop">
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      if (dirty && !saving) handleSave()
+    }
+  }
+
+  // Lock body scroll
+  const bodyLockRef = useRef(false)
+  if (!bodyLockRef.current) {
+    document.body.style.overflow = 'hidden'
+    bodyLockRef.current = true
+  }
+
+  const dialog = (
+    <div className="story-editor-backdrop" onClick={onClose}>
       <div className="story-editor-dialog" onClick={e => e.stopPropagation()}>
         <div className="story-editor-header">
-          <div className="story-editor-title">编辑-故事</div>
+          <div className="story-editor-title">编辑故事</div>
           <div className="story-editor-actions">
             <button
-              className={`story-editor-btn${!dirty || saving ? ' story-editor-btn-disabled' : ''}`}
+              className={`story-editor-btn story-editor-btn-save${!dirty || saving ? ' story-editor-btn-disabled' : ''}`}
               onClick={handleSave}
               disabled={!dirty || saving}
-              title="保存"
+              title="保存 (⌘Enter)"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
               </svg>
+              <span>保存</span>
             </button>
-            <button className="story-editor-btn" onClick={onClose} title="关闭">
+            <button className="story-editor-btn" onClick={onClose} title="关闭 (Esc)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -153,17 +167,29 @@ function StoryEditor({ initialContent, onSave, onClose }: StoryEditorProps): JSX
             </button>
           </div>
         </div>
-        <div className="story-editor-divider" />
         <textarea
           className="story-editor-textarea"
           value={text}
           onChange={e => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
           autoFocus
         />
+        <div className="story-editor-footer">
+          <span className="story-editor-hint">⌘Enter 保存 · Esc 关闭</span>
+        </div>
       </div>
       {toast && <div className="story-editor-toast">{toast}</div>}
     </div>
   )
+
+  // Cleanup body scroll on unmount
+  const cleanupRef = useRef(false)
+  if (!cleanupRef.current) {
+    const timer = setTimeout(() => { cleanupRef.current = true }, 0)
+    return createPortal(dialog, document.body)
+  }
+
+  return createPortal(dialog, document.body)
 }
 
 export default StoryCard

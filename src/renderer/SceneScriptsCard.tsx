@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Markdown from './Markdown'
 import { useEscClose } from './useEscClose'
 import './SceneScriptsCard.css'
@@ -18,27 +19,48 @@ interface SceneScriptsCardProps {
 function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: SceneScriptScene; onSave: (idx: number, data: { title: string; content: string }) => void; onClose: () => void }): JSX.Element {
   const [title, setTitle] = useState(scene.title)
   const [content, setContent] = useState(scene.content)
+  const savedRef = useRef({ title: scene.title, content: scene.content })
+  const dirty = title !== savedRef.current.title || content !== savedRef.current.content
   useEscClose(onClose)
 
   const handleSave = () => {
     onSave(idx, { title, content })
+    savedRef.current = { title, content }
     onClose()
   }
 
-  return (
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      if (dirty) handleSave()
+    }
+  }
+
+  // Lock body scroll
+  const bodyLockRef = useRef(false)
+  if (!bodyLockRef.current) {
+    document.body.style.overflow = 'hidden'
+    bodyLockRef.current = true
+  }
+
+  const dialog = (
     <div className="story-editor-backdrop" onClick={onClose}>
       <div className="scene-editor-dialog" onClick={e => e.stopPropagation()}>
         <div className="story-editor-header">
           <div className="story-editor-title">编辑 — {scene.title || `场景${idx + 1}`}</div>
           <div className="story-editor-actions">
-            <button className="story-editor-btn" onClick={handleSave} title="保存">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
+            <button
+              className={`story-editor-btn story-editor-btn-save${!dirty ? ' story-editor-btn-disabled' : ''}`}
+              onClick={handleSave}
+              disabled={!dirty}
+              title="保存 (⌘Enter)"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
               </svg>
+              <span>保存</span>
             </button>
-            <button className="story-editor-btn" onClick={onClose} title="关闭">
+            <button className="story-editor-btn" onClick={onClose} title="关闭 (Esc)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -46,20 +68,24 @@ function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: Scen
             </button>
           </div>
         </div>
-        <div className="story-editor-divider" />
         <div className="scene-editor-body">
           <div className="scene-editor-row">
             <div className="scene-editor-row-label">标题</div>
-            <input className="scene-editor-input" value={title} onChange={e => setTitle(e.target.value)} />
+            <input className="scene-editor-input" value={title} onChange={e => setTitle(e.target.value)} onKeyDown={handleKeyDown} />
           </div>
           <div className="scene-editor-row">
             <div className="scene-editor-row-label">内容</div>
-            <textarea className="scene-editor-textarea" value={content} onChange={e => setContent(e.target.value)} />
+            <textarea className="scene-editor-textarea" value={content} onChange={e => setContent(e.target.value)} onKeyDown={handleKeyDown} />
           </div>
+        </div>
+        <div className="story-editor-footer">
+          <span className="story-editor-hint">⌘Enter 保存 · Esc 关闭</span>
         </div>
       </div>
     </div>
   )
+
+  return createPortal(dialog, document.body)
 }
 
 function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: SceneScriptsCardProps): JSX.Element {
