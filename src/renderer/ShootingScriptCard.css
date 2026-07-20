@@ -1016,7 +1016,7 @@
   background: linear-gradient(135deg, var(--accent), var(--accent-end));
   color: #fff;
   filter: none;
-  opacity: 0;
+  opacity: 0.8;
   transform: scale(0.8);
   transition: transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.35s ease, box-shadow 0.35s ease;
   box-shadow: 0 0 0 0 rgba(139,92,246,0.5), 0 4px 20px rgba(0,0,0,0.3);
@@ -1033,12 +1033,20 @@
 
 .creative-video-card .shot-card-video-placeholder .shot-card-play-icon path {
   transform: translate(1px, 0);
+  transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+
+.creative-video-card .shot-card-video-placeholder:hover .shot-card-play-icon path {
+  transform: translate(1px, 0) scale(1.1);
 }
 
 .creative-video-card .shot-card-video-placeholder::after {
   content: '';
   position: absolute;
-  inset: -5px;
+  top: calc(50% - 25px);
+  left: calc(50% - 25px);
+  width: 50px;
+  height: 50px;
   z-index: 2;
   border-radius: 50%;
   border: 1.5px solid rgba(139,92,246,0.3);
