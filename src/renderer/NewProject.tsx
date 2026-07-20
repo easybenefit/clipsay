@@ -266,7 +266,8 @@ function NewProject(props: NewProjectProps): JSX.Element {
               </div>
             )}
 
-            {(!showPlaceholder || store.creating) && !(store.creating && showPlaceholder) && (
+            {(store.creating || store.output || store.stepStatuses?.story ||
+              pipeline.status?.steps?.story?.status) && (
               <div className="npm-card-enter"><StoryCard /></div>
             )}
 
