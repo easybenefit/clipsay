@@ -1032,12 +1032,12 @@
 }
 
 .creative-video-card .shot-card-video-placeholder .shot-card-play-icon path {
-  transform: translate(1px, 0);
+  transform: none;
   transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
 }
 
 .creative-video-card .shot-card-video-placeholder:hover .shot-card-play-icon path {
-  transform: translate(1px, 0) scale(1.1);
+  transform: scale(1.1);
 }
 
 .creative-video-card .shot-card-video-placeholder::after {
