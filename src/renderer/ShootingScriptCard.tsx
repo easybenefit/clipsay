@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import ImageWithPlaceholder, { type ImageState } from './ImageWithPlaceholder'
 import { toCssAspectRatio } from './sizeConfig'
 import { useEscClose } from './useEscClose'
@@ -98,9 +99,16 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
     return () => window.removeEventListener('keydown', onKey)
   }, [navigate, onClose, data.items.length])
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   if (!item) return null
 
-  return (
+  const modal = (
     <div className="media-preview-backdrop" onClick={onClose}>
       <div className="media-preview-container" onClick={e => e.stopPropagation()}>
         <button className="media-preview-close" onClick={onClose}>
@@ -138,6 +146,8 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }
 
 function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame, onRefreshVideo }: ScriptCardProps): JSX.Element {

@@ -769,18 +769,20 @@
   min-height: 120px;
 }
 
-/* ── MediaPreview modal ── */
+/* ── MediaPreview modal (aligned with home page carousel-modal) ── */
 
 .media-preview-backdrop {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0,0,0,0.82);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-  animation: media-fade-in 0.2s ease;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: media-fade-in 0.3s ease;
+  padding: 40px;
 }
 
 @keyframes media-fade-in {
@@ -790,89 +792,158 @@
 
 .media-preview-container {
   position: relative;
-  max-width: 90vw;
-  max-height: 85vh;
+  width: 90vw;
+  max-height: 90vh;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 32px 100px rgba(0,0,0,0.7), 0 0 80px rgba(139,92,246,0.08);
+  animation: modal-scale-in 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+  background: #0a0a0a;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+@keyframes modal-scale-in {
+  from { transform: scale(0.92) translateY(12px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
 .media-preview-close {
   position: absolute;
-  top: -40px;
-  right: -8px;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: none;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  border: none;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: rgba(255,255,255,0.6);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
-  transition: background 0.15s;
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.32,0.72,0,1);
+}
+
+.media-preview-container:hover .media-preview-close {
+  opacity: 1;
 }
 
 .media-preview-close:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  transform: scale(1.1) rotate(90deg);
+}
+
+.media-preview-close:active {
+  transform: scale(0.95);
+  transition-duration: 0.08s;
+}
+
+.media-preview-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
 }
 
 .media-preview-image {
   max-width: 100%;
   max-height: 80vh;
-  border-radius: 8px;
   object-fit: contain;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-}
-
-.media-preview-video {
-  max-width: 100%;
-  max-height: 80vh;
-  border-radius: 8px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  background: #000;
 }
 
 .media-preview-label {
-  margin-top: 12px;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px 20px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-preview-container:hover .media-preview-label {
+  opacity: 1;
 }
 
 .media-preview-nav {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.8);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  z-index: 4;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  transition: all 0.3s cubic-bezier(0.32,0.72,0,1);
 }
 
 .media-preview-nav:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.3);
   color: #fff;
-  transform: translateY(-50%) scale(1.1);
+  transform: translateY(-50%) scale(1.15);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5), 0 0 20px rgba(139,92,246,0.15);
+}
+
+.media-preview-nav:active {
+  transform: translateY(-50%) scale(0.95);
+  transition-duration: 0.08s;
 }
 
 .media-preview-nav--left {
-  left: -56px;
+  left: 12px;
 }
 
 .media-preview-nav--right {
-  right: -56px;
+  right: 12px;
+}
+
+@media (max-width: 640px) {
+  .media-preview-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .media-preview-container {
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 85vh;
+  }
+  .media-preview-video {
+    aspect-ratio: 16 / 10;
+  }
 }
 
 /* ── Creative Video Card (作品卡片) ── */
@@ -974,7 +1045,7 @@
 .script-card.creative-video-card .card-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .script-card.creative-video-card .shot-card-frame.card-hovered {
