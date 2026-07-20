@@ -118,6 +118,7 @@ function App(): JSX.Element {
   const topProjects = useProjectStore(s => s.topProjects)
   const playVideo = useProjectStore(s => s.playVideo)
   const setPlayVideo = useProjectStore(s => s.setPlayVideo)
+  const carouselSlides = useMemo(() => buildCarouselSlides(topProjects), [topProjects])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') useProjectStore.getState().setPlayVideo(null) }
@@ -143,10 +144,11 @@ function App(): JSX.Element {
 
   // ── listen for window maximize → collapse sidebar ──
   useEffect(() => {
-    window.electronAPI?.onWindowState?.(({ isMaximized }) => {
+    const cleanup = window.electronAPI?.onWindowState?.(({ isMaximized }) => {
       if (isMaximized) setExpanded(false)
       document.body.classList.toggle('window-maximized', isMaximized)
     })
+    return () => { if (typeof cleanup === 'function') cleanup() }
   }, [])
 
   // ── persist page state to localStorage (sync — survives renderer reload after wake) ──
@@ -217,7 +219,7 @@ function App(): JSX.Element {
         <div className="content">
           {page === 'home' && (
             <>
-              <Carousel slides={useMemo(() => buildCarouselSlides(topProjects), [topProjects])} onSlideClick={async (projectId) => { if (await requireNoRunningPipeline()) { useProjectStore.getState().incrementClick(projectId); setEditProjectId(projectId); setPage('new') } }} />
+              <Carousel slides={carouselSlides} onSlideClick={async (projectId) => { if (await requireNoRunningPipeline()) { useProjectStore.getState().incrementClick(projectId); setEditProjectId(projectId); setPage('new') } }} />
 
               <div className="home-welcome">
                 <div className="home-welcome-text">
@@ -286,24 +288,6 @@ function App(): JSX.Element {
               onCreated={() => { setEditProjectId(undefined); useProjectStore.getState().refreshProjects(); setPage('home') }}
               onCancel={() => { setEditProjectId(undefined); setPage('home') }}
               onProjectSelected={(id) => { setEditProjectId(id) }}
-              chatOptions={CHAT_OPTIONS}
-              imageOptions={IMAGE_OPTIONS}
-              videoOptions={VIDEO_OPTIONS}
-              chatApiKey={settings.chat.apiKey}
-              chatBaseUrl={settings.chat.baseUrl}
-              imageApiKey={settings.image.apiKey}
-              imageBaseUrl={settings.image.baseUrl}
-              videoApiKey={settings.video.apiKey}
-              videoBaseUrl={settings.video.baseUrl}
-              chatRateLimitMin={settings.chat.rateLimitMin}
-              chatRateLimitDay={settings.chat.rateLimitDay}
-              imageRateLimitMin={settings.image.rateLimitMin}
-              imageRateLimitDay={settings.image.rateLimitDay}
-              videoRateLimitMin={settings.video.rateLimitMin}
-              videoRateLimitDay={settings.video.rateLimitDay}
-               sizeMap={settings.sizeMap}
-               defaultSize={settings.imageSize}
-               defaultSizeTier={settings.sizeTier}
               editProjectId={editProjectId}
             />
           )}

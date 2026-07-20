@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import ImageWithPlaceholder, { type ImageState } from './ImageWithPlaceholder'
 import { toCssAspectRatio } from './sizeConfig'
 import { useEscClose } from './useEscClose'
+import { useCreationStore } from './stores/creationStore'
 import './ShootingScriptCard.css'
 
 export interface ShotData {
@@ -34,20 +35,6 @@ export interface SceneData {
   compositedPreview?: string
   compositVideoStatus?: number
   id?: number
-}
-
-interface ScriptCardProps {
-  scenes: SceneData[]
-  loading?: boolean
-  creating?: boolean
-  disabled?: boolean
-  aspectRatio?: string
-
-  onSceneUpdate?: (idx: number, data: SceneData) => void
-  onRegenerate?: () => void
-  onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
-  onRefreshVideo?: (sceneIdx: number, shotIdx: number) => void
-  onRefreshSceneComposited?: (sceneIdx: number) => void
 }
 
 export interface MediaPreviewFrame {
@@ -101,7 +88,6 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
     return () => window.removeEventListener('keydown', onKey)
   }, [navigate, onClose, data.items.length])
 
-  // Lock body scroll when modal is open
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -152,12 +138,28 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
   return createPortal(modal, document.body)
 }
 
-function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame, onRefreshVideo, onRefreshSceneComposited }: ScriptCardProps): JSX.Element {
-  const cssAspectRatio = toCssAspectRatio(aspectRatio)
+function ShootingScriptCard(): JSX.Element {
+  const scenes = useCreationStore(s => s.scenes)
+  const size = useCreationStore(s => s.size)
+  const creatingStoryboard = useCreationStore(s => s.creatingStoryboard)
+  const regenerating = useCreationStore(s => s.regenerating)
+  const stepStatuses = useCreationStore(s => s.stepStatuses)
+  const loading = stepStatuses?.storyboard === 1 || stepStatuses?.shot_frames === 1
+  const creating = creatingStoryboard || regenerating
+
+  const cssAspectRatio = toCssAspectRatio(size)
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [editShotKey, setEditShotKey] = useState<{ sceneIdx: number; shotIdx: number } | null>(null)
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [mediaPreview, setMediaPreview] = useState<MediaPreviewData | null>(null)
+
+  const handleSceneUpdate = (idx: number, data: SceneData) => {
+    useCreationStore.getState().handleSceneUpdate(idx, data)
+  }
+
+  const handleRegenerate = useCallback(() => {
+    useCreationStore.getState().handleRegenerateStoryboard()
+  }, [])
 
   return (
     <div className="script-card">
@@ -165,15 +167,13 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
         <div className="script-card-title">
           <span className="script-card-title-pill">拍摄脚本</span>
         </div>
-        {onRegenerate && (
-          <button className="card-refresh-btn" onClick={onRegenerate} title="重新生成">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </button>
-        )}
+        <button className="card-refresh-btn" onClick={handleRegenerate} title="重新生成">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </button>
       </div>
       {loading && scenes.length === 0 ? (
         <div className="script-card-loading">
@@ -196,9 +196,9 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
               onHover={setHoveredKey}
               onEdit={() => setEditIdx(idx)}
               onEditShot={(shotIdx) => setEditShotKey({ sceneIdx: idx, shotIdx })}
-              onRefreshFrame={(shotIdx, frameType, prompt) => onRefreshFrame?.(idx, shotIdx, frameType, prompt)}
-              onRefreshVideo={(shotIdx) => onRefreshVideo?.(idx, shotIdx)}
-              onRefreshSceneComposited={() => onRefreshSceneComposited?.(idx)}
+              onRefreshFrame={(shotIdx, frameType, prompt) => useCreationStore.getState().handleRefreshFrame(idx, shotIdx, frameType, prompt)}
+              onRefreshVideo={(shotIdx) => useCreationStore.getState().handleRefreshVideo(idx, shotIdx)}
+              onRefreshSceneComposited={() => useCreationStore.getState().handleRefreshSceneComposited(idx)}
               onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
               creating={creating}
               loading={scene.shots.length === 0}
@@ -213,7 +213,7 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
         <SceneEditor
           scene={scenes[editIdx]}
           onSave={(data) => {
-            onSceneUpdate?.(editIdx, { ...scenes[editIdx], ...data })
+            handleSceneUpdate(editIdx, { ...scenes[editIdx], ...data })
             setEditIdx(null)
           }}
           onClose={() => setEditIdx(null)}
@@ -230,10 +230,10 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
             const scene = scenes[editShotKey.sceneIdx]
             const newShots = [...scene.shots]
             newShots[editShotKey.shotIdx] = updatedShot
-            onSceneUpdate?.(editShotKey.sceneIdx, { ...scene, shots: newShots })
+            handleSceneUpdate(editShotKey.sceneIdx, { ...scene, shots: newShots })
           }}
-          onRefreshFrame={onRefreshFrame}
-          onRefreshVideo={onRefreshVideo}
+          onRefreshFrame={(sceneIdx, shotIdx, frameType, prompt) => useCreationStore.getState().handleRefreshFrame(sceneIdx, shotIdx, frameType, prompt)}
+          onRefreshVideo={(sceneIdx, shotIdx) => useCreationStore.getState().handleRefreshVideo(sceneIdx, shotIdx)}
           onClose={() => setEditShotKey(null)}
           onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
         />
@@ -450,7 +450,7 @@ function ShotCard({ shot, shotIdx, shotKey, hoveredKey, onHover, cssAspectRatio 
       className={`shot-card${isHovered ? ' card-hovered' : ''}`}
       onMouseEnter={() => onHover(shotKey)}
       onMouseMove={handleMouseMove}
-      onMouseLeave={(e) => { onHover(null); handleMouseLeaveCard(e) }}
+      onMouseLeave={() => { onHover(null); handleMouseLeaveCard() }}
     >
       <div className="shot-pill-header">
         <div className="shot-pill">
@@ -563,7 +563,6 @@ export function FrameCard({ label, src, frameKey, hoveredKey, onHover, isVideo, 
     onRefresh()
   }, [onRefresh, src])
 
-  // Reset local refresh state when src changes (new image arrived)
   useEffect(() => {
     if (localRefreshState === 'generating' && src !== prevSrcRef.current) {
       prevSrcRef.current = src
@@ -571,7 +570,6 @@ export function FrameCard({ label, src, frameKey, hoveredKey, onHover, isVideo, 
     }
   }, [src, localRefreshState])
 
-  // Safety timeout: force-reset after 60s if stuck
   useEffect(() => {
     if (localRefreshState !== 'generating') return
     const timer = setTimeout(() => setLocalRefreshState('idle'), 60000)

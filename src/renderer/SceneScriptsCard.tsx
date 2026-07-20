@@ -2,18 +2,12 @@ import { useState, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Markdown from './Markdown'
 import { useEscClose } from './useEscClose'
+import { useCreationStore } from './stores/creationStore'
 import './SceneScriptsCard.css'
 
 export interface SceneScriptScene {
   title: string
   content: string
-}
-
-interface SceneScriptsCardProps {
-  scenes: SceneScriptScene[]
-  loading?: boolean
-  onRefresh?: () => void
-  onSceneEdit?: (idx: number, data: { title: string; content: string }) => void
 }
 
 function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: SceneScriptScene; onSave: (idx: number, data: { title: string; content: string }) => void; onClose: () => void }): JSX.Element {
@@ -88,7 +82,12 @@ function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: Scen
   return createPortal(dialog, document.body)
 }
 
-function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: SceneScriptsCardProps): JSX.Element {
+function SceneScriptsCard(): JSX.Element {
+  const scenes = useCreationStore(s => s.scenes)
+  const refreshingSceneScripts = useCreationStore(s => s.refreshingSceneScripts)
+  const stepStatuses = useCreationStore(s => s.stepStatuses)
+  const loading = refreshingSceneScripts || stepStatuses?.scene_scripts === 1
+
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -127,10 +126,12 @@ function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: S
   }, [])
 
   const handleSave = (idx: number, data: { title: string; content: string }) => {
-    if (onSceneEdit) {
-      onSceneEdit(idx, data)
-    }
+    useCreationStore.getState().handleSceneScriptEdit(idx, data)
   }
+
+  const handleRefresh = useCallback(() => {
+    useCreationStore.getState().handleRefreshSceneScripts()
+  }, [])
 
   return (
     <div className="scene-scripts-card" ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
@@ -138,9 +139,9 @@ function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: S
         <div className="scene-scripts-card-title">
           <span className="scene-scripts-card-title-pill">分场剧本</span>
         </div>
-        {!loading && scenes.length > 0 && onRefresh && (
+        {!loading && scenes.length > 0 && (
           <div className="scene-scripts-card-actions">
-            <button className="story-link" title="刷新" onClick={onRefresh}>
+            <button className="story-link" title="刷新" onClick={handleRefresh}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" />
                 <polyline points="1 20 1 14 7 14" />
@@ -164,14 +165,12 @@ function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: S
                       <span className="scene-scripts-card-item-index-num">{String(idx + 1).padStart(2, '0')}</span>
                       <span className="scene-scripts-card-item-index-title">{cleanTitle}</span>
                     </div>
-                    {onSceneEdit && (
-                      <button className="scene-scripts-card-edit-btn" onClick={() => setEditIdx(idx)} title="编辑">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                    )}
+                    <button className="scene-scripts-card-edit-btn" onClick={() => setEditIdx(idx)} title="编辑">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
                     <div className="scene-scripts-card-item-content"><Markdown content={scene.content.replace(/\\n/g, '\n')} /></div>
                   </li>
                 )

@@ -61,7 +61,7 @@ class ScriptRequest(BaseModel):
 
 
 class SceneStoryboardRequest(BaseModel):
-    project_id: int
+    project_id: int = 0
     scene_idx: int = 0
     scene_content: str
     characters: List[dict] = []

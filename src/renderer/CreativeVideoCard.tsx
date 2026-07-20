@@ -2,19 +2,16 @@ import { useState, useRef, useCallback } from 'react'
 import { toCssAspectRatio } from './sizeConfig'
 import ImageWithPlaceholder from './ImageWithPlaceholder'
 import { FrameCard, MediaPreview, type MediaPreviewData, type SceneData } from './ShootingScriptCard'
+import { useCreationStore } from './stores/creationStore'
 import './ShootingScriptCard.css'
 
-interface CreativeVideoCardProps {
-  scenes: SceneData[]
-  aspectRatio?: string
-  finalVideo?: string
-  finalPreview?: string
-  finalVideoStatus?: number
-  onRefresh?: () => Promise<void>
-}
-
-function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPreview, finalVideoStatus = 0, onRefresh }: CreativeVideoCardProps): JSX.Element {
-  const cssAspectRatio = toCssAspectRatio(aspectRatio)
+function CreativeVideoCard(): JSX.Element {
+  const scenes = useCreationStore(s => s.scenes)
+  const size = useCreationStore(s => s.size)
+  const finalVideo = useCreationStore(s => s.finalVideo)
+  const finalPreview = useCreationStore(s => s.finalPreview)
+  const finalVideoStatus = useCreationStore(s => s.finalVideoStatus)
+  const cssAspectRatio = toCssAspectRatio(size)
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [mediaPreview, setMediaPreview] = useState<MediaPreviewData | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -40,10 +37,10 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
   const hasVideo = !!(finalVideo || scenes.some(s => s.compositedVideo))
 
   const handleRefresh = async () => {
-    if (!onRefresh || refreshing) return
+    if (refreshing) return
     setRefreshing(true)
     try {
-      await onRefresh()
+      await useCreationStore.getState().compositeFinalVideo()
     } catch (e) {
       console.error('[composite_video] refresh failed:', e)
     } finally {
@@ -57,22 +54,20 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
         <div className="script-card-title">
           <span className="script-card-title-pill">作品</span>
         </div>
-        {onRefresh && (
-          <div className="card-actions">
-            <button
-              className={`story-link${refreshing ? ' story-link-disabled' : ''}`}
-              onClick={handleRefresh}
-              disabled={refreshing}
-              title="重新合成视频"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-              </svg>
-            </button>
-          </div>
-        )}
+        <div className="card-actions">
+          <button
+            className={`story-link${refreshing ? ' story-link-disabled' : ''}`}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="重新合成视频"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+        </div>
       </div>
       {!hasVideo && finalVideoStatus !== 1 && !refreshing ? (
         <div className="script-card-empty">

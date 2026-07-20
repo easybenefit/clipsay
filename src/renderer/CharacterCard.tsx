@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import ImageWithPlaceholder from './ImageWithPlaceholder'
 import { useEscClose } from './useEscClose'
+import { useCreationStore } from './stores/creationStore'
 import './CharacterCard.css'
 
 export interface CharacterPortraits {
@@ -30,25 +31,18 @@ export interface CharacterData {
   portraitDescriptions?: Record<PortraitView, string>
 }
 
-interface CharacterCardProps {
-  characters: CharacterData[]
-  aspectRatio: string
-  loading?: boolean
-  disabled?: boolean
-  statusMessage?: string
-
-  onRegenerate?: () => void
-  onCharacterUpdate?: (idx: number, data: CharacterData) => void
-  onRefreshImage?: (characterIdx: number, view: string) => string | void | Promise<string | void>
-}
-
 function toCssAspectRatio(aspectRatio: string): string {
   return aspectRatio.replace(':', ' / ')
 }
 
 const VIEW_LABELS: Record<string, string> = { front: '正面', side: '侧面', back: '背面' }
 
-function CharacterCard({ characters, aspectRatio, loading = false, disabled = false, statusMessage, onRegenerate, onCharacterUpdate, onRefreshImage }: CharacterCardProps): JSX.Element {
+function CharacterCard(): JSX.Element {
+  const characters = useCreationStore(s => s.characters)
+  const size = useCreationStore(s => s.size)
+  const creatingCharacter = useCreationStore(s => s.creatingCharacter)
+  const loading = creatingCharacter && characters.length === 0
+
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [lightbox, setLightbox] = useState<{ charIdx: number; viewIdx: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -79,12 +73,16 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
   }
 
   const handleRefreshImage = async (charIdx: number, view: string) => {
-    const msg = await onRefreshImage?.(charIdx, view)
+    const msg = await useCreationStore.getState().handleRefreshImage(charIdx, view as PortraitView)
     if (msg) {
       showToast(msg)
     } else {
       showToast(`${VIEW_LABELS[view] || view} 图片重新生成中...`)
     }
+  }
+
+  const handleCharacterUpdate = (idx: number, data: CharacterData) => {
+    useCreationStore.getState().handleCharacterUpdate(idx, data)
   }
 
   const views: Array<{ key: keyof CharacterPortraits; label: string }> = [
@@ -182,7 +180,7 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
                 </div>
                 <div className="character-card-photos">
                   {views.map(({ key }, vi) => (
-                    <div key={key} className="character-card-photo" style={{ aspectRatio: toCssAspectRatio(aspectRatio) }}>
+                    <div key={key} className="character-card-photo" style={{ aspectRatio: toCssAspectRatio(size) }}>
                       {char.name.includes('（画外音）')
                         ? <div className="character-card-voiceover"><span>画外音</span></div>
                         : <>
@@ -220,10 +218,9 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
       {editIdx !== null && (
         <CharacterEditor
           character={characters[editIdx]}
-          aspectRatio={aspectRatio}
-          onSave={(data) => onCharacterUpdate?.(editIdx, data)}
+          onSave={(data) => handleCharacterUpdate(editIdx, data)}
           onClose={() => setEditIdx(null)}
-          onRefreshImage={(view) => onRefreshImage?.(editIdx, view)}
+          onRefreshImage={(view) => handleRefreshImage(editIdx, view)}
           onLightbox={(view) => setLightbox({ charIdx: editIdx, viewIdx: views.findIndex(v => v.key === view) })}
         />
       )}
@@ -264,14 +261,13 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
 
 interface CharacterEditorProps {
   character: CharacterData
-  aspectRatio: string
   onSave: (data: CharacterData) => void
   onClose: () => void
   onRefreshImage?: (view: string) => string | void | Promise<string | void>
   onLightbox?: (view: string) => void
 }
 
-function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshImage, onLightbox }: CharacterEditorProps): JSX.Element {
+function CharacterEditor({ character, onSave, onClose, onRefreshImage, onLightbox }: CharacterEditorProps): JSX.Element {
   const [staticFeatures, setStaticFeatures] = useState(character.staticFeatures)
   const [dynamicFeatures, setDynamicFeatures] = useState(character.dynamicFeatures)
   const savedRef = useRef({ staticFeatures: character.staticFeatures, dynamicFeatures: character.dynamicFeatures })
@@ -371,7 +367,7 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
               <div className="character-editor-photos-row">
                 {(['front', 'side', 'back'] as const).map((view) => (
                   <div key={view} className="character-editor-photo-col">
-                    <div className="character-editor-photo" style={{ aspectRatio: toCssAspectRatio(aspectRatio) }}>
+                    <div className="character-editor-photo">
                       <ImageWithPlaceholder
                         key={character.portraits[view]}
                         src={character.portraits[view]}

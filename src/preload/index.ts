@@ -17,7 +17,9 @@ const api = {
   getStorageQuota: (): Promise<StorageQuota> => ipcRenderer.invoke('storage:quota'),
   revealInFolder: (fullPath: string): Promise<boolean> => ipcRenderer.invoke('storage:reveal', fullPath),
   onWindowState: (callback: (state: { isMaximized: boolean }) => void) => {
-    ipcRenderer.on('window-state-changed', (_event, state) => callback(state))
+    const handler = (_event: any, state: { isMaximized: boolean }) => callback(state)
+    ipcRenderer.on('window-state-changed', handler)
+    return () => ipcRenderer.removeListener('window-state-changed', handler)
   }
 }
 

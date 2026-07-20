@@ -92,6 +92,83 @@ async def generate_story(body: StoryRequest):
         )
 
 
+@router.post("/api/scene-storyboard")
+async def scene_storyboard(body: SceneStoryboardRequest):
+    try:
+        from backend.schemas.character import CharacterRead
+        from backend.services.storyboard_generator import StoryboardGenerator
+        from backend.services.camera_tree_builder import CameraTreeBuilder
+
+        characters = [
+            CharacterRead(
+                identifier=c.get("name", c.get("role_name", "")),
+                appearance=c.get("appearance", ""),
+                attire=c.get("attire", ""),
+            )
+            for c in body.characters
+        ]
+
+        req_parts = []
+        if body.user_requirement:
+            req_parts.append(body.user_requirement)
+        if body.style:
+            req_parts.append(f"Style: {body.style}")
+        user_requirement = "\n".join(req_parts).strip() or None
+
+        artist = StoryboardGenerator(body.model, body.api_key, body.base_url)
+        brief_shots = await artist.design_storyboard(
+            script=body.scene_content,
+            characters=characters,
+            user_requirement=user_requirement,
+        )
+
+        shot_descs = await asyncio.gather(*[
+            artist.decompose_visual_description(
+                shot_brief_desc=b, characters=characters)
+            for b in brief_shots
+        ])
+
+        camera_tree = await CameraTreeBuilder.build(
+            shot_descs=shot_descs,
+            model=body.model,
+            api_key=body.api_key,
+            base_url=body.base_url,
+        )
+
+        storyboard = [
+            {"title": f"镜头{s.idx + 1}", "visual_desc": s.visual_desc}
+            for s in shot_descs
+        ]
+
+        shot_descriptions = [
+            {
+                "visual_desc": s.visual_desc,
+                "audio_desc": s.audio_desc or "",
+                "ff_desc": s.sf_dec,
+                "lf_desc": s.sf_desc,
+                "motion_desc": s.motion_desc,
+                "variation_type": s.variation_type,
+                "cam_idx": s.cam_idx,
+                "idx": s.idx,
+            }
+            for s in shot_descs
+        ]
+
+        camera_tree_data = [c.to_dict() for c in camera_tree]
+
+        return {
+            "storyboard": storyboard,
+            "shot_descriptions": shot_descriptions,
+            "camera_tree": camera_tree_data,
+        }
+    except Exception as e:
+        logger.error("Scene storyboard failed: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)},
+        )
+
+
 @router.post("/api/projects/{project_id}/regenerate-story")
 async def regenerate_project_story(project_id: int):
     """只重新生成故事内容，不重置下游流水线步骤。"""
@@ -298,9 +375,7 @@ async def composite_scene_video(scene_id: int):
         if not scene:
             raise HTTPException(
                 status_code=404, detail=f"Scene {scene_id} not found")
-        scr = await (await db.execute(
-            "SELECT project_id FROM scripts WHERE id = ?", (scene["script_id"],))).fetchone()
-        project_id = scr["project_id"] if scr else None
+        project_id = scene["project_id"]
         scene_idx = scene["idx"]
 
         sb = await (await db.execute(

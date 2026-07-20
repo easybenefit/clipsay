@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { BASE } from './api'
+import { useSettingsStore } from './stores/settingsStore'
 
 export const EVENT_PROJECT_UPDATED = 'project_data_changed'
 
@@ -223,20 +224,20 @@ export function usePipelineSSE(
   }, [])
 
   const apiKeys = useCallback(() => {
-    const k = (window as any).__pipelineApiKeys || {}
+    const s = useSettingsStore.getState().settings
     return {
-      chat_api_key: k.chatApiKey || '',
-      chat_base_url: k.chatBaseUrl || '',
-      image_api_key: k.imageApiKey || '',
-      image_base_url: k.imageBaseUrl || '',
-      video_api_key: k.videoApiKey || '',
-      video_base_url: k.videoBaseUrl || '',
-      chat_rate_limit_min: parseInt(k.chatRateLimitMin, 10) || 50,
-      chat_rate_limit_day: parseInt(k.chatRateLimitDay, 10) || 2000,
-      image_rate_limit_min: parseInt(k.imageRateLimitMin, 10) || 10,
-      image_rate_limit_day: parseInt(k.imageRateLimitDay, 10) || 500,
-      video_rate_limit_min: parseInt(k.videoRateLimitMin, 10) || 50,
-      video_rate_limit_day: parseInt(k.videoRateLimitDay, 10) || 1000,
+      chat_api_key: s.chat.apiKey || '',
+      chat_base_url: s.chat.baseUrl || '',
+      image_api_key: s.image.apiKey || '',
+      image_base_url: s.image.baseUrl || '',
+      video_api_key: s.video.apiKey || '',
+      video_base_url: s.video.baseUrl || '',
+      chat_rate_limit_min: parseInt(s.chat.rateLimitMin, 10) || 50,
+      chat_rate_limit_day: parseInt(s.chat.rateLimitDay, 10) || 2000,
+      image_rate_limit_min: parseInt(s.image.rateLimitMin, 10) || 10,
+      image_rate_limit_day: parseInt(s.image.rateLimitDay, 10) || 500,
+      video_rate_limit_min: parseInt(s.video.rateLimitMin, 10) || 50,
+      video_rate_limit_day: parseInt(s.video.rateLimitDay, 10) || 1000,
     }
   }, [])
 

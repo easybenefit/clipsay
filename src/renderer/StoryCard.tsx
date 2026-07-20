@@ -2,19 +2,16 @@ import { useState, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Markdown from './Markdown'
 import { useEscClose } from './useEscClose'
+import { useCreationStore } from './stores/creationStore'
 import './StoryCard.css'
 
-interface StoryCardProps {
-  title?: string
-  content: string
-  loading?: boolean
-  regenerating?: boolean
-  disabled?: boolean
-  onRegenerate: () => void
-  onSave?: (content: string) => void
-}
+function StoryCard(): JSX.Element {
+  const output = useCreationStore(s => s.output)
+  const storyTitle = useCreationStore(s => s.storyTitle)
+  const creating = useCreationStore(s => s.creating)
+  const stepStatuses = useCreationStore(s => s.stepStatuses)
+  const loading = !!(creating && !output) || stepStatuses?.story === 1 || stepStatuses?.story === 4
 
-function StoryCard({ title, content, loading = false, regenerating = false, disabled = false, onRegenerate, onSave }: StoryCardProps): JSX.Element {
   const [showEditor, setShowEditor] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -36,25 +33,29 @@ function StoryCard({ title, content, loading = false, regenerating = false, disa
   }, [])
 
   const handleSave = (text: string) => {
-    onSave?.(text)
+    useCreationStore.getState().saveProjectData({ story: text })
   }
+
+  const handleRegenerate = useCallback(() => {
+    useCreationStore.getState().handleRegenerateStoryboard()
+  }, [])
 
   return (
     <div className="story-card" ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <div className="story-card-header">
         <div className="story-card-title">
-          <span className="story-card-title-pill">故事  ·  {title || '故事'}</span>
+          <span className="story-card-title-pill">故事  ·  {storyTitle || '故事'}</span>
         </div>
         {!loading && (
           <div className="story-card-actions">
-            <button className={`story-link${disabled || showEditor ? ' story-link-disabled' : ''}`} onClick={() => !disabled && setShowEditor(true)} title="编辑">
+            <button className={`story-link${loading || showEditor ? ' story-link-disabled' : ''}`} onClick={() => !loading && setShowEditor(true)} title="编辑">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </button>
             <span className="story-link-sep">|</span>
-            <button className={`story-link${disabled || showEditor ? ' story-link-disabled' : ''}`} onClick={() => !disabled && onRegenerate()} title="重新创作">
+            <button className={`story-link${loading || showEditor ? ' story-link-disabled' : ''}`} onClick={() => !loading && handleRegenerate()} title="重新创作">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" />
                 <polyline points="1 20 1 14 7 14" />
@@ -81,13 +82,13 @@ function StoryCard({ title, content, loading = false, regenerating = false, disa
           </div>
       ) : (
         <div className="story-card-body">
-            <div className="story-card-content"><Markdown content={content} /></div>
+            <div className="story-card-content"><Markdown content={output || ''} /></div>
         </div>
       )}
 
       {showEditor && (
         <StoryEditor
-          initialContent={content}
+          initialContent={output || ''}
           onSave={handleSave}
           onClose={() => setShowEditor(false)}
         />
