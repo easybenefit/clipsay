@@ -196,6 +196,7 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
               onEditShot={(shotIdx) => setEditShotKey({ sceneIdx: idx, shotIdx })}
               onRefreshFrame={(shotIdx, frameType, prompt) => onRefreshFrame?.(idx, shotIdx, frameType, prompt)}
               onRefreshVideo={(shotIdx) => onRefreshVideo?.(idx, shotIdx)}
+              onRefreshSceneComposited={() => onRefreshVideo?.(idx, -1)}
               onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
               creating={creating}
               loading={scene.shots.length === 0}
@@ -253,6 +254,7 @@ interface SceneCardProps {
   onEditShot?: (shotIdx: number) => void
   onRefreshFrame?: (shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
   onRefreshVideo?: (shotIdx: number) => void
+  onRefreshSceneComposited?: () => void
   onPreview?: (items: MediaPreviewFrame[], clickedIndex: number) => void
   loading?: boolean
   creating?: boolean
@@ -263,9 +265,27 @@ function stripScenePrefix(title: string): string {
   return title.replace(/^\s*场景\s*\d+\s*[:：、\-]?\s*/, '').trim()
 }
 
-function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onEditShot, onRefreshFrame, onRefreshVideo, onPreview, loading = false, creating = false, cssAspectRatio = '16 / 9' }: SceneCardProps): JSX.Element {
+function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onEditShot, onRefreshFrame, onRefreshVideo, onRefreshSceneComposited, onPreview, loading = false, creating = false, cssAspectRatio = '16 / 9' }: SceneCardProps): JSX.Element {
   const isHovered = hoveredKey === sceneKey
   const cleanTitle = stripScenePrefix(scene.title) || `场景${sceneIdx + 1}`
+  const previewRef = useRef<HTMLDivElement>(null)
+
+  const handlePreviewMouseMove = useCallback((e: React.MouseEvent) => {
+    const el = previewRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1)
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1)
+    el.style.setProperty('--glow-x', `${x}%`)
+    el.style.setProperty('--glow-y', `${y}%`)
+  }, [])
+
+  const handlePreviewMouseLeave = useCallback(() => {
+    const el = previewRef.current
+    if (!el) return
+    el.style.setProperty('--glow-x', '50%')
+    el.style.setProperty('--glow-y', '50%')
+  }, [])
 
   return (
     <div
@@ -312,8 +332,17 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
 
       <div className="script-card-item-divider" />
 
-      <div className="scene-preview-card" style={{ cursor: 'default' }}>
+      <div className="scene-preview-card" ref={previewRef} onMouseMove={handlePreviewMouseMove} onMouseLeave={handlePreviewMouseLeave} style={{ cursor: 'default' }}>
         <span className="scene-preview-card-pill">场景预览</span>
+        {onRefreshSceneComposited && (
+          <button className="scene-preview-refresh-btn" onClick={(e) => { e.stopPropagation(); onRefreshSceneComposited() }} title="重新生成场景预览">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+        )}
         <div className="shot-card-body">
           <div className="scene-composited-video">
             {scene.compositedVideo ? (

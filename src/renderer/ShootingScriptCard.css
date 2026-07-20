@@ -609,6 +609,22 @@
   opacity: 1;
 }
 
+.scene-preview-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  background: radial-gradient(600px circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(139, 92, 246, 0.08), transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.scene-preview-card:hover::after {
+  opacity: 1;
+}
+
 .scene-preview-card > * {
   position: relative;
   z-index: 1;
@@ -641,6 +657,52 @@
   left: -1px;
   z-index: 2;
   pointer-events: none;
+}
+
+/* ── Scene preview refresh button ── */
+
+.scene-preview-refresh-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  opacity: 0;
+  transform: scale(0.9);
+  z-index: 3;
+}
+
+.scene-preview-card:hover .scene-preview-refresh-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.scene-preview-refresh-btn:hover {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.scene-preview-refresh-btn:active {
+  transform: scale(0.9);
+  transition-duration: 0.08s;
+}
+
+.scene-preview-refresh-btn svg {
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.scene-preview-refresh-btn:hover svg {
+  transform: rotate(180deg);
 }
 
 /* ── Scene preview video hover effects (matching CreativeVideoCard) ── */
@@ -1387,8 +1449,8 @@
 }
 
 .script-card.creative-video-card .script-card-header {
-  padding: 0 16px 0;
-  min-height: 28px;
+  padding: 0 10px 0;
+  min-height: 36px;
   position: relative;
 }
 
