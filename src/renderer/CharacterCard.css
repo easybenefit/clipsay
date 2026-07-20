@@ -144,7 +144,7 @@
   background: linear-gradient(135deg, var(--accent), var(--accent-end));
   color: #fff;
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.03em;
   display: inline-flex;
   align-items: center;
@@ -345,7 +345,7 @@
 }
 
 .character-editor-row-label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
