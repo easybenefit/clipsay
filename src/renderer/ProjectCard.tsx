@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { Project } from './api'
+import { useProjectStore, getProjectById } from './stores/projectStore'
 
 const BASE = 'http://localhost:8765'
 
@@ -19,24 +20,23 @@ const formatDuration = (s: number) => {
 }
 
 interface ProjectCardProps {
-  project: Project
+  projectId: number
   index: number
-  onPlay: (url: string, title: string, desc: string) => void
   onEdit: (id: number) => void
-  onDuplicate: (id: number) => void
   onOpen: (id: number) => void
-  onIncrementClick: (id: number) => void
 }
 
 export default function ProjectCard({
-  project: p,
+  projectId,
   index,
-  onPlay,
   onEdit,
-  onDuplicate,
   onOpen,
-  onIncrementClick,
 }: ProjectCardProps) {
+  const p = useProjectStore(s => getProjectById(s.projects, projectId))
+  const setPlayVideo = useProjectStore(s => s.setPlayVideo)
+  const duplicateAction = useProjectStore(s => s.duplicateProjectAction)
+  const incrementClick = useProjectStore(s => s.incrementClick)
+  if (!p) return null
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
   const [visible, setVisible] = useState(false)
@@ -68,9 +68,9 @@ export default function ProjectCard({
 
   const handleClick = () => {
     if (hasVideo) {
-      onIncrementClick(p.id)
+      incrementClick(p.id)
       const url = p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`
-      onPlay(url, p.name, p.idea)
+      setPlayVideo({ url, title: p.name, desc: p.idea })
     } else {
       onOpen(p.id)
     }
@@ -153,7 +153,7 @@ export default function ProjectCard({
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          <button className="project-btn" onClick={e => { e.stopPropagation(); onDuplicate(p.id) }} title="复制">
+          <button className="project-btn" onClick={async (e) => { e.stopPropagation(); const dup = await duplicateAction(p.id); if (dup) onOpen(dup.id) }} title="复制">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="9" y="9" width="13" height="13" rx="2" />
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />

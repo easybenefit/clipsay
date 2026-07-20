@@ -1,11 +1,12 @@
-import { useEffect, useState, useRef, useCallback, Fragment, type ReactNode } from 'react'
-import { getHealth, listProjects, duplicateProject, checkPipelineRunning, listTopCompletedProjects, incrementProjectClick, BASE, Project } from './api'
+import { useEffect, useState, useCallback, Fragment, type ReactNode, useMemo } from 'react'
+import { getHealth, BASE, type Project } from './api'
 import logoSrc from './logo.jpg'
-import Carousel, { CarouselSlide } from './Carousel'
+import Carousel from './Carousel'
 import ProjectCard from './ProjectCard'
 import ModelCard from './ModelCard'
 import { SIZE_OPTIONS } from './sizeConfig'
 import { useSettingsStore, CHAT_OPTIONS, IMAGE_OPTIONS, VIDEO_OPTIONS } from './stores/settingsStore'
+import { useProjectStore, buildCarouselSlides, requireNoRunningPipeline } from './stores/projectStore'
 
 const SIZE_TIERS = [
   { id: '1K', label: 'Basic', subLabel: '1K' },
@@ -105,9 +106,6 @@ function App(): JSX.Element {
   }, [page])
   const [editProjectId, setEditProjectId] = useState<number | undefined>(initState?.editProjectId ?? undefined)
   const [expanded, setExpanded] = useState(false)
-  const [projects, setProjects] = useState<Project[]>([])
-  const [topProjects, setTopProjects] = useState<Project[]>([])
-  const [playVideo, setPlayVideo] = useState<{ url: string; title: string; desc: string } | null>(null)
 
   const toast = useSettingsStore(s => s.toast)
   const showToast = useSettingsStore(s => s.showToast)
@@ -116,28 +114,21 @@ function App(): JSX.Element {
   const settingsLoaded = useSettingsStore(s => s.settingsLoaded)
   const setSizeTier = useSettingsStore(s => s.setSizeTier)
   const setImageSize = useSettingsStore(s => s.setImageSize)
+  const projects = useProjectStore(s => s.projects)
+  const topProjects = useProjectStore(s => s.topProjects)
+  const playVideo = useProjectStore(s => s.playVideo)
+  const setPlayVideo = useProjectStore(s => s.setPlayVideo)
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPlayVideo(null) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') useProjectStore.getState().setPlayVideo(null) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const requireNoRunningPipeline = async (): Promise<boolean> => {
-    const status = await checkPipelineRunning()
-    if (status.running) {
-      showToast(`工程 ${status.project_id} 正在创作，请先完成或取消`)
-      return false
-    }
-    return true
-  }
-
   useEffect(() => {
-    const init = useSettingsStore.getState().initialize
-    init()
+    useSettingsStore.getState().initialize()
     getHealth().then(r => useSettingsStore.getState().setHealth(r.status)).catch(() => useSettingsStore.getState().setHealth('offline'))
-    listProjects().then(setProjects).catch(() => {})
-    listTopCompletedProjects().then(setTopProjects).catch(() => {})
+    useProjectStore.getState().refreshProjects()
     if (initState && initState.page !== 'home') {
       console.log('[nav] restored page from localStorage:', initState.page, 'editProjectId:', initState.editProjectId)
     }
@@ -176,49 +167,6 @@ function App(): JSX.Element {
     }
   }, [page, editProjectId])
 
-  const refreshProjects = () => {
-    listProjects().then(setProjects).catch(() => {})
-    listTopCompletedProjects().then(setTopProjects).catch(() => {})
-  }
-
-  const buildCarouselSlides = (projects: Project[]): CarouselSlide[] => {
-    const DEFAULT_SLIDES: CarouselSlide[] = [
-      { type: 'default', title: 'Seedance 2.0', storyTitle: 'Seedance 2.0', desc: 'AI 视频生成，前所未有的画质与一致性' },
-      { type: 'default', title: '创作者挑战赛', storyTitle: '创作者挑战赛', desc: '参与挑战，赢取大奖与曝光机会' },
-      { type: 'default', title: '智能剪辑', storyTitle: '智能剪辑', desc: 'AI 自动识别高光片段，一键成片' },
-      { type: 'default', title: '语音转字幕', storyTitle: '语音转字幕', desc: '精准语音识别，自动生成多语言字幕' },
-    ]
-    const projectSlides: CarouselSlide[] = projects.map(p => ({
-      type: 'project' as const,
-      projectId: p.id,
-      title: p.name,
-      storyTitle: (p as any).story_title || p.name,
-      desc: p.idea,
-      previewUrl: p.final_preview ? (p.final_preview.startsWith(BASE) ? p.final_preview : `${BASE}${p.final_preview}`) : undefined,
-      videoUrl: p.final_video ? (p.final_video.startsWith(BASE) ? p.final_video : `${BASE}${p.final_video}`) : undefined,
-    }))
-    if (projectSlides.length >= 4) return projectSlides.slice(0, 4)
-    return [...projectSlides, ...DEFAULT_SLIDES.slice(0, 4 - projectSlides.length)]
-  }
-
-  const handleCarouselSlideClick = async (projectId: number) => {
-    if (await requireNoRunningPipeline()) {
-      incrementProjectClick(projectId).catch(() => {})
-      setEditProjectId(projectId); setPage('new')
-    }
-  }
-
-  const handleDuplicate = async (id: number) => {
-    if (!await requireNoRunningPipeline()) return
-    try {
-      const dup = await duplicateProject(id)
-      setEditProjectId(dup.id)
-      setPage('new')
-    } catch {
-      showToast('复制失败')
-    }
-  }
-
   return (
     <div className="root">
       <div className="titlebar-drag" />
@@ -239,7 +187,7 @@ function App(): JSX.Element {
               <button
                 className={`nav-item${item.isPage && page === item.key ? ' active' : ''}`}
                 onClick={() => { if (item.isPage) { 
-                  if (item.key === 'home') refreshProjects()
+                  if (item.key === 'home') useProjectStore.getState().refreshProjects()
                   setEditProjectId(undefined); setPage(item.key as Page) 
                 } else showToast('正在开发...') }}
                 title={item.label}
@@ -269,7 +217,7 @@ function App(): JSX.Element {
         <div className="content">
           {page === 'home' && (
             <>
-              <Carousel slides={buildCarouselSlides(topProjects)} onSlideClick={handleCarouselSlideClick} />
+              <Carousel slides={useMemo(() => buildCarouselSlides(topProjects), [topProjects])} onSlideClick={async (projectId) => { if (await requireNoRunningPipeline()) { useProjectStore.getState().incrementClick(projectId); setEditProjectId(projectId); setPage('new') } }} />
 
               <div className="home-welcome">
                 <div className="home-welcome-text">
@@ -321,13 +269,10 @@ function App(): JSX.Element {
                     {projects.map((p, i) => (
                       <ProjectCard
                         key={p.id}
-                        project={p}
+                        projectId={p.id}
                         index={i}
-                        onPlay={(url, title, desc) => setPlayVideo({ url, title, desc })}
                         onEdit={(id) => { setEditProjectId(id); setPage('new') }}
-                        onDuplicate={handleDuplicate}
                         onOpen={(id) => { setEditProjectId(id); setPage('new') }}
-                        onIncrementClick={(id) => incrementProjectClick(id).catch(() => {})}
                       />
                     ))}
                   </div>
@@ -338,7 +283,7 @@ function App(): JSX.Element {
 
           {page === 'new' && (
             <NewProject
-              onCreated={() => { setEditProjectId(undefined); refreshProjects(); setPage('home') }}
+              onCreated={() => { setEditProjectId(undefined); useProjectStore.getState().refreshProjects(); setPage('home') }}
               onCancel={() => { setEditProjectId(undefined); setPage('home') }}
               onProjectSelected={(id) => { setEditProjectId(id) }}
               chatOptions={CHAT_OPTIONS}
