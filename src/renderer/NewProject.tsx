@@ -7,6 +7,7 @@ import CharacterCard from './CharacterCard'
 import ShootingScriptCard from './ShootingScriptCard'
 import CreativeVideoCard from './CreativeVideoCard'
 import SceneScriptsCard from './SceneScriptsCard'
+import { ModelSelect } from './ModelCard'
 import type { CharacterData, PortraitStatus, PortraitView, PortraitViewStatus } from './CharacterCard'
 import type { SceneData, ShotData } from './ShootingScriptCard'
 import { SIZE_OPTIONS, getSizeString } from './sizeConfig'
@@ -1362,41 +1363,17 @@ function NewProject(props: NewProjectProps): JSX.Element {
               <div className="np-model-group-title">选择模型</div>
               <div className="np-section">
               <label className="np-label">语言模型</label>
-              <select
-                className="np-select"
-                value={chatModel}
-                onChange={e => setChatModel(e.target.value)}
-              >
-                {props.chatOptions.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              <ModelSelect options={props.chatOptions} value={chatModel} onChange={v => setChatModel(v)} />
             </div>
 
             <div className="np-section">
               <label className="np-label">图像模型</label>
-              <select
-                className="np-select"
-                value={imageModel}
-                onChange={e => setImageModel(e.target.value)}
-              >
-                {props.imageOptions.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              <ModelSelect options={props.imageOptions} value={imageModel} onChange={v => setImageModel(v)} />
             </div>
 
             <div className="np-section">
               <label className="np-label">视频模型</label>
-              <select
-                className="np-select"
-                value={videoModel}
-                onChange={e => setVideoModel(e.target.value)}
-              >
-                {props.videoOptions.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              <ModelSelect options={props.videoOptions} value={videoModel} onChange={v => setVideoModel(v)} />
             </div>
             </div>
 
@@ -1415,7 +1392,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
                     onClick={() => setStyle(s.id)}
                   >
                     <span>{s.label}</span>
-                    <span className="np-size-check" />
                   </button>
                 ))}
               </div>
@@ -1431,7 +1407,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
                       onClick={() => setSizeTier(t.id)}
                     >
                       <span>{t.subLabel}</span>
-                      <span className="np-size-check" />
                     </button>
                   ))}
               </div>
@@ -1464,7 +1439,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
                     onClick={() => setResolution(r.id)}
                   >
                     <span>{r.label}</span>
-                    <span className="np-size-check" />
                   </button>
                 ))}
               </div>
@@ -1480,7 +1454,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
                     onClick={() => setFrameRate(f.id)}
                   >
                     <span>{f.label}</span>
-                    <span className="np-size-check" />
                   </button>
                 ))}
               </div>
@@ -1496,7 +1469,6 @@ function NewProject(props: NewProjectProps): JSX.Element {
                     onClick={() => setDuration(d.id)}
                   >
                     <span>{d.label}</span>
-                    <span className="np-size-check" />
                   </button>
                 ))}
               </div>
@@ -1534,7 +1506,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
               const spinning = creating || isRunning
               return (
                 <button className={`np-generate-btn${spinning ? ' creating' : ''}`} onClick={onClick} disabled={btnDisabled}>
-                  {spinning ? <><span className="np-btn-icon">✦</span> 正在创作</> : <><span className="np-btn-icon">✦</span> {text}</>}
+                  {spinning ? '正在创作' : text}
                 </button>
               )
             })()

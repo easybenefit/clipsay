@@ -27,7 +27,7 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
   </svg>
 )
 
-function ModelSelect({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+export function ModelSelect({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
