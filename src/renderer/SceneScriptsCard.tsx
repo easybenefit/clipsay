@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Markdown from './Markdown'
 import { useEscClose } from './useEscClose'
 import './SceneScriptsCard.css'
@@ -64,6 +64,41 @@ function SceneEditor({ idx, scene, onSave, onClose }: { idx: number; scene: Scen
 
 function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: SceneScriptsCardProps): JSX.Element {
   const [editIdx, setEditIdx] = useState<number | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const card = cardRef.current
+    if (!card) return
+    const rect = card.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1)
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1)
+    card.style.setProperty('--glow-x', `${x}%`)
+    card.style.setProperty('--glow-y', `${y}%`)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    const card = cardRef.current
+    if (!card) return
+    card.style.setProperty('--glow-x', '50%')
+    card.style.setProperty('--glow-y', '50%')
+  }, [])
+
+  const handleItemMouseMove = useCallback((e: React.MouseEvent) => {
+    const item = (e.target as HTMLElement).closest('.scene-scripts-card-item')
+    if (!item) return
+    const rect = item.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1)
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1)
+    ;(item as HTMLElement).style.setProperty('--glow-x', `${x}%`)
+    ;(item as HTMLElement).style.setProperty('--glow-y', `${y}%`)
+  }, [])
+
+  const handleItemMouseLeave = useCallback((e: React.MouseEvent) => {
+    const item = (e.target as HTMLElement).closest('.scene-scripts-card-item')
+    if (!item) return
+    ;(item as HTMLElement).style.setProperty('--glow-x', '50%')
+    ;(item as HTMLElement).style.setProperty('--glow-y', '50%')
+  }, [])
 
   const handleSave = (idx: number, data: { title: string; content: string }) => {
     if (onSceneEdit) {
@@ -72,9 +107,11 @@ function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: S
   }
 
   return (
-    <div className="scene-scripts-card">
+    <div className="scene-scripts-card" ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <div className="scene-scripts-card-header">
-        <div className="scene-scripts-card-title">分场剧本</div>
+        <div className="scene-scripts-card-title">
+          <span className="scene-scripts-card-title-pill">分场剧本</span>
+        </div>
         {!loading && scenes.length > 0 && onRefresh && (
           <div className="scene-scripts-card-actions">
             <button className="story-link" title="刷新" onClick={onRefresh}>
@@ -87,13 +124,12 @@ function SceneScriptsCard({ scenes, loading = false, onRefresh, onSceneEdit }: S
           </div>
         )}
       </div>
-      <div className="scene-scripts-card-divider" />
       <div className="scene-scripts-card-body-area">
         <div className="scene-scripts-card-body">
           {scenes.length === 0 ? (
             <div className="scene-scripts-card-empty">暂无可用的场景</div>
           ) : (
-            <ul className="scene-scripts-card-list">
+            <ul className="scene-scripts-card-list" onMouseMove={handleItemMouseMove} onMouseLeave={handleItemMouseLeave}>
               {scenes.map((scene, idx) => {
                 const cleanTitle = scene.title || `场景${idx + 1}`
                 return (
