@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef, useCallback, Fragment, type ReactNode } from 'react'
-import { getHealth, listProjects, createProject, duplicateProject, checkPipelineRunning, listTopCompletedProjects, incrementProjectClick, BASE, Project } from './api'
+import { getHealth, listProjects, duplicateProject, checkPipelineRunning, listTopCompletedProjects, incrementProjectClick, BASE, Project } from './api'
 import logoSrc from './logo.jpg'
 import Carousel, { CarouselSlide } from './Carousel'
 import ProjectCard from './ProjectCard'
 import ModelCard from './ModelCard'
-import { SIZE_OPTIONS, DEFAULT_SIZE_MAP } from './sizeConfig'
+import { SIZE_OPTIONS } from './sizeConfig'
+import { useSettingsStore, CHAT_OPTIONS, IMAGE_OPTIONS, VIDEO_OPTIONS } from './stores/settingsStore'
 
 const SIZE_TIERS = [
   { id: '1K', label: 'Basic', subLabel: '1K' },
@@ -70,36 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'settings', icon: <SettingsIcon />, label: '设置', isPage: true },
 ]
 
-interface ModelPreset {
-  model: string
-  apiKey: string
-  baseUrl: string
-  rateLimitMin: string
-  rateLimitDay: string
-}
 
-const CHAT_PRESETS: ModelPreset[] = [
-  { model: 'agnes-2.0-flash', apiKey: 'sk-Bz6paVfMyDYHfWGoEVPBMXz2zMy6RWbMBRSxFsjr9J6Ollud', baseUrl: 'https://apihub.agnes-ai.com/v1', rateLimitMin: '50', rateLimitDay: '2000' },
-  { model: 'gemini-2.5-flash-001', apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com', rateLimitMin: '500', rateLimitDay: '2000' },
-  { model: 'gpt-4o', apiKey: '', baseUrl: 'https://api.openai.com/v1', rateLimitMin: '500', rateLimitDay: '2000' },
-  { model: 'claude-3.5-sonnet', apiKey: '', baseUrl: 'https://api.anthropic.com', rateLimitMin: '500', rateLimitDay: '2000' },
-]
-
-const IMAGE_PRESETS: ModelPreset[] = [
-  { model: 'agnes-image-2.1-flash', apiKey: 'sk-Bz6paVfMyDYHfWGoEVPBMXz2zMy6RWbMBRSxFsjr9J6Ollud', baseUrl: 'https://apihub.agnes-ai.com/v1', rateLimitMin: '10', rateLimitDay: '500' },
-  { model: 'imagen-3.0', apiKey: '', baseUrl: 'https://...', rateLimitMin: '10', rateLimitDay: '500' },
-  { model: 'dall-e-3', apiKey: '', baseUrl: 'https://api.openai.com/v1', rateLimitMin: '10', rateLimitDay: '500' },
-]
-
-const VIDEO_PRESETS: ModelPreset[] = [
-  { model: 'agnes-video-v2.0', apiKey: 'sk-Bz6paVfMyDYHfWGoEVPBMXz2zMy6RWbMBRSxFsjr9J6Ollud', baseUrl: 'https://apihub.agnes-ai.com/v1', rateLimitMin: '50', rateLimitDay: '1000' },
-  { model: 'veo-2.0', apiKey: '', baseUrl: 'https://...', rateLimitMin: '50', rateLimitDay: '1000' },
-  { model: 'kling-1.6', apiKey: '', baseUrl: 'https://...', rateLimitMin: '50', rateLimitDay: '1000' },
-]
-
-const CHAT_OPTIONS = CHAT_PRESETS.map(p => p.model)
-const IMAGE_OPTIONS = IMAGE_PRESETS.map(p => p.model)
-const VIDEO_OPTIONS = VIDEO_PRESETS.map(p => p.model)
 
 const LS_KEY = 'clipsay-ui-state'
 
@@ -126,34 +98,24 @@ function App(): JSX.Element {
   const initState = loadUiState()
   const [page, _setPage] = useState<Page>(initState?.page ?? 'home')
   const [pageRestored, setPageRestored] = useState(false)
-  const [settingsLoaded, setSettingsLoaded] = useState(false)
   // ── debug: log every page navigation with caller stack ────────
   const setPage = useCallback((p: Page) => {
     console.log(`[nav] page: ${page} -> ${p}`, new Error().stack?.split('\n').slice(2, 5).join(' | '))
     _setPage(p)
   }, [page])
   const [editProjectId, setEditProjectId] = useState<number | undefined>(initState?.editProjectId ?? undefined)
-  const [health, setHealth] = useState('checking...')
   const [expanded, setExpanded] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [topProjects, setTopProjects] = useState<Project[]>([])
-  const [settings, setSettings] = useState<AppSettings>({
-    chat: { ...CHAT_PRESETS[0], rateLimitMin: CHAT_PRESETS[0].rateLimitMin, rateLimitDay: CHAT_PRESETS[0].rateLimitDay },
-    image: { ...IMAGE_PRESETS[0], rateLimitMin: IMAGE_PRESETS[0].rateLimitMin, rateLimitDay: IMAGE_PRESETS[0].rateLimitDay },
-    video: { ...VIDEO_PRESETS[0], rateLimitMin: VIDEO_PRESETS[0].rateLimitMin, rateLimitDay: VIDEO_PRESETS[0].rateLimitDay },
-    imageSize: '16:9',
-    sizeTier: '1K',
-    sizeMap: { ...DEFAULT_SIZE_MAP }
-  })
-  const [toast, setToast] = useState<string | null>(null)
   const [playVideo, setPlayVideo] = useState<{ url: string; title: string; desc: string } | null>(null)
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>()
 
-  const showToast = (msg: string) => {
-    setToast(msg)
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 2000)
-  }
+  const toast = useSettingsStore(s => s.toast)
+  const showToast = useSettingsStore(s => s.showToast)
+  const health = useSettingsStore(s => s.health)
+  const settings = useSettingsStore(s => s.settings)
+  const settingsLoaded = useSettingsStore(s => s.settingsLoaded)
+  const setSizeTier = useSettingsStore(s => s.setSizeTier)
+  const setImageSize = useSettingsStore(s => s.setImageSize)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPlayVideo(null) }
@@ -171,22 +133,11 @@ function App(): JSX.Element {
   }
 
   useEffect(() => {
-    getHealth().then(r => setHealth(r.status)).catch(() => setHealth('offline'))
+    const init = useSettingsStore.getState().initialize
+    init()
+    getHealth().then(r => useSettingsStore.getState().setHealth(r.status)).catch(() => useSettingsStore.getState().setHealth('offline'))
     listProjects().then(setProjects).catch(() => {})
     listTopCompletedProjects().then(setTopProjects).catch(() => {})
-    window.electronAPI.getSettings().then(s => {
-      if (s && Object.keys(s).length) {
-        const merged: AppSettings = { ...s }
-        if (!merged.chat?.apiKey) merged.chat = { ...CHAT_PRESETS[0], ...merged.chat }
-        if (!merged.image?.apiKey) merged.image = { ...IMAGE_PRESETS[0], ...merged.image }
-        if (!merged.video?.apiKey) merged.video = { ...VIDEO_PRESETS[0], ...merged.video }
-        if (!merged.imageSize) merged.imageSize = '16:9'
-        if (!merged.sizeMap) merged.sizeMap = { ...DEFAULT_SIZE_MAP }
-        setSettings(merged)
-        applyRateLimitDefaults(merged)
-      }
-      setSettingsLoaded(true)
-    }).catch(() => { setSettingsLoaded(true) })
     if (initState && initState.page !== 'home') {
       console.log('[nav] restored page from localStorage:', initState.page, 'editProjectId:', initState.editProjectId)
     }
@@ -224,69 +175,6 @@ function App(): JSX.Element {
       document.removeEventListener('visibilitychange', save)
     }
   }, [page, editProjectId])
-
-  const applyRateLimitDefaults = async (s: AppSettings) => {
-    const defaults: Record<string, [number, number]> = {}
-    if (s.chat?.model) defaults[s.chat.model] = [parseInt(s.chat.rateLimitMin) || 50, parseInt(s.chat.rateLimitDay) || 2000]
-    if (s.image?.model) defaults[s.image.model] = [parseInt(s.image.rateLimitMin) || 10, parseInt(s.image.rateLimitDay) || 500]
-    if (s.video?.model) defaults[s.video.model] = [parseInt(s.video.rateLimitMin) || 50, parseInt(s.video.rateLimitDay) || 1000]
-    if (Object.keys(defaults).length === 0) return
-    try {
-      await fetch(`${BASE}/api/pipeline/rate-limits/defaults`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ defaults }),
-      })
-    } catch {}
-  }
-
-  const saveChat = async () => {
-    try {
-      await window.electronAPI.saveSettings({ ...settings })
-      await fetch(`${BASE}/api/pipeline/rate-limits`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: settings.chat.model, rpm: parseInt(settings.chat.rateLimitMin), rpd: parseInt(settings.chat.rateLimitDay) }),
-      })
-      showToast('保存成功')
-    } catch { showToast('保存失败') }
-  }
-  const saveImage = async () => {
-    try {
-      await window.electronAPI.saveSettings({ ...settings })
-      await fetch(`${BASE}/api/pipeline/rate-limits`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: settings.image.model, rpm: parseInt(settings.image.rateLimitMin), rpd: parseInt(settings.image.rateLimitDay) }),
-      })
-      showToast('保存成功')
-    } catch { showToast('保存失败') }
-  }
-  const saveVideo = async () => {
-    try {
-      await window.electronAPI.saveSettings({ ...settings })
-      await fetch(`${BASE}/api/pipeline/rate-limits`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: settings.video.model, rpm: parseInt(settings.video.rateLimitMin), rpd: parseInt(settings.video.rateLimitDay) }),
-      })
-      showToast('保存成功')
-    } catch { showToast('保存失败') }
-  }
-
-  const onModelChange = (section: 'chat' | 'image' | 'video', model: string) => {
-    const presets = section === 'chat' ? CHAT_PRESETS : section === 'image' ? IMAGE_PRESETS : VIDEO_PRESETS
-    const preset = presets.find(p => p.model === model)
-    if (preset) {
-      setSettings(prev => ({
-        ...prev,
-        [section]: { ...preset }
-      }))
-    }
-  }
-
-  const updateSetting = (section: 'chat' | 'image' | 'video', field: string, value: string) => {
-    setSettings(prev => ({ ...prev, [section]: { ...prev[section], [field]: value } }))
-  }
 
   const refreshProjects = () => {
     listProjects().then(setProjects).catch(() => {})
@@ -479,45 +367,9 @@ function App(): JSX.Element {
             <div className="settings-page">
               <h2 className="settings-heading">模型</h2>
               <div className="settings-grid">
-                <ModelCard
-                  title="Chat Model"
-                  description="剧本与故事创作"
-                  model={settings.chat.model}
-                  apiKey={settings.chat.apiKey}
-                  baseUrl={settings.chat.baseUrl}
-                  rateLimitMin={settings.chat.rateLimitMin}
-                  rateLimitDay={settings.chat.rateLimitDay}
-                  modelOptions={CHAT_OPTIONS}
-                  onModelChange={m => onModelChange('chat', m)}
-                  onUpdate={(f, v) => updateSetting('chat', f, v)}
-                  onSave={saveChat}
-                />
-                <ModelCard
-                  title="Image Model"
-                  description="分镜与肖像设计"
-                  model={settings.image.model}
-                  apiKey={settings.image.apiKey}
-                  baseUrl={settings.image.baseUrl}
-                  rateLimitMin={settings.image.rateLimitMin}
-                  rateLimitDay={settings.image.rateLimitDay}
-                  modelOptions={IMAGE_OPTIONS}
-                  onModelChange={m => onModelChange('image', m)}
-                  onUpdate={(f, v) => updateSetting('image', f, v)}
-                  onSave={saveImage}
-                />
-                <ModelCard
-                  title="Video Model"
-                  description="文生与图生视频"
-                  model={settings.video.model}
-                  apiKey={settings.video.apiKey}
-                  baseUrl={settings.video.baseUrl}
-                  rateLimitMin={settings.video.rateLimitMin}
-                  rateLimitDay={settings.video.rateLimitDay}
-                  modelOptions={VIDEO_OPTIONS}
-                  onModelChange={m => onModelChange('video', m)}
-                  onUpdate={(f, v) => updateSetting('video', f, v)}
-                  onSave={saveVideo}
-                />
+                <ModelCard section="chat" title="Chat Model" description="剧本与故事创作" modelOptions={CHAT_OPTIONS} />
+                <ModelCard section="image" title="Image Model" description="分镜与肖像设计" modelOptions={IMAGE_OPTIONS} />
+                <ModelCard section="video" title="Video Model" description="文生与图生视频" modelOptions={VIDEO_OPTIONS} />
               </div>
               <div className="settings-image">
                 <h2 className="settings-heading">图像设置</h2>
@@ -532,11 +384,7 @@ function App(): JSX.Element {
                           <div
                             key={t.id}
                             className={`settings-image-cell${settings.sizeTier === t.id ? ' active' : ''}`}
-                            onClick={() => {
-                              const next = { ...settings, sizeTier: t.id }
-                              setSettings(next)
-                              window.electronAPI.saveSettings(next).catch(() => {})
-                            }}
+                            onClick={() => setSizeTier(t.id)}
                           >
                             <span className="settings-image-label">{t.label}</span>
                             <span className="settings-image-sub">{t.subLabel}</span>
@@ -552,11 +400,7 @@ function App(): JSX.Element {
                       </div>
                       <div className="settings-image-grid">
                         {SIZE_OPTIONS.map(s => (
-                          <div key={s.id} className={`settings-image-cell${settings.imageSize === s.id ? ' active' : ''}`} data-aspect={s.id} onClick={() => {
-                            const next = { ...settings, imageSize: s.id }
-                            setSettings(next)
-                            window.electronAPI.saveSettings(next).catch(() => {})
-                          }}>
+                          <div key={s.id} className={`settings-image-cell${settings.imageSize === s.id ? ' active' : ''}`} data-aspect={s.id} onClick={() => setImageSize(s.id)}>
                             <span className="settings-image-cn">{s.labelCn}</span>
                             <div className="settings-image-schema" />
                             <span className="settings-image-label">{s.label}</span>

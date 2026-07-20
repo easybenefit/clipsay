@@ -1,17 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
+import { useSettingsStore } from './stores/settingsStore'
 
 interface ModelCardProps {
+  section: 'chat' | 'image' | 'video'
   title: string
   description: string
-  model: string
-  apiKey: string
-  baseUrl: string
-  rateLimitMin: string
-  rateLimitDay: string
   modelOptions: string[]
-  onModelChange: (model: string) => void
-  onUpdate: (field: string, value: string) => void
-  onSave: () => void
 }
 
 const SaveIcon = () => (
@@ -63,41 +57,46 @@ export function ModelSelect({ options, value, onChange }: { options: string[]; v
   )
 }
 
-function ModelCard(props: ModelCardProps): JSX.Element {
+function ModelCard({ section, title, description, modelOptions }: ModelCardProps): JSX.Element {
+  const cfg = useSettingsStore(s => s.settings[section])
+  const updateSetting = useSettingsStore(s => s.updateSetting)
+  const onModelChange = useSettingsStore(s => s.onModelChange)
+  const saveSection = useSettingsStore(s => s.saveSection)
+
   return (
     <div className="settings-card-outer">
       <div className="settings-card">
         <div className="settings-card-header">
-          <span className="settings-card-title">{props.title}</span>
-          <span className="settings-card-desc">{props.description}</span>
+          <span className="settings-card-title">{title}</span>
+          <span className="settings-card-desc">{description}</span>
         </div>
         <div className="settings-field">
           <span>模型</span>
-          <ModelSelect options={props.modelOptions} value={props.model} onChange={v => props.onModelChange(v)} />
+          <ModelSelect options={modelOptions} value={cfg.model} onChange={v => onModelChange(section, v)} />
         </div>
         <div className="settings-field">
           <span>API 密钥</span>
-          <input className="settings-input" type="password" value={props.apiKey} onChange={e => props.onUpdate('apiKey', e.target.value)} placeholder="sk-..." />
+          <input className="settings-input" type="password" value={cfg.apiKey} onChange={e => updateSetting(section, 'apiKey', e.target.value)} placeholder="sk-..." />
         </div>
         <div className="settings-field">
           <span>URL 地址</span>
-          <input className="settings-input" type="text" value={props.baseUrl} onChange={e => props.onUpdate('baseUrl', e.target.value)} placeholder="https://..." />
+          <input className="settings-input" type="text" value={cfg.baseUrl} onChange={e => updateSetting(section, 'baseUrl', e.target.value)} placeholder="https://..." />
         </div>
         <div className="settings-field">
           <span>速率限制</span>
           <div className="settings-rl-inline">
             <div className="settings-rl-row">
-              <input className="settings-input" type="text" value={props.rateLimitMin} onChange={e => props.onUpdate('rateLimitMin', e.target.value)} placeholder="500" />
+              <input className="settings-input" type="text" value={cfg.rateLimitMin} onChange={e => updateSetting(section, 'rateLimitMin', e.target.value)} placeholder="500" />
               <span className="settings-rl-label">/ 分钟</span>
             </div>
             <div className="settings-rl-row">
-              <input className="settings-input" type="text" value={props.rateLimitDay} onChange={e => props.onUpdate('rateLimitDay', e.target.value)} placeholder="2000" />
+              <input className="settings-input" type="text" value={cfg.rateLimitDay} onChange={e => updateSetting(section, 'rateLimitDay', e.target.value)} placeholder="2000" />
               <span className="settings-rl-label">/ 天</span>
             </div>
           </div>
         </div>
         <div className="settings-card-actions">
-          <button className="settings-btn-save" onClick={props.onSave}>
+          <button className="settings-btn-save" onClick={() => saveSection(section)}>
             <span>保存</span>
             <span className="btn-icon-wrap"><SaveIcon /></span>
           </button>
