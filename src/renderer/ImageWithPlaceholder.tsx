@@ -61,7 +61,7 @@ export default function ImageWithPlaceholder({
         ...style,
       }}
     >
-      {!showImg && (
+      {!showImg && !isPending && (
         <Blurhash
           hash={BLURHASH}
           width="100%"
@@ -72,7 +72,11 @@ export default function ImageWithPlaceholder({
         />
       )}
 
-      {!showImg && (
+      {isPending && (
+        <div className="iwp-skeleton-shimmer" />
+      )}
+
+      {!showImg && !isPending && (
         <div
           style={{
             position: 'absolute',

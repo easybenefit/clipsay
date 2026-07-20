@@ -74,9 +74,28 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
           </div>
         )}
       </div>
-      {!hasVideo && finalVideoStatus !== 1 ? (
+      {!hasVideo && finalVideoStatus !== 1 && !refreshing ? (
         <div className="script-card-empty">
+          <div className="creative-video-empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
+          </div>
           <div className="script-card-empty-text">暂无可用的视频</div>
+        </div>
+      ) : refreshing ? (
+        <div className="story-card-loading creative-video-loading">
+          <div className="story-card-skeleton-lines">
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+            <div className="story-card-skeleton-line" />
+          </div>
         </div>
       ) : (
         <div className="script-card-body">

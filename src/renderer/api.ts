@@ -363,6 +363,17 @@ export async function compositeProjectVideo(projectId: number): Promise<void> {
   }
 }
 
+export async function compositeSceneVideo(sceneId: number): Promise<{ composited_video: string; composited_preview: string }> {
+  const res = await fetch(`${BASE}/api/scenes/${sceneId}/composite-video`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function getProject(id: number): Promise<ProjectFull> {
   return withRetry(async () => {
     const res = await fetch(`${BASE}/api/projects/${id}`)

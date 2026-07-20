@@ -99,14 +99,24 @@
 
 .script-card-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 48px 16px;
+  gap: 12px;
 }
 
 .script-card-empty-text {
   font-size: 0.85rem;
   color: var(--text-dim);
+}
+
+.creative-video-empty-icon {
+  color: var(--text-dim);
+  opacity: 0.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .script-card-body {
@@ -562,6 +572,44 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(139, 92, 246, 0.15);
 }
 
+/* ── Scene preview skeleton loading ── */
+
+.scene-preview-skeleton-loading {
+  min-height: 120px;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+/* ── Scene preview empty state ── */
+
+.scene-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 16px;
+  min-height: 120px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+}
+
+.scene-preview-empty-icon {
+  color: var(--text-dim);
+  opacity: 0.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scene-preview-empty-text {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+}
+
 /* ── Scene preview card wrapper ── */
 
 .scene-preview-card {
@@ -786,6 +834,12 @@
 
 .creative-video-section {
   margin-top: 0;
+}
+
+/* ── Creative video loading skeleton (matching story card) ── */
+
+.creative-video-loading {
+  min-height: 280px;
 }
 
 .creative-video-single {
@@ -1442,6 +1496,11 @@
 .script-card.creative-video-card .script-card-empty {
   position: relative;
   z-index: 1;
+}
+
+.script-card.creative-video-card .script-card-empty {
+  flex: 1;
+  min-height: 280px;
 }
 
 .script-card.creative-video-card .script-card-body {

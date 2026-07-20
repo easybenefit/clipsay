@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData, compositeProjectVideo, regenerateStartFrame, regenerateEndFrame, regenerateShotVideo } from './api'
+import { BASE, createProject, generateStory, extractCharacters, sceneStoryboard, generatePortraits, GeneratePortraitsRequest, generateShotFrames, getProject, updateProject, updateCharacterFeatures, fetchStepData, compositeProjectVideo, compositeSceneVideo, regenerateStartFrame, regenerateEndFrame, regenerateShotVideo } from './api'
 import { usePipelineSSE, EVENT_PROJECT_UPDATED } from './usePipelineSSE'
 
 import StoryCard from './StoryCard'
@@ -1280,6 +1280,35 @@ function NewProject(props: NewProjectProps): JSX.Element {
     }
   }
 
+  const handleRefreshSceneComposited = async (sceneIdx: number) => {
+    const pid = getEffectiveProjectId()
+    if (!pid) return
+    const scene = scenes[sceneIdx]
+    if (!scene?.id) return
+    try {
+      setScenes(prev => {
+        const next = [...prev]
+        next[sceneIdx] = { ...next[sceneIdx], compositVideoStatus: 1 }
+        return next
+      })
+      const res = await compositeSceneVideo(scene.id)
+      const videoUrl = res.composited_video.startsWith(BASE) ? res.composited_video : `${BASE}${res.composited_video}`
+      const previewUrl = res.composited_preview ? (res.composited_preview.startsWith(BASE) ? res.composited_preview : `${BASE}${res.composited_preview}`) : ''
+      setScenes(prev => {
+        const next = [...prev]
+        next[sceneIdx] = { ...next[sceneIdx], compositedVideo: videoUrl, compositedPreview: previewUrl, compositVideoStatus: 2 }
+        return next
+      })
+    } catch (e) {
+      console.error(`场景 ${sceneIdx} 合成视频失败:`, e)
+      setScenes(prev => {
+        const next = [...prev]
+        next[sceneIdx] = { ...next[sceneIdx], compositVideoStatus: 3 }
+        return next
+      })
+    }
+  }
+
   const handleRefreshImage = async (characterIdx: number, view: PortraitView): Promise<string | void> => {
     const char = characters[characterIdx]
     if (!char) return
@@ -1662,6 +1691,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
                 onRegenerate={handleRegenerateStoryboard}
                 onRefreshFrame={handleRefreshFrame}
                 onRefreshVideo={handleRefreshVideo}
+                onRefreshSceneComposited={handleRefreshSceneComposited}
                 aspectRatio={size}
               />
             </div>

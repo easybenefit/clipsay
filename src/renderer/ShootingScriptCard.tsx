@@ -33,6 +33,7 @@ export interface SceneData {
   compositedVideo: string
   compositedPreview?: string
   compositVideoStatus?: number
+  id?: number
 }
 
 interface ScriptCardProps {
@@ -46,6 +47,7 @@ interface ScriptCardProps {
   onRegenerate?: () => void
   onRefreshFrame?: (sceneIdx: number, shotIdx: number, frameType: 'firstFrame' | 'lastFrame', prompt: string) => void
   onRefreshVideo?: (sceneIdx: number, shotIdx: number) => void
+  onRefreshSceneComposited?: (sceneIdx: number) => void
 }
 
 export interface MediaPreviewFrame {
@@ -150,7 +152,7 @@ export function MediaPreview({ data, onClose }: { data: MediaPreviewData; onClos
   return createPortal(modal, document.body)
 }
 
-function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame, onRefreshVideo }: ScriptCardProps): JSX.Element {
+function ShootingScriptCard({ scenes, loading = false, creating = false, disabled = false, aspectRatio = '16:9', onSceneUpdate, onRegenerate, onRefreshFrame, onRefreshVideo, onRefreshSceneComposited }: ScriptCardProps): JSX.Element {
   const cssAspectRatio = toCssAspectRatio(aspectRatio)
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [editShotKey, setEditShotKey] = useState<{ sceneIdx: number; shotIdx: number } | null>(null)
@@ -196,7 +198,7 @@ function ShootingScriptCard({ scenes, loading = false, creating = false, disable
               onEditShot={(shotIdx) => setEditShotKey({ sceneIdx: idx, shotIdx })}
               onRefreshFrame={(shotIdx, frameType, prompt) => onRefreshFrame?.(idx, shotIdx, frameType, prompt)}
               onRefreshVideo={(shotIdx) => onRefreshVideo?.(idx, shotIdx)}
-              onRefreshSceneComposited={() => onRefreshVideo?.(idx, -1)}
+              onRefreshSceneComposited={() => onRefreshSceneComposited?.(idx)}
               onPreview={(items, currentIndex) => setMediaPreview({ items, currentIndex })}
               creating={creating}
               loading={scene.shots.length === 0}
@@ -357,21 +359,36 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
                 frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
                 onClick={() => onPreview?.([{ src: scene.compositedVideo!, isVideo: true, label: '场景预览' }], 0)}
               />
-            ) : (
+            ) : scene.compositVideoStatus === 1 || scene.compositVideoStatus === 2 ? (
+              <div className="story-card-loading scene-preview-skeleton-loading">
+                <div className="story-card-skeleton-lines">
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                  <div className="story-card-skeleton-line" />
+                </div>
+              </div>
+            ) : scene.compositVideoStatus === 3 ? (
               <ImageWithPlaceholder
                 src=""
                 alt="场景预览"
-                status={
-                  scene.compositVideoStatus === 1
-                    ? 'generating'
-                    : scene.compositVideoStatus === 2
-                      ? 'generated'
-                      : scene.compositVideoStatus === 3
-                        ? 'error'
-                        : 'waiting'
-                }
+                status="error"
                 style={{ aspectRatio: cssAspectRatio, width: '100%', borderRadius: '6px', objectFit: 'cover' }}
               />
+            ) : (
+              <div className="scene-preview-empty">
+                <div className="scene-preview-empty-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
+                </div>
+                <div className="scene-preview-empty-text">暂无预览</div>
+              </div>
             )}
           </div>
         </div>

@@ -800,6 +800,23 @@
 
 /* ── ImageWithPlaceholder ── */
 
+/* Skeleton shimmer — shared with story card, creative video card */
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.iwp-skeleton-shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(110deg, rgba(255,255,255,0.03) 30%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 70%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
 /* Skeleton shimmer overlay — subtle scan hinting image generation */
 @keyframes iwp-shimmer {
   0% { transform: translateX(-100%); }
