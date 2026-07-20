@@ -217,7 +217,7 @@ async def generate_portraits(body: PortraitRequest):
         return JSONResponse(status_code=400, content={"error": f"不支持的角度: {body.view}"})
 
     from backend.services.portrait_service import PortraitService, PortraitFrontGeneratingError
-    service = PortraitService(body.model, body.api_key, body.base_url, body.project_id)
+    service = PortraitService(body.model, body.api_key, body.base_url, body.project_id, ratio=body.ratio)
     logger.info("[portraits] === POST /api/generate-portraits view=%s identifier=%s ===",
                 body.view, body.characters[0].identifier)
 

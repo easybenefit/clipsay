@@ -97,6 +97,7 @@ class PortraitRequest(BaseModel):
     api_key: str = ""
     base_url: str = ""
     size: Optional[str] = None
+    ratio: str = ""
     project_id: int
 
 

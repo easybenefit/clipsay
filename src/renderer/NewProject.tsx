@@ -266,8 +266,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
               </div>
             )}
 
-            {(store.creating || store.output || store.stepStatuses?.story ||
-              pipeline.status?.steps?.story?.status) && (
+            {(store.creating || !!store.stepStatuses?.story) && (
               <div className="npm-card-enter"><StoryCard /></div>
             )}
 

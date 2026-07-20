@@ -8,12 +8,11 @@ import './StoryCard.css'
 function StoryCard(): JSX.Element {
   const output = useCreationStore(s => s.output)
   const storyTitle = useCreationStore(s => s.storyTitle)
-  const creating = useCreationStore(s => s.creating)
-  const stepStatuses = useCreationStore(s => s.stepStatuses)
   const error = useCreationStore(s => s.error)
-  const pipelineStarted = useCreationStore(s => s.pipelineStarted)
-  const stepFailed = stepStatuses?.story === 3 && !output
-  const loading = !stepFailed && (!!(creating && !output) || stepStatuses?.story === 1 || stepStatuses?.story === 4 || (pipelineStarted && !output && stepStatuses?.story !== 2))
+  const creating = useCreationStore(s => s.creating)
+  const status = (useCreationStore(s => s.stepStatuses)?.story ?? 0)
+  const loading = status === 1 || (status === 0 && creating)
+  const stepFailed = status === 3
 
   const [showEditor, setShowEditor] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
