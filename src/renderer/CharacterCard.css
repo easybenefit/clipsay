@@ -800,23 +800,59 @@
 
 /* ── ImageWithPlaceholder ── */
 
+/* Skeleton shimmer overlay — subtle scan hinting image generation */
+@keyframes iwp-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
 .iwp-ring-pending {
-  animation: iwp-blink 2s ease-in-out infinite;
+  animation: iwp-breath 2.4s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15), inset 0 0 12px rgba(139, 92, 246, 0.05);
+  transition: box-shadow 0.3s ease;
+}
+
+.iwp-ring {
+  position: relative;
 }
 
 .iwp-icon-pending {
-  animation: iwp-spin 2.5s ease-in-out infinite;
+  animation: iwp-elegant-spin 2.8s ease-in-out infinite;
 }
 
-@keyframes iwp-blink {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+/* Shimmer pseudo-element — only in frame card context */
+.shot-card-frame .iwp-ring-pending::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(139, 92, 246, 0.06) 30%,
+    rgba(139, 92, 246, 0.12) 50%,
+    rgba(139, 92, 246, 0.06) 70%,
+    transparent 100%
+  );
+  animation: iwp-shimmer 2.2s ease-in-out infinite;
+  pointer-events: none;
 }
 
-@keyframes iwp-spin {
-  0% { transform: rotate(0deg); }
-  25% { transform: rotate(120deg); }
-  50% { transform: rotate(180deg); }
-  75% { transform: rotate(300deg); }
-  100% { transform: rotate(360deg); }
+@keyframes iwp-breath {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes iwp-elegant-spin {
+  0% { transform: rotate(0deg) scale(0.9); opacity: 0.6; }
+  25% { transform: rotate(90deg) scale(1.05); opacity: 1; }
+  50% { transform: rotate(180deg) scale(0.9); opacity: 0.7; }
+  75% { transform: rotate(270deg) scale(1.05); opacity: 1; }
+  100% { transform: rotate(360deg) scale(0.9); opacity: 0.6; }
 }
