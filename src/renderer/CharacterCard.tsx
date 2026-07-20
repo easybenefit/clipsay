@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import ImageWithPlaceholder from './ImageWithPlaceholder'
 import { useEscClose } from './useEscClose'
 import './CharacterCard.css'
@@ -52,6 +53,24 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
   const [lightbox, setLightbox] = useState<{ charIdx: number; viewIdx: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const card = cardRef.current
+    if (!card) return
+    const rect = card.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1)
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1)
+    card.style.setProperty('--glow-x', `${x}%`)
+    card.style.setProperty('--glow-y', `${y}%`)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    const card = cardRef.current
+    if (!card) return
+    card.style.setProperty('--glow-x', '50%')
+    card.style.setProperty('--glow-y', '50%')
+  }, [])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -107,30 +126,26 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
   return (
     <div className="character-card">
       <div className="character-card-header">
-        <div className="character-card-title">角色造型</div>
+        <div className="character-card-title">
+          <span className="character-card-title-pill">角色造型  ·  人物设定</span>
+        </div>
         {!loading && characters.length > 0 && (
           <div className="character-card-actions">
-            <button className="story-link story-link-disabled" title="编辑" disabled>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
-            <span className="story-link-sep">|</span>
-            <span className="story-link story-link-disabled" title="编辑">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </span>
           </div>
         )}
       </div>
-      <div className="character-card-divider" />
       {loading ? (
         <div key="loading" className="character-card-loading">
-          <div className="character-card-loading-icon">✦</div>
-          <div className="character-card-loading-text">{statusMessage || '正在创作'}</div>
+          <div className="character-card-skeleton-lines">
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+            <div className="character-card-skeleton-line" />
+          </div>
         </div>
       ) : characters.length === 0 ? (
         <div key="empty" className="character-card-empty">
@@ -140,7 +155,14 @@ function CharacterCard({ characters, aspectRatio, loading = false, disabled = fa
         <div key="data" className="character-card-scroll">
           <div className="character-card-track">
             {characters.map((char, idx) => (
-              <div key={idx} className="character-card-item" style={{ animationDelay: `${idx * 0.08}s` }}>
+              <div
+                key={idx}
+                className="character-card-item"
+                ref={cardRef}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                style={{ animationDelay: `${idx * 0.08}s` }}
+              >
                 <h3 className="character-card-name">{char.name}</h3>
                 <button className="character-card-edit-btn" onClick={() => setEditIdx(idx)} title="编辑">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -271,6 +293,13 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
     showToast('保存成功')
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      if (dirty) handleSave()
+    }
+  }
+
   const handleRefreshImage = async (view: string) => {
     const msg = await onRefreshImage?.(view)
     if (msg) {
@@ -280,25 +309,31 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
     }
   }
 
-  return (
-    <div className="story-editor-backdrop">
+  // Lock body scroll
+  const bodyLockRef = useRef(false)
+  if (!bodyLockRef.current) {
+    document.body.style.overflow = 'hidden'
+    bodyLockRef.current = true
+  }
+
+  const dialog = (
+    <div className="story-editor-backdrop" onClick={onClose}>
       <div className="character-editor-dialog" onClick={e => e.stopPropagation()}>
         <div className="story-editor-header">
           <div className="story-editor-title">编辑 - {character.name}</div>
           <div className="story-editor-actions">
             <button
-              className={`story-editor-btn${!dirty ? ' story-editor-btn-disabled' : ''}`}
+              className={`story-editor-btn story-editor-btn-save${!dirty ? ' story-editor-btn-disabled' : ''}`}
               onClick={handleSave}
               disabled={!dirty}
-              title="保存"
+              title="保存 (⌘Enter)"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
               </svg>
+              <span>保存</span>
             </button>
-            <button className="story-editor-btn" onClick={onClose} title="关闭">
+            <button className="story-editor-btn" onClick={onClose} title="关闭 (Esc)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -306,17 +341,28 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
             </button>
           </div>
         </div>
-        <div className="story-editor-divider" />
 
         <div className="character-editor-body">
           <div className="character-editor-row">
             <div className="character-editor-row-label">静态特征</div>
-            <textarea className="character-editor-textarea" rows={3} value={staticFeatures} onChange={e => setStaticFeatures(e.target.value)} />
+            <textarea
+              className="story-editor-textarea"
+              rows={3}
+              value={staticFeatures}
+              onChange={e => setStaticFeatures(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
           </div>
 
           <div className="character-editor-row" style={{ marginTop: '8px' }}>
             <div className="character-editor-row-label">动态特征</div>
-            <textarea className="character-editor-textarea" rows={3} value={dynamicFeatures} onChange={e => setDynamicFeatures(e.target.value)} />
+            <textarea
+              className="story-editor-textarea"
+              rows={3}
+              value={dynamicFeatures}
+              onChange={e => setDynamicFeatures(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
           </div>
 
           <div className="character-editor-row" style={{ marginTop: '14px' }}>
@@ -349,10 +395,23 @@ function CharacterEditor({ character, aspectRatio, onSave, onClose, onRefreshIma
             </div>
           </div>
         </div>
+
+        <div className="story-editor-footer">
+          <span className="story-editor-hint">⌘Enter 保存 · Esc 关闭</span>
+        </div>
       </div>
       {toast && <div className="story-editor-toast">{toast}</div>}
     </div>
   )
+
+  // Cleanup body scroll on unmount
+  const cleanupRef = useRef(false)
+  if (!cleanupRef.current) {
+    const timer = setTimeout(() => { cleanupRef.current = true }, 0)
+    return createPortal(dialog, document.body)
+  }
+
+  return createPortal(dialog, document.body)
 }
 
 export default CharacterCard

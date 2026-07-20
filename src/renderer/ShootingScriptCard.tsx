@@ -311,12 +311,8 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
 
       <div className="script-card-item-divider" />
 
-      <div className="shot-card" style={{ marginTop: '6px', cursor: 'default' }}>
-        <div className="shot-pill-header" style={{ pointerEvents: 'none' }}>
-          <div className="shot-pill">
-            <span className="shot-pill-num">场景预览</span>
-          </div>
-        </div>
+      <div className="scene-preview-card" style={{ cursor: 'default' }}>
+        <span className="scene-preview-card-pill">场景预览</span>
         <div className="shot-card-body">
           <div className="scene-composited-video">
             {scene.compositedVideo ? (
@@ -328,7 +324,7 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
                 hoveredKey={hoveredKey}
                 onHover={onHover}
                 isVideo
-                frameStyle={{ aspectRatio: cssAspectRatio, height: 'auto' }}
+                frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
                 onClick={() => onPreview?.([{ src: scene.compositedVideo!, isVideo: true, label: '场景预览' }], 0)}
               />
             ) : (

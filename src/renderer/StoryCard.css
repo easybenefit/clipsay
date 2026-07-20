@@ -4,7 +4,6 @@
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  margin-top: 16px;
   min-height: 320px;
   transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
   will-change: transform;

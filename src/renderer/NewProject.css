@@ -543,6 +543,7 @@ body.window-maximized.show-new-sidebar .new-project-layout {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 20px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
