@@ -784,6 +784,22 @@ body.window-maximized:not(.show-new-sidebar) .sidebar-hint {
   color: var(--accent);
 }
 
+.project-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.project-actions-group .badge-dot {
+  margin-left: 8px;
+}
+
+.project-actions-btns {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
 /* ── Home Section ── */
 .home-section {
   margin-bottom: 32px;

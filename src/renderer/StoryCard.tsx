@@ -10,7 +10,10 @@ function StoryCard(): JSX.Element {
   const storyTitle = useCreationStore(s => s.storyTitle)
   const creating = useCreationStore(s => s.creating)
   const stepStatuses = useCreationStore(s => s.stepStatuses)
-  const loading = !!(creating && !output) || stepStatuses?.story === 1 || stepStatuses?.story === 4
+  const error = useCreationStore(s => s.error)
+  const pipelineStarted = useCreationStore(s => s.pipelineStarted)
+  const stepFailed = stepStatuses?.story === 3 && !output
+  const loading = !stepFailed && (!!(creating && !output) || stepStatuses?.story === 1 || stepStatuses?.story === 4 || (pipelineStarted && !output && stepStatuses?.story !== 2))
 
   const [showEditor, setShowEditor] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -67,7 +70,12 @@ function StoryCard(): JSX.Element {
       </div>
       <div className="story-card-divider" />
 
-      {loading ? (
+      {stepFailed ? (
+        <div className="story-card-body story-card-error">
+          <div className="story-card-error-icon">⚠</div>
+          <div className="story-card-error-text">{error || '故事生成失败'}</div>
+        </div>
+      ) : loading ? (
         <div className="story-card-loading">
             <div className="story-card-skeleton-lines">
               <div className="story-card-skeleton-line" />

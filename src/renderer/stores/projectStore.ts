@@ -32,7 +32,7 @@ export async function requireNoRunningPipeline(): Promise<boolean> {
   const status = await checkPipelineRunning()
   if (status.running) {
     useSettingsStore.getState().showToast(`工程 ${status.project_id} 正在创作，请先完成或取消`)
-    return false
+    return true
   }
   return true
 }

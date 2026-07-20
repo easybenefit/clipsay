@@ -233,6 +233,7 @@ class PipelineRunner:
                     reason=f"Step '{step_name}' failed after {max_retries} attempts",
                     error=str(last_exception),
                 )
+                await self._emitter().project_data_changed()
                 self._pause_event.clear()
                 return
 

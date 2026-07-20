@@ -396,10 +396,9 @@ export const useCreationStore = create<CreationState>((set, get) => ({
       return isNew ? pid : undefined
     } catch (e: any) {
       console.error('启动 pipeline 失败:', e)
-      set({ error: `启动失败: ${e?.message || String(e)}`, stage: 'new', stepStatuses: null })
-    } finally {
-      set({ creating: false })
+      set({ creating: false, error: `启动失败: ${e?.message || String(e)}`, stage: 'new', stepStatuses: null })
     }
+    // creating 保持 true 直到 pipeline 通过 SSE 事件标记完成或失败
   },
 
   handleSave: async () => {

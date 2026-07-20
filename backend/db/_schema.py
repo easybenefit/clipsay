@@ -16,13 +16,10 @@ TABLES = [
         frame_rate INTEGER DEFAULT 24,
         duration INTEGER DEFAULT 10,
         chat_model TEXT DEFAULT '',
-        chat_api_key TEXT DEFAULT '',
         chat_base_url TEXT DEFAULT '',
         image_model TEXT DEFAULT '',
-        image_api_key TEXT DEFAULT '',
         image_base_url TEXT DEFAULT '',
         video_model TEXT DEFAULT '',
-        video_api_key TEXT DEFAULT '',
         video_base_url TEXT DEFAULT '',
         stage TEXT DEFAULT 'new',
         pipeline_status TEXT DEFAULT 'idle',
@@ -140,11 +137,8 @@ TABLES = [
 ]
 
 MIGRATIONS = [
-    "ALTER TABLE projects ADD COLUMN chat_api_key TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN chat_base_url TEXT DEFAULT ''",
-    "ALTER TABLE projects ADD COLUMN image_api_key TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN image_base_url TEXT DEFAULT ''",
-    "ALTER TABLE projects ADD COLUMN video_api_key TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN video_base_url TEXT DEFAULT ''",
     "ALTER TABLE shots ADD COLUMN sf_vis_char_idxs TEXT DEFAULT '[]'",
     "ALTER TABLE shots ADD COLUMN ef_vis_char_idxs TEXT DEFAULT '[]'",

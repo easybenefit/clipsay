@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { BASE } from './api'
 import { useSettingsStore } from './stores/settingsStore'
+import { useCreationStore } from './stores/creationStore'
 
 export const EVENT_PROJECT_UPDATED = 'project_data_changed'
 
@@ -70,6 +71,16 @@ export function usePipelineSSE(
       if (res.ok) {
         const data = await res.json()
         setStatus(prev => prev ? { ...prev, ...data, steps: prev.steps } : data)
+        // When pipeline is not running, the backend may have reset stale
+        // step_statuses (CREATING→PENDING). Refresh project data so the
+        // frontend picks up the cleared state instead of showing infinite
+        // loading skeletons.
+        if (!data.is_running) {
+          const cs = useCreationStore.getState()
+          if (cs.projectId === pid) {
+            cs.refreshProjectData(pid)
+          }
+        }
       }
     } catch {
       // ignore
@@ -155,6 +166,17 @@ export function usePipelineSSE(
             },
           }
         })
+        const { step } = event as { step: string }
+        if (step === 'characters' || step === 'portraits') {
+          useCreationStore.setState({ creatingCharacter: event.type !== 'step_complete' && event.type !== 'step_failed' })
+        }
+        if (event.type === 'step_failed') {
+          const { step, error } = event as { step: string; error: string }
+          useCreationStore.setState({
+            error: `步骤「${step}」失败: ${error}`,
+            stepStatuses: { ...useCreationStore.getState().stepStatuses, [step]: 3 },
+          })
+        }
         fetchStatus()
         break
       case 'step_skipped':
@@ -196,11 +218,18 @@ export function usePipelineSSE(
         break
       case 'pipeline_failed':
         setStatus(prev => prev ? { ...prev, pipeline_status: 'failed', pipeline_error: event.error } : prev)
+        useCreationStore.setState({ creating: false, error: event.error })
         break
       case 'pipeline_completed':
         setStatus(prev => prev ? { ...prev, pipeline_status: 'completed', pipeline_progress: 1 } : prev)
+        useCreationStore.getState().setField('creating', false)
         break
       case 'step_data_ready':
+        if (event.step === 'characters' || event.step === 'portraits') {
+          useCreationStore.setState({ creatingCharacter: false })
+        }
+        onEvent?.(event)
+        break
       case EVENT_PROJECT_UPDATED:
       case 'task_status':
         onEvent?.(event)

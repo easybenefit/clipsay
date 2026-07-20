@@ -174,9 +174,9 @@ async def read_full_project(db: aiosqlite.Connection, project_id: int) -> Option
 async def save_full_project(db, project_id: int, data) -> None:
     fields = {}
     for k in ("name", "language", "idea", "style", "size", "size_tier", "resolution", "frame_rate",
-              "duration", "chat_model", "chat_api_key", "chat_base_url",
-              "image_model", "image_api_key", "image_base_url",
-              "video_model", "video_api_key", "video_base_url"):
+              "duration", "chat_model", "chat_base_url",
+              "image_model", "image_base_url",
+              "video_model", "video_base_url"):
         v = getattr(data, k, None)
         if v is not None:
             fields[k] = v
@@ -280,20 +280,20 @@ async def duplicate_project_full(db, project_id: int) -> Optional[dict]:
     async with aiosqlite.connect(DB_PATH) as conn:
         cur = await conn.execute(
             "INSERT INTO projects (name, language, idea, style, size, resolution, "
-            "frame_rate, duration, chat_model, chat_api_key, chat_base_url, "
-            "image_model, image_api_key, image_base_url, "
-            "video_model, video_api_key, video_base_url) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "frame_rate, duration, chat_model, chat_base_url, "
+            "image_model, image_base_url, "
+            "video_model, video_base_url) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (f"{original['name']} (副本)", original.get("language", "zh"),
              original.get("idea", ""), original.get("style", ""),
              original.get("size", ""), original.get("resolution", ""),
              original.get("frame_rate", 24), original.get("duration", 10),
              original.get("chat_model", ""),
-             original.get("chat_api_key", ""), original.get("chat_base_url", ""),
+             original.get("chat_base_url", ""),
              original.get("image_model", ""),
-             original.get("image_api_key", ""), original.get("image_base_url", ""),
+             original.get("image_base_url", ""),
              original.get("video_model", ""),
-             original.get("video_api_key", ""), original.get("video_base_url", "")))
+             original.get("video_base_url", "")))
         new_id = cur.lastrowid
         if original.get("story"):
             await conn.execute(
@@ -498,17 +498,17 @@ async def load_session_config(project_id: int) -> "SessionConfig":
             language=row["language"] or "zh",
             chat=ModelConfig(
                 model=row["chat_model"] or "",
-                api_key=row["chat_api_key"] or "",
+                api_key="",
                 base_url=row["chat_base_url"] or "",
             ),
             image=ModelConfig(
                 model=row["image_model"] or "",
-                api_key=row["image_api_key"] or "",
+                api_key="",
                 base_url=row["image_base_url"] or "",
             ),
             video=ModelConfig(
                 model=row["video_model"] or "",
-                api_key=row["video_api_key"] or "",
+                api_key="",
                 base_url=row["video_base_url"] or "",
             ),
         )

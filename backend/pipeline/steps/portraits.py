@@ -81,7 +81,8 @@ async def _generate_character_portraits(
         else:
             views_to_do.append(view)
             tasks.append(_generate_one(service, emit, identifier, character, view,
-                                       aspect_size, front_ref=front_ref))
+                                       aspect_size, style=config.style,
+                                       front_ref=front_ref))
 
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)

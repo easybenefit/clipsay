@@ -275,6 +275,32 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── Error state ── */
+
+.story-card-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 160px;
+  animation: story-content-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.story-card-error-icon {
+  font-size: 2rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.story-card-error-text {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 380px;
+  line-height: 1.6;
+}
+
 /* ── Editor dialog ── */
 
 .story-editor-backdrop {

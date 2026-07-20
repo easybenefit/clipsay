@@ -587,26 +587,26 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 32px 16px;
-  min-height: 120px;
-  border-radius: 6px;
+  gap: 12px;
+  padding: 48px 16px;
+  min-height: 200px;
+  flex: 1;
+  border-radius: 8px;
   background: var(--bg);
   border: 1px solid var(--border-subtle);
 }
 
 .scene-preview-empty-icon {
   color: var(--text-dim);
-  opacity: 0.35;
+  opacity: 0.4;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .scene-preview-empty-text {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--text-dim);
-  opacity: 0.6;
   letter-spacing: 0.02em;
 }
 

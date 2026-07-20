@@ -157,13 +157,10 @@ class ProjectUpdate(BaseModel):
     frame_rate: Optional[int] = None
     duration: Optional[int] = None
     chat_model: Optional[str] = None
-    chat_api_key: Optional[str] = None
     chat_base_url: Optional[str] = None
     image_model: Optional[str] = None
-    image_api_key: Optional[str] = None
     image_base_url: Optional[str] = None
     video_model: Optional[str] = None
-    video_api_key: Optional[str] = None
     video_base_url: Optional[str] = None
     stage: Optional[str] = None
     story: Optional[str] = None

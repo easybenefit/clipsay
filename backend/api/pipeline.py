@@ -9,7 +9,9 @@ from fastapi.responses import StreamingResponse
 
 from backend.db import (
     DB_PATH, get_pipeline_status, update_pipeline_status, read_full_project,
+    update_step_db_status,
 )
+from backend.db.projects import STEP_STATUS_COLUMNS
 from backend.db.projects import load_session_config
 from backend.schemas import (
     PipelineStartRequest, RegenerateStepRequest,
@@ -63,19 +65,6 @@ async def pipeline_start(project_id: int, body: PipelineStartRequest):
     cfg.image.base_url = body.image_base_url or cfg.image.base_url
     cfg.video.api_key = body.video_api_key or cfg.video.api_key
     cfg.video.base_url = body.video_base_url or cfg.video.base_url
-
-    # persist credentials so regenerate-step and restarts can reload them
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE projects SET chat_api_key=?, chat_base_url=?, "
-            "image_api_key=?, image_base_url=?, "
-            "video_api_key=?, video_base_url=? WHERE id=?",
-            (cfg.chat.api_key, cfg.chat.base_url,
-             cfg.image.api_key, cfg.image.base_url,
-             cfg.video.api_key, cfg.video.base_url,
-             project_id),
-        )
-        await db.commit()
 
     runner = PipelineRunner.get_for_project(project_id)
     await runner.start(cfg, start_step=body.start_step)
@@ -139,6 +128,10 @@ async def pipeline_status(project_id: int):
     if status.get("pipeline_status") == "running" and not status["is_running"]:
         await update_pipeline_status(project_id, "paused")
         status["pipeline_status"] = "paused"
+        # Reset stale step statuses (CREATING=1) back to PENDING=0 so
+        # the frontend doesn't show endless loading skeletons.
+        for step_name in STEP_STATUS_COLUMNS:
+            await update_step_db_status(project_id, step_name, 0)
     return status
 
 

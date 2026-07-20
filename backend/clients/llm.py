@@ -18,6 +18,7 @@ Usage
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any
@@ -125,6 +126,7 @@ class LLM:
         rpd: int | None = None,
         metadata: dict[str, Any] | None = None,
         urgent: bool = False,
+        timeout: int = 120,
         **invoke_kwargs: Any,
     ) -> str:
         """Send a chat message with rate-limited queuing.
@@ -133,6 +135,9 @@ class LLM:
         ----------
         rpm, rpd
             If not provided, falls back to class defaults (set via ``configure()``).
+        timeout
+            Maximum seconds to wait for the API response (default 120).
+            Raises ``TimeoutError`` if exceeded.
         """
         rpm = cls._default_rpm if rpm is None else rpm
         rpd = cls._default_rpd if rpd is None else rpd
@@ -151,11 +156,18 @@ class LLM:
         langchain_model = cls._models[key]
 
         try:
-            result = await queue.submit(
-                lambda: langchain_model.ainvoke(messages, **invoke_kwargs),
-                task_id=task_id,
-                metadata=metadata,
-                urgent=urgent,
+            result = await asyncio.wait_for(
+                queue.submit(
+                    lambda: langchain_model.ainvoke(messages, **invoke_kwargs),
+                    task_id=task_id,
+                    metadata=metadata,
+                    urgent=urgent,
+                ),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            raise TimeoutError(
+                f"LLM call timed out after {timeout}s (model={model})"
             )
         except Exception as e:
             if _is_non_retryable(e):
