@@ -1530,6 +1530,10 @@ function NewProject(props: NewProjectProps): JSX.Element {
                   : isRunning ? 'npm-step-running'
                   : rawStatus === 'failed' ? 'npm-step-failed'
                   : 'npm-step-pending'
+                const stepProgress = stepState?.progress ?? 0
+                const stepMessage = stepState?.status === 'running' && pipeline.status?.pipeline_message
+                  ? pipeline.status.pipeline_message
+                  : ''
                 return (
                   <div key={step.num} className={`npm-step ${statusClass}`} style={{ '--step-index': si } as React.CSSProperties}>
                     <span className="npm-step-icon">{step.icon}</span>
@@ -1538,6 +1542,14 @@ function NewProject(props: NewProjectProps): JSX.Element {
                       {step.title}
                     </div>
                     <div className="npm-step-desc-sm">{step.desc}</div>
+                    {isRunning && stepProgress > 0 && (
+                      <div className="npm-step-message">{stepMessage || `${Math.round(stepProgress * 100)}%`}</div>
+                    )}
+                    {isRunning && (
+                      <div className="npm-step-progress-track">
+                        <div className="npm-step-progress-fill" style={{ width: `${Math.max(stepProgress * 100, 5)}%` }} />
+                      </div>
+                    )}
                     <div className="npm-step-glow" />
                   </div>
                 )
@@ -1555,7 +1567,30 @@ function NewProject(props: NewProjectProps): JSX.Element {
             </div>
           )}
 
-          {(!showPlaceholder || creating) && (
+          {creating && showPlaceholder && (
+            <div className="npm-creating-overlay">
+              <div className="npm-creating-orb">
+                <div className="npm-creating-orb-ring" />
+                <div className="npm-creating-orb-ring" />
+                <div className="npm-creating-orb-ring" />
+                <div className="npm-creating-orb-core">✦</div>
+              </div>
+              <div className="npm-creating-text">
+                <div className="npm-creating-title">正在创作</div>
+                <div className="npm-creating-sub">
+                  {pipeline.status?.pipeline_message || 'AI 正在全力构思你的故事...'}
+                </div>
+                {pipeline.status?.pipeline_step && (
+                  <div className="npm-creating-step">
+                    <span className="npm-creating-step-dot" />
+                    {STEPS.find(s => s.stepKey === pipeline.status!.pipeline_step)?.title || pipeline.status.pipeline_step}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(!showPlaceholder || creating) && !(creating && showPlaceholder) && (
             <div className="npm-card-enter">
             <StoryCard
               title={storyTitle}

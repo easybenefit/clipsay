@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { toCssAspectRatio } from './sizeConfig'
 import ImageWithPlaceholder from './ImageWithPlaceholder'
 import { FrameCard, MediaPreview, type MediaPreviewData, type SceneData } from './ShootingScriptCard'
@@ -18,6 +18,24 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [mediaPreview, setMediaPreview] = useState<MediaPreviewData | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const card = cardRef.current
+    if (!card) return
+    const rect = card.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1)
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1)
+    card.style.setProperty('--glow-x', `${x}%`)
+    card.style.setProperty('--glow-y', `${y}%`)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    const card = cardRef.current
+    if (!card) return
+    card.style.setProperty('--glow-x', '50%')
+    card.style.setProperty('--glow-y', '50%')
+  }, [])
 
   const hasVideo = !!(finalVideo || scenes.some(s => s.compositedVideo))
 
@@ -34,25 +52,28 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
   }
 
   return (
-    <div className="script-card">
+    <div className="script-card creative-video-card" ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <div className="script-card-header">
-        <div className="script-card-title">TV Show</div>
+        <div className="script-card-title">
+          <span className="script-card-title-pill">作品</span>
+        </div>
         {onRefresh && (
-          <button
-            className={`card-refresh-btn${refreshing ? ' spinning' : ''}`}
-            onClick={handleRefresh}
-            disabled={refreshing}
-            title="重新合成视频"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </button>
+          <div className="card-actions">
+            <button
+              className={`story-link${refreshing ? ' story-link-disabled' : ''}`}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="重新合成视频"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
-      <div className="script-card-divider" />
       {!hasVideo && finalVideoStatus !== 1 ? (
         <div className="script-card-empty">
           <div className="script-card-empty-text">暂无可用的视频</div>
@@ -71,7 +92,7 @@ function CreativeVideoCard({ scenes, aspectRatio = '16:9', finalVideo, finalPrev
                   onHover={setHoveredKey}
                   isVideo
                   frameStyle={{ aspectRatio: cssAspectRatio, width: '100%', height: 'auto' }}
-                  onClick={() => setMediaPreview({ items: [{ src: finalVideo, isVideo: true, label: 'TV Show' }], currentIndex: 0 })}
+                  onClick={() => setMediaPreview({ items: [{ src: finalVideo, isVideo: true, label: '作品' }], currentIndex: 0 })}
                 />
               </div>
             ) : finalVideoStatus === 1 || finalVideoStatus === 2 ? (

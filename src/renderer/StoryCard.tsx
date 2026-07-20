@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Markdown from './Markdown'
 import { useEscClose } from './useEscClose'
 import './StoryCard.css'
@@ -15,17 +15,43 @@ interface StoryCardProps {
 
 function StoryCard({ title, content, loading = false, regenerating = false, disabled = false, onRegenerate, onSave }: StoryCardProps): JSX.Element {
   const [showEditor, setShowEditor] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const card = cardRef.current
+    if (!card) return
+    const rect = card.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1)
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1)
+    card.style.setProperty('--glow-x', `${x}%`)
+    card.style.setProperty('--glow-y', `${y}%`)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    const card = cardRef.current
+    if (!card) return
+    card.style.setProperty('--glow-x', '50%')
+    card.style.setProperty('--glow-y', '50%')
+  }, [])
 
   const handleSave = (text: string) => {
     onSave?.(text)
   }
 
   return (
-    <div className="story-card">
+    <div className="story-card" ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <div className="story-card-header">
-        <div className="story-card-title">故事</div>
+        <div className="story-card-title">
+          <span className="story-card-title-pill">故事  ·  {title || '故事'}</span>
+        </div>
         {!loading && (
           <div className="story-card-actions">
+            <button className={`story-link${disabled || showEditor ? ' story-link-disabled' : ''}`} onClick={() => !disabled && setShowEditor(true)} title="编辑">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
             <button className={`story-link${disabled || showEditor ? ' story-link-disabled' : ''}`} onClick={() => !disabled && onRegenerate()} title="重新创作">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" />
@@ -40,25 +66,20 @@ function StoryCard({ title, content, loading = false, regenerating = false, disa
 
       {loading ? (
         <div className="story-card-loading">
-          <div className="story-card-loading-icon">✦</div>
-          <div className="story-card-loading-text">{regenerating ? '正在重新创作' : '正在创作'}</div>
-        </div>
+            <div className="story-card-skeleton-lines">
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+              <div className="story-card-skeleton-line" />
+            </div>
+          </div>
       ) : (
         <div className="story-card-body">
-            <div className="story-card-body-item">
-              <div className="story-card-body-pill">
-                <span className="story-card-body-pill-title">{title || '故事'}</span>
-              </div>
-              {!loading && (
-                <button className={`story-card-body-edit${disabled ? ' story-link-disabled' : ''}`} onClick={() => !disabled && setShowEditor(true)} title="编辑">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </button>
-              )}
-              <div className="story-card-content"><Markdown content={content} /></div>
-            </div>
+            <div className="story-card-content"><Markdown content={content} /></div>
         </div>
       )}
 

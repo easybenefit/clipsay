@@ -174,10 +174,22 @@ body.window-maximized.show-new-sidebar .new-project-layout {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   position: relative;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.32,0.72,0,1);
+}
+
+.np-generate-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
 }
 
 .np-generate-btn:hover {
@@ -196,18 +208,34 @@ body.window-maximized.show-new-sidebar .new-project-layout {
 }
 
 .np-generate-btn.creating {
-  animation: np-btn-pulse 1.4s ease-in-out infinite;
+  animation: np-btn-breathe 2s ease-in-out infinite;
+  cursor: wait;
 }
 
-.np-btn-icon {
+.np-generate-btn.creating::before {
+  opacity: 1;
+  animation: np-btn-shimmer 2s ease-in-out infinite;
+}
+
+.np-generate-btn.creating .np-btn-spinner {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
+  animation: np-btn-spin 1s linear infinite;
 }
 
-.np-generate-btn.creating .np-btn-icon {
-  animation: np-btn-spin 1.2s linear infinite;
+@keyframes np-btn-breathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 24px rgba(139,92,246,0.2), 0 0 0 0 rgba(139,92,246,0.1);
+  }
+  50% {
+    transform: scale(1.015);
+    box-shadow: 0 6px 32px rgba(139,92,246,0.35), 0 0 0 3px rgba(139,92,246,0.08);
+  }
+}
+
+@keyframes np-btn-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes np-btn-spin {
@@ -215,9 +243,21 @@ body.window-maximized.show-new-sidebar .new-project-layout {
   to { transform: rotate(360deg); }
 }
 
-@keyframes np-btn-pulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.6; }
+.np-btn-spinner {
+  display: none;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.np-btn-step-label {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .np-label {
@@ -615,6 +655,67 @@ body.window-maximized.show-new-sidebar .new-project-layout {
   color: var(--text-muted);
 }
 
+/* ── Step Progress Bar ── */
+.npm-step-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.npm-step-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-end));
+  border-radius: 0 0 0 14px;
+  transition: width 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+  position: relative;
+}
+
+.npm-step-progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+  border-radius: 0 0 14px 0;
+}
+
+.npm-step-running .npm-step-progress-fill {
+  animation: np-progress-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes np-progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Step Message ── */
+.npm-step-message {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  position: relative;
+  z-index: 1;
+  margin-top: -2px;
+  transition: opacity 0.3s ease;
+}
+
+.npm-step-running .npm-step-message {
+  color: rgba(255,255,255,0.5);
+}
+
 .npm-output {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -738,6 +839,122 @@ body.window-maximized.show-new-sidebar .new-project-layout {
   50% {
     opacity: 0.85;
   }
+}
+
+/* ── Creating Overlay ── */
+.npm-creating-overlay {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 280px;
+  height: 100%;
+  user-select: none;
+  animation: npm-creating-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.npm-creating-orb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.npm-creating-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(139,92,246,0.2);
+  animation: npm-orb-expand 2s ease-out infinite;
+}
+
+.npm-creating-orb-ring:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.npm-creating-orb-ring:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+.npm-creating-orb-core {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-end));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #fff;
+  box-shadow: 0 0 24px rgba(139,92,246,0.2);
+  animation: npm-orb-pulse 2s ease-in-out infinite;
+}
+
+.npm-creating-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.npm-creating-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.npm-creating-sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-weight: 400;
+  min-height: 1.2em;
+  transition: opacity 0.3s ease;
+}
+
+.npm-creating-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(139,92,246,0.08);
+  border: 1px solid rgba(139,92,246,0.12);
+  animation: npm-creating-step-in 0.4s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.npm-creating-step-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: npm-step-dot-blink 1s ease-in-out infinite;
+}
+
+@keyframes npm-creating-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes npm-orb-expand {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes npm-orb-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(139,92,246,0.2); }
+  50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(139,92,246,0.35); }
+}
+
+@keyframes npm-creating-step-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes card-fade-in {
