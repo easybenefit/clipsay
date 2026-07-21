@@ -153,9 +153,9 @@ function SceneScriptsCard(): JSX.Element {
       </div>
       <div className="scene-scripts-card-body-area">
         <div className="scene-scripts-card-body">
-          {scenes.length === 0 ? (
+          {scenes.length === 0 && !loading ? (
             <div className="scene-scripts-card-empty">暂无可用的场景</div>
-          ) : (
+          ) : scenes.length === 0 ? null : (
             <ul className="scene-scripts-card-list" onMouseMove={handleItemMouseMove} onMouseLeave={handleItemMouseLeave}>
               {scenes.map((scene, idx) => {
                 const cleanTitle = scene.title || `场景${idx + 1}`

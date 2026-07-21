@@ -90,6 +90,7 @@ export function usePipelineSSE(
   // Connect SSE
   useEffect(() => {
     if (!projectId) {
+      setStatus(null)
       setConnected(false)
       eventSourceRef.current?.close()
       eventSourceRef.current = null

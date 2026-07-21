@@ -227,11 +227,7 @@ function NewProject(props: NewProjectProps): JSX.Element {
                     {ss.isRunning && ss.progress > 0 && (
                       <div className="npm-step-message">{ss.message || `${Math.round(ss.progress * 100)}%`}</div>
                     )}
-                    {ss.isRunning && (
-                      <div className="npm-step-progress-track">
-                        <div className="npm-step-progress-fill" style={{ width: `${Math.max(ss.progress * 100, 5)}%` }} />
-                      </div>
-                    )}
+
                     <div className="npm-step-glow" />
                   </div>
                 )

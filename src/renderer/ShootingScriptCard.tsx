@@ -303,14 +303,10 @@ function SceneCard({ scene, sceneIdx, sceneKey, hoveredKey, onHover, onEdit, onE
       </div>
       <div className="script-card-item-divider" />
 
-      {loading && creating ? (
+      {loading ? (
         <div className="scene-loading">
           <div className="scene-loading-icon">✦</div>
           <div className="scene-loading-text">正在创作</div>
-        </div>
-      ) : loading ? (
-        <div className="scene-loading">
-          <div className="scene-loading-text">暂无可用的描述</div>
         </div>
       ) : (
         <>
